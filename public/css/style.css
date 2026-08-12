@@ -1,0 +1,287 @@
+/* ==========================================================================
+   Adamas2Aurum — Stylesheet
+   Plain CSS. No frameworks. No Tailwind.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #0f0f23;
+  color: #e0e0e0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  padding: 1rem;
+}
+
+/* --- Cards --- */
+.auth-card,
+.dashboard-card {
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+
+.auth-card h1,
+.dashboard-card h1 {
+  font-size: 2rem;
+  color: #fff;
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.05em;
+}
+
+.subtitle {
+  color: #888;
+  font-size: 0.875rem;
+  margin-bottom: 2rem;
+}
+
+/* --- Auth Sections --- */
+.auth-section {
+  margin-bottom: 1.5rem;
+}
+
+.auth-section h2 {
+  font-size: 1.1rem;
+  color: #ccc;
+  margin-bottom: 0.5rem;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #2a2a4a;
+  margin: 1.5rem 0;
+}
+
+/* --- "or" divider --- */
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  color: #555;
+  font-size: 0.8rem;
+}
+
+.or-divider::before,
+.or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #2a2a4a;
+}
+
+/* --- Form Inputs --- */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-form input[type="text"],
+.auth-form input[type="email"],
+.auth-form input[type="password"] {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: #12122a;
+  border: 1px solid #2a2a4a;
+  border-radius: 10px;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.auth-form input:focus {
+  border-color: #4a6fa5;
+}
+
+.auth-form input::placeholder {
+  color: #555;
+}
+
+/* --- Buttons --- */
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.btn-google {
+  background: #fff;
+  color: #333;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: #2a2a4a;
+  color: #ccc;
+  margin-top: 1.5rem;
+}
+
+.btn-secondary:hover {
+  background: #3a3a5a;
+}
+
+.btn-danger {
+  background: #7f1d1d;
+  color: #fca5a5;
+  border: 1px solid #991b1b;
+}
+
+.btn-danger:hover {
+  background: #991b1b;
+}
+
+/* --- Status Messages --- */
+.status {
+  margin-top: 1.5rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: #1e3a5f;
+  color: #7ec8e3;
+}
+
+.status.error {
+  background: #3a1e1e;
+  color: #e88;
+}
+
+.status.success {
+  background: #1e3a1e;
+  color: #4ade80;
+}
+
+.hidden {
+  display: none;
+}
+
+/* --- Forgot Password Link --- */
+.forgot-link {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* --- Danger Zone (Dashboard) --- */
+.danger-zone {
+  margin-top: 0.5rem;
+}
+
+/* --- Dashboard --- */
+.user-info {
+  margin: 1.5rem 0;
+}
+
+.user-details {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  text-align: left;
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid #4a4a6a;
+}
+
+.user-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.user-email {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+.user-id {
+  color: #555;
+  font-size: 0.75rem;
+  font-family: monospace;
+  margin-top: 0.25rem;
+}
+
+.welcome {
+  margin-top: 1.5rem;
+  color: #4ade80;
+  font-weight: 600;
+}
+
+.error {
+  color: #e88;
+}
+
+.error a {
+  color: #7ec8e3;
+}
+
+a {
+  color: #7ec8e3;
+}
