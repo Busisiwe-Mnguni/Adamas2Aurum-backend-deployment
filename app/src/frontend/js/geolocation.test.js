@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { jest } from '@jest/globals'
 
 import { get_player_location } from './geolocation.js'
 
@@ -24,7 +24,9 @@ describe('get_player_location', () => {
 		})
 
 		Object.defineProperty(global.navigator, 'geolocation', {
-			value: { getCurrentPosition: mock_get_current_position },
+			value: {
+				getCurrentPosition: mock_get_current_position,
+			},
 			configurable: true,
 		})
 

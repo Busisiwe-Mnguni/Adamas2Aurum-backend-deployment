@@ -17,10 +17,8 @@ async function get_player_event_eligibality(game_event) {
 			event_loc[1]
 		)
 
-		if (d < game_event.radius_meters)
-			return true;
-		else
-			return false;
+		if (d < game_event.radius_meters) return true
+		else return false
 	} catch (err) {
 		return false
 	}

@@ -9,7 +9,10 @@ export function get_player_location() {
 			(geo) => {
 				// returns a GeolocationCoordinates object
 				// Source: 'https://developer.mozilla.org/en-US/docs/Web/API/GeolocationCoordinates'
-				resolve([geo.coords.latitude, geo.coords.longitude])
+				resolve([
+					geo.coords.latitude,
+					geo.coords.longitude,
+				])
 			},
 			(geo_error) => {
 				reject(
