@@ -1,5 +1,5 @@
 {
-	"description": "",
+	"description": "A location-based campus trivia and card-battle game.",
 	"devDependencies": {
 		"jest": "^29.7.0",
 		"jest-environment-jsdom": "^29.7.0",
@@ -25,13 +25,13 @@
 			}
 		]
 	},
-	"name": "a2a",
+	"name": "Adamas2Aurum",
 	"private": true,
 	"scripts": {
-		"dev": "npm run dev --prefix src/backend",
+		"dev": "npm run dev --prefix app/src/backend",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"start": "npm run start --prefix src/backend",
+		"start": "npm run start --prefix app/src/backend",
 		"test": "node --experimental-vm-modules node_modules/.bin/jest",
 		"test:backend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects backend",
 		"test:frontend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects frontend",
