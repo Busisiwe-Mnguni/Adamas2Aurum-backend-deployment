@@ -1,3 +1,4 @@
+// returns: [latitude, longitude]
 export function get_player_location() {
 	return new Promise((resolve, reject) => {
 		if (!navigator.geolocation) {
@@ -8,7 +9,7 @@ export function get_player_location() {
 			(geo) => {
 				// returns a GeolocationCoordinates object
 				// Source: 'https://developer.mozilla.org/en-US/docs/Web/API/GeolocationCoordinates'
-				resolve(geo.coords)
+				resolve([geo.coords.latitude, geo.coords.longitude])
 			},
 			(geo_error) => {
 				reject(

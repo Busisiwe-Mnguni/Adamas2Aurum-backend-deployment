@@ -1,0 +1,42 @@
+{
+   "description" : "",
+   "devDependencies" : {
+      "jest" : "^29.7.0",
+      "jest-environment-jsdom" : "^29.7.0",
+      "prettier" : "^3.9.6"
+   },
+   "jest" : {
+      "projects" : [
+         {
+            "displayName" : "frontend",
+            "rootDir" : "app/src/frontend",
+            "testEnvironment" : "jsdom",
+            "testMatch" : [
+               "<rootDir>/**/*.test.js"
+            ]
+         },
+         {
+            "displayName" : "backend",
+            "rootDir" : "app/src/backend",
+            "testEnvironment" : "node",
+            "testMatch" : [
+               "<rootDir>/**/*.test.js"
+            ]
+         }
+      ]
+   },
+   "name" : "a2a",
+   "private" : true,
+   "scripts" : {
+      "dev" : "npm run dev --prefix src/backend",
+      "format" : "prettier --write .",
+      "format:check" : "prettier --check .",
+      "start" : "npm run start --prefix src/backend",
+      "test" : "node --experimental-vm-modules node_modules/.bin/jest",
+      "test:backend" : "node --experimental-vm-modules node_modules/.bin/jest --selectProjects backend",
+      "test:frontend" : "node --experimental-vm-modules node_modules/.bin/jest --selectProjects frontend",
+      "test:watch" : "node --experimental-vm-modules node_modules/.bin/jest --watch"
+   },
+   "type" : "module",
+   "version" : "1.0.0"
+}
