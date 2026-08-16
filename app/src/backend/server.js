@@ -1,6 +1,6 @@
 import express from 'express'
 
-import pool from './db.js'
+import pool from './utils/db.js'
 import event_routes from './routes/events.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
