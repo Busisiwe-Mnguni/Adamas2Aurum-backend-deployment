@@ -1,0 +1,15 @@
+body {
+	display: flex;
+	flex-direction: vertical;
+	align-items: center;
+	justify-content: space-evenly;
+	width: 100vw;
+	height: 100vh;
+	color: #222;
+}
+
+#message {
+	font-size: 2rem;
+	text-align: center;
+	margin-bottom: 24px;
+}

@@ -1,10 +1,12 @@
 import { distance } from '../utils/general.js'
 import { get_player_location } from '../utils/geolocation.js'
 
+// returns: [latitude, longitude]
 function get_event_location(game_event) {
 	return [game_event.latitude, game_event.longitude]
 }
 
+// returns: true or false
 async function get_player_event_eligibality(game_event) {
 	try {
 		var player_loc = await get_player_location()
