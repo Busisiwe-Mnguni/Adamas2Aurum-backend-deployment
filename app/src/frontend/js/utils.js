@@ -48,7 +48,7 @@ function toDatetimeLocal(iso) {
 }
 
 /* Build shared event card body (pills + title + desc)*/
-function buildCardBody(ev) {
+export function buildCardBody(ev) {
 	const activeClass = ev.is_active ? 'active' : 'inactive'
 	const activeLabel = ev.is_active ? 'Active' : 'Inactive'
 	const startLabel = ev.starts_at

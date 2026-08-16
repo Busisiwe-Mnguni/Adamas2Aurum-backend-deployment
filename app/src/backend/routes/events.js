@@ -5,6 +5,13 @@ import { error, success } from '../utils/response.js'
 
 const router = express.Router()
 
+router.use((req, res, next) => {
+	console.log(
+		`[Events Router Log] ${new Date().toISOString()} - ${req.method} ${req.originalUrl}`
+	)
+	next()
+})
+
 function requireAuth(req, res, next) {
 	if (!req.user?.user_id) {
 		return res
@@ -31,49 +38,43 @@ function requireEventAuthor(req, res, next) {
 	pool.query(sql, [req.user.user_id, ...allowedRoles], (err, rows) => {
 		if (err) return res.status(500).json({ error: err.message })
 		if (!rows.length) {
-			return res
-				.status(403)
-				.json({
-					error: 'Forbidden — event author role required',
-				})
+			return res.status(403).json({
+				error: 'Forbidden — event author role required',
+			})
 		}
 		next()
 	})
 }
 
-router.get('/', (req, res) => {
-	pool.query(
-		'SELECT * FROM events WHERE is_active = TRUE',
-		(err, results) => {
-			if (err)
-				return res
-					.status(500)
-					.json({ error: err.message })
-			res.json(results)
-		}
-	)
+router.get('/', async (req, res) => {
+	try {
+		const [results] = await pool.query(
+			'SELECT * FROM events WHERE is_active = TRUE'
+		)
+		res.json(results)
+	} catch (err) {
+		res.status(500).json({ error: err.message })
+	}
 })
 
-router.get('/:id', (req, res) => {
-	// FIX: was req.prams.id (typo) and WHERE id=? (wrong column name)
-	pool.query(
-		'SELECT * FROM events WHERE event_id = ?',
-		[req.params.id],
-		(err, results) => {
-			if (err)
-				return res
-					.status(500)
-					.json({ error: err.message })
-			if (!results.length)
-				return res
-					.status(404)
-					.json({ error: 'Event not found' })
-			res.json(results[0])
+router.get('/:id', async (req, res) => {
+	try {
+		const [results] = await pool.query(
+			'SELECT * FROM events WHERE event_id = ?',
+			[req.params.id]
+		)
+		if (!results.length) {
+			return res
+				.status(404)
+				.json({ error: 'Event not found' })
 		}
-	)
+		res.json(results[0])
+	} catch (err) {
+		res.status(500).json({ error: err.message })
+	}
 })
 
-router.post('/', requireAuth, requireEventAuthor, (req, res) => {
+router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
 	const {
 		title,
 		description,
@@ -122,16 +123,18 @@ router.post('/', requireAuth, requireEventAuthor, (req, res) => {
 		req.user.user_id, // author_id — always from session
 	]
 
-	pool.query(sql, values, (err, result) => {
-		if (err) return res.status(500).json({ error: err.message })
+	try {
+		const [result] = await pool.query(sql, values)
 		res.status(201).json({
 			message: 'Event created',
 			event_id: result.insertId,
 		})
-	})
+	} catch (err) {
+		res.status(500).json({ error: err.message })
+	}
 })
 
-router.put('/:id', requireAuth, requireEventAuthor, (req, res) => {
+router.put('/:id', requireAuth, requireEventAuthor, async (req, res) => {
 	const {
 		title,
 		description,
@@ -141,8 +144,8 @@ router.put('/:id', requireAuth, requireEventAuthor, (req, res) => {
 		point_threshold,
 		point_reward,
 		starts_at,
-		ends_at, // FIX: was 'duration' — old column name
-		repeat_interval, // FIX: was 'event_interval' — old column name
+		ends_at,
+		repeat_interval,
 		attempt_cooldown_s,
 		max_attempts_per_window,
 		is_active,
@@ -184,34 +187,34 @@ router.put('/:id', requireAuth, requireEventAuthor, (req, res) => {
 		req.params.id,
 	]
 
-	pool.query(sql, values, (err, result) => {
-		if (err) return res.status(500).json({ error: err.message })
+	try {
+		const [result] = await pool.query(sql, values)
 		if (!result.affectedRows) {
 			return res
 				.status(404)
 				.json({ error: 'Event not found' })
 		}
 		res.json({ message: 'Event updated' })
-	})
+	} catch (err) {
+		res.status(500).json({ error: err.message })
+	}
 })
 
-router.delete('/:id', requireAuth, requireEventAuthor, (req, res) => {
-	pool.query(
-		'DELETE FROM events WHERE event_id = ?',
-		[req.params.id],
-		(err, result) => {
-			if (err)
-				return res
-					.status(500)
-					.json({ error: err.message })
-			if (!result.affectedRows) {
-				return res
-					.status(404)
-					.json({ error: 'Event not found' })
-			}
-			res.json({ message: 'Event deleted' })
+router.delete('/:id', requireAuth, requireEventAuthor, async (req, res) => {
+	try {
+		const [result] = await pool.query(
+			'DELETE FROM events WHERE event_id = ?',
+			[req.params.id]
+		)
+		if (!result.affectedRows) {
+			return res
+				.status(404)
+				.json({ error: 'Event not found' })
 		}
-	)
+		res.json({ message: 'Event deleted' })
+	} catch (err) {
+		res.status(500).json({ error: err.message })
+	}
 })
 
 export default router

@@ -23,7 +23,7 @@ function calculate_haversine_distance(lat1, lon1, lat2, lon2) {
 	return R * c
 }
 
-function distance(loc1, loc2) {
+export function distance(loc1, loc2) {
 	return calculate_haversine_distance(
 		loc1.latitude,
 		loc1.longitude,

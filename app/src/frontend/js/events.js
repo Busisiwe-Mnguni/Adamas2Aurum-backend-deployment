@@ -1,6 +1,7 @@
 import { API_BASE } from './constants.js'
 import { distance } from './general.js'
 import { get_player_location } from './geolocation.js'
+import { buildCardBody } from './utils.js'
 
 const elLoading = document.getElementById('loading')
 const elEmpty = document.getElementById('empty')
@@ -56,7 +57,7 @@ async function loadEvents() {
 	elEventList.innerHTML = ''
 
 	try {
-		const res = await fetch(API_BASE)
+		const res = await fetch(`${API_BASE}/api/events`)
 		if (!res.ok)
 			throw new Error(`Server responded with ${res.status}`)
 		const data = await res.json()
