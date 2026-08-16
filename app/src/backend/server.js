@@ -2,6 +2,7 @@ import express from 'express'
 
 import pool from './db.js'
 import event_routes from './routes/events.js'
+import { execute_sql_script } from './utils/sql_utils.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
