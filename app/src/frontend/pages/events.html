@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A2A — Campus Events</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="logo" href="events.html">
+        <span class="logo-a">A</span><span class="logo-sep">→</span><span class="logo-a">A</span>
+        <span class="logo-sub">Adamas to Aurum</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="main">
+    <div id="toast" class="toast" aria-live="polite"></div>
+
+    <div class="page-header">
+      <h1 class="page-title">Campus Events</h1>
+      <p class="page-subtitle">Head to a location on campus to participate and earn cards.</p>
+    </div>
+
+    <div id="loading" class="state-msg">Loading events…</div>
+    <div id="empty"   class="state-msg hidden">No active events right now — check back later.</div>
+    <div id="error"   class="state-msg error hidden"></div>
+
+    <ul id="event-list" class="event-list"></ul>
+  </main>
+
+  <script src="../js/utils.js"></script>
+  <script src="../js/events.js"></script>
+</body>
+</html>
