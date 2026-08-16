@@ -7,7 +7,7 @@ import event_routes from './routes/events.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
 const app = express()
-app.use(cors());
+app.use(cors())
 
 const PORT = process.env.PORT || 3000
 

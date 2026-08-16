@@ -1,4 +1,7 @@
 {
+	"dependencies": {
+		"serve": "^14.2.6"
+	},
 	"description": "A location-based campus trivia and card-battle game.",
 	"devDependencies": {
 		"jest": "^29.7.0",
@@ -30,10 +33,11 @@
 	"scripts": {
 		"db:down": "npm run db:down --prefix app/src/backend",
 		"db:up": "npm run db:up --prefix app/src/backend",
-		"dev": "npm run dev --prefix app/src/backend",
+		"dev:backend": "npm run dev --prefix app/src/backend",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"start": "npm run start --prefix app/src/backend",
+		"start:backend": "npm run start --prefix app/src/backend",
+		"start:frontend": "serve app/src/frontend",
 		"test": "node --experimental-vm-modules node_modules/.bin/jest",
 		"test:backend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects backend",
 		"test:frontend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects frontend",
