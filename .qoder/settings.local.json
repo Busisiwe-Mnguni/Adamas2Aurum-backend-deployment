@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(git --no-pager log --all --oneline -- '**/style.css' '**/*.css' 2>&1 | head -20)"
+    ]
+  }
+}
