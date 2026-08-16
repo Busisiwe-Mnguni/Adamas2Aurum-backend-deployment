@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     user_id       INT            AUTO_INCREMENT PRIMARY KEY,
     provider_id   VARCHAR(255)   NOT NULL UNIQUE,
     email         VARCHAR(255)   NOT NULL UNIQUE,
@@ -9,14 +9,13 @@ CREATE TABLE users (
     updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-
 -- ============================================================
 --  2. [B] ADMIN ROLES  (authoring console access)
 --
 --  Separates who can author events, cards, and questions from
 --  regular players. A user can hold multiple roles.
 -- ============================================================
-CREATE TABLE admin_roles (
+CREATE TABLE IF NOT EXISTS admin_roles (
     role_id     INT  AUTO_INCREMENT PRIMARY KEY,
     user_id     INT  NOT NULL,
     role        ENUM('SUPER_ADMIN','EVENT_AUTHOR','CARD_AUTHOR','MODERATOR') NOT NULL,
@@ -28,18 +27,7 @@ CREATE TABLE admin_roles (
     CONSTRAINT uq_ar           UNIQUE (user_id, role)
 );
 
-
-CREATE TABLE user_credentials (
-    user_id   INT          PRIMARY KEY,
-    pin_hash  VARCHAR(64)  NOT NULL,
-    created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_ucred_user FOREIGN KEY (user_id) REFERENCES users (user_id)
-);
-
-
-
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     event_id          INT             AUTO_INCREMENT PRIMARY KEY,
     title             VARCHAR(255)    NOT NULL,
     description       TEXT,
@@ -50,10 +38,8 @@ CREATE TABLE events (
     point_reward      INT             NOT NULL DEFAULT 10,
     starts_at         DATETIME,
     ends_at           DATETIME,
-    repeat_interval   INT,                             -- seconds; NULL = one-shot
-    -- [E] how long a player must wait before attempting the same event again
-    attempt_cooldown_s INT            NOT NULL DEFAULT 86400,  -- default 24 h
-    -- [E] max attempts allowed per player per cooldown window (0 = unlimited)
+    repeat_interval   INT,
+    attempt_cooldown_s INT            NOT NULL DEFAULT 86400,
     max_attempts_per_window INT       NOT NULL DEFAULT 1,
     is_active         BOOLEAN         NOT NULL DEFAULT TRUE,
     author_id         INT             NOT NULL,
@@ -62,19 +48,18 @@ CREATE TABLE events (
     CONSTRAINT fk_event_author FOREIGN KEY (author_id) REFERENCES users (user_id)
 );
 
-
-CREATE TABLE trivia_questions (
+CREATE TABLE IF NOT EXISTS trivia_questions (
     question_id   INT          AUTO_INCREMENT PRIMARY KEY,
     event_id      INT          NOT NULL,
     format        ENUM('MULTIPLE_CHOICE','TRUE_FALSE','MULTIPLE_SELECT','FILL_BLANK') NOT NULL,
     body          TEXT         NOT NULL,
     time_limit_s  INT          NOT NULL DEFAULT 30,
-    difficulty    TINYINT      NOT NULL DEFAULT 1,     -- 1=easy, 2=medium, 3=hard
+    difficulty    TINYINT      NOT NULL DEFAULT 1,
 
     CONSTRAINT fk_question_event FOREIGN KEY (event_id) REFERENCES events (event_id)
 );
 
-CREATE TABLE trivia_options (
+CREATE TABLE IF NOT EXISTS trivia_options (
     option_id     INT      AUTO_INCREMENT PRIMARY KEY,
     question_id   INT      NOT NULL,
     body          TEXT     NOT NULL,
@@ -83,8 +68,7 @@ CREATE TABLE trivia_options (
     CONSTRAINT fk_option_question FOREIGN KEY (question_id) REFERENCES trivia_questions (question_id)
 );
 
-
-CREATE TABLE cards (
+CREATE TABLE IF NOT EXISTS cards (
     card_id         INT          AUTO_INCREMENT PRIMARY KEY,
     name            VARCHAR(255) NOT NULL,
     flavour_text    TEXT,
@@ -96,11 +80,10 @@ CREATE TABLE cards (
     stat_influence  INT          NOT NULL DEFAULT 0,
     stat_legacy     INT          NOT NULL DEFAULT 100,
     stat_era        INT          NOT NULL DEFAULT 0,
-    ability_name    VARCHAR(100),                      -- Sprint 2/3
-    ability_desc    TEXT,                              -- Sprint 2/3
+    ability_name    VARCHAR(100),
+    ability_desc    TEXT,
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
 
 -- ============================================================
 --  6. EVENT → CARD POOL
@@ -109,20 +92,20 @@ CREATE TABLE cards (
 --      ever be awarded from this event across ALL players.
 --      NULL = unlimited (Common). Enforces RARE/LEGENDARY scarcity.
 -- ============================================================
-CREATE TABLE event_card_pool (
+CREATE TABLE IF NOT EXISTS event_card_pool (
     pool_id            INT  AUTO_INCREMENT PRIMARY KEY,
     event_id           INT  NOT NULL,
     card_id            INT  NOT NULL,
     weight             INT  NOT NULL DEFAULT 1,
-    global_copy_limit  INT,                            -- NULL = no cap
-    copies_awarded     INT  NOT NULL DEFAULT 0,        -- incremented on each award
+    global_copy_limit  INT,
+    copies_awarded     INT  NOT NULL DEFAULT 0,
 
     CONSTRAINT fk_pool_event FOREIGN KEY (event_id) REFERENCES events (event_id),
     CONSTRAINT fk_pool_card  FOREIGN KEY (card_id)  REFERENCES cards  (card_id),
     CONSTRAINT uq_pool       UNIQUE (event_id, card_id)
 );
 
-CREATE TABLE user_cards (
+CREATE TABLE IF NOT EXISTS user_cards (
     user_card_id  INT      AUTO_INCREMENT PRIMARY KEY,
     user_id       INT      NOT NULL,
     card_id       INT      NOT NULL,
@@ -133,7 +116,6 @@ CREATE TABLE user_cards (
     CONSTRAINT fk_uc_card FOREIGN KEY (card_id) REFERENCES cards (card_id),
     CONSTRAINT uq_uc      UNIQUE (user_id, card_id)
 );
-
 
 -- ============================================================
 --  8. [D] EVENT CARD AWARDS  — one card per event per user
@@ -146,7 +128,7 @@ CREATE TABLE user_cards (
 --  If a row exists, no card is awarded regardless of the
 --  trivia result — the player still earns points for winning.
 -- ============================================================
-CREATE TABLE event_card_awards (
+CREATE TABLE IF NOT EXISTS event_card_awards (
     award_id    INT      AUTO_INCREMENT PRIMARY KEY,
     user_id     INT      NOT NULL,
     event_id    INT      NOT NULL,
@@ -156,10 +138,8 @@ CREATE TABLE event_card_awards (
     CONSTRAINT fk_eca_user  FOREIGN KEY (user_id)  REFERENCES users   (user_id),
     CONSTRAINT fk_eca_event FOREIGN KEY (event_id) REFERENCES events  (event_id),
     CONSTRAINT fk_eca_card  FOREIGN KEY (card_id)  REFERENCES cards   (card_id),
-    -- Enforces the one-card-per-event-per-user rule at the DB level
     CONSTRAINT uq_eca       UNIQUE (user_id, event_id)
 );
-
 
 -- ============================================================
 --  9. [A] LOCATION CHECK LOG  (server-side GPS verification)
@@ -172,24 +152,22 @@ CREATE TABLE event_card_awards (
 --  This log is the audit trail for every check.
 --  status = SPOOFED triggers a moderation flag.
 -- ============================================================
-CREATE TABLE location_check_log (
+CREATE TABLE IF NOT EXISTS location_check_log (
     check_id          INT             AUTO_INCREMENT PRIMARY KEY,
     user_id           INT             NOT NULL,
     event_id          INT             NOT NULL,
-    claimed_lat       DECIMAL(10, 8)  NOT NULL,   -- what the client sent
+    claimed_lat       DECIMAL(10, 8)  NOT NULL,
     claimed_lng       DECIMAL(11, 8)  NOT NULL,
-    distance_meters   DECIMAL(10, 2)  NOT NULL,   -- server-calculated distance to event
+    distance_meters   DECIMAL(10, 2)  NOT NULL,
     status            ENUM('PENDING','VERIFIED','FAILED','SPOOFED') NOT NULL DEFAULT 'PENDING',
-    -- Velocity check: compare against the user's previous verified ping
-    prev_check_id     INT,                         -- NULL = first check
-    travel_speed_ms   DECIMAL(8, 2),               -- metres/second since last check; NULL if first
+    prev_check_id     INT,
+    travel_speed_ms   DECIMAL(8, 2),
     checked_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_lcl_user      FOREIGN KEY (user_id)      REFERENCES users            (user_id),
     CONSTRAINT fk_lcl_event     FOREIGN KEY (event_id)     REFERENCES events           (event_id),
     CONSTRAINT fk_lcl_prev      FOREIGN KEY (prev_check_id) REFERENCES location_check_log (check_id)
 );
-
 
 -- ============================================================
 --  10. TRIVIA ATTEMPT LOG
@@ -199,19 +177,19 @@ CREATE TABLE location_check_log (
 --      cooldown_until tells the server when the player may
 --      attempt again (set = attempted_at + attempt_cooldown_s).
 -- ============================================================
-CREATE TABLE trivia_attempts (
+CREATE TABLE IF NOT EXISTS trivia_attempts (
     attempt_id        INT      AUTO_INCREMENT PRIMARY KEY,
     user_id           INT      NOT NULL,
     event_id          INT      NOT NULL,
     question_id       INT      NOT NULL,
-    location_check_id INT      NOT NULL,            -- [A] must have a VERIFIED check to play
+    location_check_id INT      NOT NULL,
     is_correct        BOOLEAN  NOT NULL,
     answer_time_ms    INT      NOT NULL,
-    card_awarded_id   INT,                           -- NULL if wrong, or already awarded
+    card_awarded_id   INT,
     points_awarded    INT      NOT NULL DEFAULT 0,
     hint_used         BOOLEAN  NOT NULL DEFAULT FALSE,
-    attempt_number    INT      NOT NULL DEFAULT 1,  -- [E] which attempt in this window
-    cooldown_until    DATETIME,                     -- [E] NULL if no further cooldown applies
+    attempt_number    INT      NOT NULL DEFAULT 1,
+    cooldown_until    DATETIME,
     attempted_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_ta_user     FOREIGN KEY (user_id)           REFERENCES users              (user_id),
@@ -221,11 +199,10 @@ CREATE TABLE trivia_attempts (
     CONSTRAINT fk_ta_card     FOREIGN KEY (card_awarded_id)   REFERENCES cards              (card_id)
 );
 
-
 -- ============================================================
 --  11. DISCOVERED LOCATIONS  (anti-exploit gate for trading)
 -- ============================================================
-CREATE TABLE user_discovered_events (
+CREATE TABLE IF NOT EXISTS user_discovered_events (
     user_id    INT      NOT NULL,
     event_id   INT      NOT NULL,
     first_seen DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -235,34 +212,32 @@ CREATE TABLE user_discovered_events (
     CONSTRAINT fk_ude_event FOREIGN KEY (event_id) REFERENCES events (event_id)
 );
 
-
 -- ============================================================
 --  12. [C] AUDIT LOG  (authoring console trail)
 --
 --  Records every create/update/delete made through the admin
 --  console so changes can be reviewed and rolled back.
 -- ============================================================
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
     log_id        INT          AUTO_INCREMENT PRIMARY KEY,
-    actor_id      INT          NOT NULL,             -- admin who made the change
+    actor_id      INT          NOT NULL,
     action        ENUM('CREATE','UPDATE','DELETE')   NOT NULL,
-    target_table  VARCHAR(64)  NOT NULL,             -- e.g. 'events', 'cards', 'trivia_questions'
-    target_id     INT          NOT NULL,             -- PK of the affected row
-    before_state  JSON,                              -- snapshot before change; NULL on CREATE
-    after_state   JSON,                              -- snapshot after change;  NULL on DELETE
+    target_table  VARCHAR(64)  NOT NULL,
+    target_id     INT          NOT NULL,
+    before_state  JSON,
+    after_state   JSON,
     changed_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_al_actor FOREIGN KEY (actor_id) REFERENCES users (user_id)
 );
 
-
 -- ============================================================
 --  13. BATTLES
 -- ============================================================
-CREATE TABLE battles (
+CREATE TABLE IF NOT EXISTS battles (
     battle_id     INT      AUTO_INCREMENT PRIMARY KEY,
     player1_id    INT      NOT NULL,
-    player2_id    INT,                               -- NULL = CPU
+    player2_id    INT,
     winner_id     INT,
     status        ENUM('PENDING','ACTIVE','COMPLETED','ABANDONED') NOT NULL DEFAULT 'PENDING',
     started_at    DATETIME,
@@ -274,12 +249,12 @@ CREATE TABLE battles (
     CONSTRAINT fk_battle_winner FOREIGN KEY (winner_id)  REFERENCES users (user_id)
 );
 
-CREATE TABLE battle_decks (
+CREATE TABLE IF NOT EXISTS battle_decks (
     deck_id       INT     AUTO_INCREMENT PRIMARY KEY,
     battle_id     INT     NOT NULL,
     user_id       INT     NOT NULL,
     card_id       INT     NOT NULL,
-    slot_position TINYINT NOT NULL,                  -- 1–5
+    slot_position TINYINT NOT NULL,
 
     CONSTRAINT fk_bd_battle FOREIGN KEY (battle_id) REFERENCES battles (battle_id),
     CONSTRAINT fk_bd_user   FOREIGN KEY (user_id)   REFERENCES users   (user_id),
@@ -287,7 +262,7 @@ CREATE TABLE battle_decks (
     CONSTRAINT uq_bd_slot   UNIQUE (battle_id, user_id, slot_position)
 );
 
-CREATE TABLE battle_turns (
+CREATE TABLE IF NOT EXISTS battle_turns (
     turn_id        INT      AUTO_INCREMENT PRIMARY KEY,
     battle_id      INT      NOT NULL,
     turn_number    INT      NOT NULL,
@@ -303,11 +278,10 @@ CREATE TABLE battle_turns (
     CONSTRAINT fk_bt_card   FOREIGN KEY (card_played_id) REFERENCES cards   (card_id)
 );
 
-
 -- ============================================================
 --  14. TRADING
 -- ============================================================
-CREATE TABLE trades (
+CREATE TABLE IF NOT EXISTS trades (
     trade_id          INT      AUTO_INCREMENT PRIMARY KEY,
     initiator_id      INT      NOT NULL,
     receiver_id       INT      NOT NULL,
@@ -323,11 +297,10 @@ CREATE TABLE trades (
     CONSTRAINT fk_trade_rc   FOREIGN KEY (receiver_card_id)  REFERENCES cards (card_id)
 );
 
-
 -- ============================================================
 --  15. POINT TRANSACTIONS
 -- ============================================================
-CREATE TABLE point_transactions (
+CREATE TABLE IF NOT EXISTS point_transactions (
     txn_id       INT      AUTO_INCREMENT PRIMARY KEY,
     user_id      INT      NOT NULL,
     delta        INT      NOT NULL,
@@ -347,11 +320,10 @@ CREATE TABLE point_transactions (
     CONSTRAINT fk_pt_user FOREIGN KEY (user_id) REFERENCES users (user_id)
 );
 
-
 -- ============================================================
 --  16. COSMETICS
 -- ============================================================
-CREATE TABLE cosmetics (
+CREATE TABLE IF NOT EXISTS cosmetics (
     cosmetic_id  INT          AUTO_INCREMENT PRIMARY KEY,
     name         VARCHAR(255) NOT NULL,
     description  TEXT,
@@ -360,7 +332,7 @@ CREATE TABLE cosmetics (
     image_url    VARCHAR(500)
 );
 
-CREATE TABLE user_cosmetics (
+CREATE TABLE IF NOT EXISTS user_cosmetics (
     user_id      INT      NOT NULL,
     cosmetic_id  INT      NOT NULL,
     obtained_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -370,11 +342,10 @@ CREATE TABLE user_cosmetics (
     CONSTRAINT fk_ucos_cos  FOREIGN KEY (cosmetic_id) REFERENCES cosmetics (cosmetic_id)
 );
 
-
 -- ============================================================
 --  17. SEASONS & LEADERBOARD
 -- ============================================================
-CREATE TABLE seasons (
+CREATE TABLE IF NOT EXISTS seasons (
     season_id  INT          AUTO_INCREMENT PRIMARY KEY,
     name       VARCHAR(100) NOT NULL,
     starts_at  DATETIME     NOT NULL,
@@ -382,7 +353,7 @@ CREATE TABLE seasons (
     is_active  BOOLEAN      NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE leaderboard_entries (
+CREATE TABLE IF NOT EXISTS leaderboard_entries (
     entry_id   INT  AUTO_INCREMENT PRIMARY KEY,
     season_id  INT  NOT NULL,
     user_id    INT  NOT NULL,

@@ -1,41 +1,60 @@
-const express        = require('express');
-const cors           = require('cors');
-const path           = require('path');
-const session        = require('express-session');
-require('dotenv').config();
+import express from 'express'
+import cors from 'cors'
+import path from 'path'
 
-const eventsRouter   = require('./routes/events');
-const authRouter     = require('./routes/auth');
+import pool from './utils/db.js'
+import event_routes from './routes/events.js'
+import { execute_sql_script } from './utils/sql_utils.js'
 
-const app = express();
+const app = express()
+app.use(cors())
 
-app.use(cors({
-  origin: true,
-  credentials: true,
-}));
-app.use(express.json());
+const PORT = process.env.PORT || 3000
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    secure: false,
-    maxAge: 24 * 60 * 60 * 1000,
-  },
-}));
+async function initialize_database() {
+	await execute_sql_script(pool, './db/schema.sql')
+}
 
-app.use(express.static(path.join(__dirname, '../frontend')));
+async function seed_database() {
+	await execute_sql_script(pool, './db/seed.sql')
+}
 
-app.get('/',        (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/index.html')));
-app.get('/events',  (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/events.html')));
-app.get('/console', (req, res) => res.sendFile(path.join(__dirname, '../frontend/pages/console.html')));
+async function view_database() {
+	console.log(await pool.query('SELECT NOW() as currentTime;'))
+	console.log(await pool.query('SHOW DATABASES;'))
+	console.log(await pool.query('SHOW TABLES FROM testdb;'))
+}
 
-app.use('/api/auth',   authRouter);
-app.use('/api/events', eventsRouter);
+app.use(express.json())
 
-const PORT = process.env.PORT || 3000;
+app.use('/api/events', event_routes)
+
+app.get('/api/health', async (req, res) => {
+	try {
+		const [rows] = await pool.query('SHOW TABLES')
+
+		res.json({
+			success: true,
+			tables: rows,
+		})
+	} catch (error) {
+		console.error('Database connection failed:', error)
+
+		res.status(500).json({
+			success: false,
+			database: false,
+		})
+	}
+})
+
+try {
+	await initialize_database()
+	await seed_database()
+	await view_database()
+} catch (err) {
+	console.error('error: ', err.message)
+}
+
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+	console.log(`A2A backend running on port ${PORT}`)
+})

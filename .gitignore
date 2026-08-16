@@ -1,7 +1,8 @@
-.vscode
-
-*.pdf
 .env
+ca.pem
 
 node_modules
 package-lock.json
+
+.vscode
+*.pdf
