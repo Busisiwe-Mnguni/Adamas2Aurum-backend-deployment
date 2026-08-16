@@ -30,8 +30,8 @@ app.get('/api/health', async (req, res) => {
 })
 
 try {
-	await execute_sql_script(pool, './schema.sql')
-	await execute_sql_script(pool, './seed.sql')
+	await execute_sql_script(pool, './db/schema.sql')
+	await execute_sql_script(pool, './db/seed.sql')
 } catch (err) {
 	console.error('failed to run sql scripts')
 }

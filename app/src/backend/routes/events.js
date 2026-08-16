@@ -1,6 +1,6 @@
 import express from 'express'
 
-import pool from '../db.js'
+import pool from '../utils/db.js'
 import { error, success } from '../utils/response.js'
 
 const router = express.Router()
