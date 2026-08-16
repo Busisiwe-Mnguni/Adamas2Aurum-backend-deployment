@@ -8,19 +8,19 @@ A location-based campus trivia and card-battle game.
 
 ### **Frontend**
 
-* JavaScript (ESM)
+- JavaScript (ESM)
 
 ### **Backend**
 
-* Node.js
+- Node.js
 
 ### **Testing**
 
-* Jest (`jest-environment-jsdom` for frontend, Node environment for backend)
+- Jest (`jest-environment-jsdom` for frontend, Node environment for backend)
 
 ### **Formatting**
 
-* Prettier
+- Prettier
 
 ---
 
@@ -93,4 +93,3 @@ Code style is enforced with Prettier:
 npm run format        # write formatting fixes
 npm run format:check  # verify formatting (CI-friendly, no writes)
 ```
-

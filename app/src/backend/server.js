@@ -1,32 +1,33 @@
-import express from "express";
-import pool from "./db.js";
+import express from 'express'
 
-const app = express();
+import pool from './db.js'
+import event_routes from './routes/events.js'
 
-app.use(express.json());
+const app = express()
+const PORT = process.env.PORT || 3000
 
-app.get("/api/health", async (req, res) => {
-    try {
-        const [rows] = await pool.query(
-            "SHOW TABLES"
-        );
+app.use(express.json())
 
-        res.json({
-            success: true,
-            tables: rows
-        });
-    } catch (error) {
-        console.error("Database connection failed:", error);
+app.use('/events', event_routes)
 
-        res.status(500).json({
-            success: false,
-            database: false
-        });
-    }
-});
+app.get('/api/health', async (req, res) => {
+	try {
+		const [rows] = await pool.query('SHOW TABLES')
 
-const PORT = process.env.PORT || 3000;
+		res.json({
+			success: true,
+			tables: rows,
+		})
+	} catch (error) {
+		console.error('Database connection failed:', error)
+
+		res.status(500).json({
+			success: false,
+			database: false,
+		})
+	}
+})
 
 app.listen(PORT, () => {
-    console.log(`Wits Quest backend running on port ${PORT}`);
-});
+	console.log(`Wits Quest backend running on port ${PORT}`)
+})

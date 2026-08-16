@@ -1,18 +1,19 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "type": "module",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "mysql2": "^3.23.3"
-  }
+	"author": "",
+	"dependencies": {
+		"dotenv": "^17.4.2",
+		"express": "^5.2.1",
+		"express-rate-limit": "^8.6.2",
+		"mysql2": "^3.23.3"
+	},
+	"description": "",
+	"license": "ISC",
+	"main": "server.js",
+	"name": "backend",
+	"scripts": {
+		"start": "node server.js",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"type": "module",
+	"version": "1.0.0"
 }
