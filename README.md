@@ -82,20 +82,27 @@ This project can be setup to use MySQL locally via docker.
 ### Setup
 
 1. Copy the example env file:
+
 ```bash
 $ cp .env.example .env
 ```
+
 2. Start the database and run setup in one step:
+
 ```bash
 # npm run db:init
 ```
+
 ### Scripts
 
 - Start the database:
+
 ```bash
 # npm run db:up
 ```
+
 - Stop the database:
+
 ```bash
 # npm run db:down
 ```

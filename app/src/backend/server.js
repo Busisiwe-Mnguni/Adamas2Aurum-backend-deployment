@@ -5,7 +5,7 @@ import event_routes from './routes/events.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
 const app = express()
-const PORT = process.env.PORT || 8024
+const PORT = process.env.PORT || 3000
 
 async function initialize_database() {
 	await execute_sql_script(pool, './db/schema.sql')

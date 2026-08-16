@@ -1,4 +1,4 @@
-import { api_url } from './constants.js'
+import { API_BASE } from './constants.js'
 import { distance } from './general.js'
 import { get_player_location } from './geolocation.js'
 
@@ -8,7 +8,7 @@ const elError = document.getElementById('error')
 const elEventList = document.getElementById('event-list')
 
 function get_event(event_id) {
-	return fetch(`${api_url}/events/get-event?event_id=${event_id}`)
+	return fetch(`${API_BASE}/events/get-event?event_id=${event_id}`)
 		.then(async (res) => {
 			if (!res.ok) {
 				const err = await res.json()
