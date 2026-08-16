@@ -1,10 +1,14 @@
 import express from 'express'
+import cors from 'cors'
+import path from 'path'
 
 import pool from './utils/db.js'
 import event_routes from './routes/events.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
 const app = express()
+app.use(cors());
+
 const PORT = process.env.PORT || 3000
 
 async function initialize_database() {
@@ -23,7 +27,7 @@ async function view_database() {
 
 app.use(express.json())
 
-app.use('/events', event_routes)
+app.use('/api/events', event_routes)
 
 app.get('/api/health', async (req, res) => {
 	try {

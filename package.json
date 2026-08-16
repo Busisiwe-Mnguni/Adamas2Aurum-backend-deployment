@@ -28,6 +28,8 @@
 	"name": "Adamas2Aurum",
 	"private": true,
 	"scripts": {
+		"db:down": "npm run db:down --prefix app/src/backend",
+		"db:up": "npm run db:up --prefix app/src/backend",
 		"dev": "npm run dev --prefix app/src/backend",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
