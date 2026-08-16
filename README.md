@@ -70,6 +70,40 @@ npm start
 
 ---
 
+## Local DB setup
+
+This project can be setup to use MySQL locally via docker.
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+### Setup
+
+1. Copy the example env file:
+```bash
+$ cp .env.example .env
+```
+2. Start the database and run setup in one step:
+```bash
+# npm run db:init
+```
+### Scripts
+
+- Start the database:
+```bash
+# npm run db:up
+```
+- Stop the database:
+```bash
+# npm run db:down
+```
+
+> Note: To delete the DB completely, run `# docker compose down -v`.
+
+---
+
 ## Testing
 
 Tests run on Jest in native ESM mode, split into the two projects `frontend` (jsdom) and `backend` (Node):

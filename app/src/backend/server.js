@@ -5,7 +5,7 @@ import event_routes from './routes/events.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
 const app = express()
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 8024
 
 app.use(express.json())
 
@@ -29,6 +29,22 @@ app.get('/api/health', async (req, res) => {
 	}
 })
 
+try {
+	await execute_sql_script(pool, './schema.sql')
+	await execute_sql_script(pool, './seed.sql')
+} catch (err) {
+	console.error('failed to run sql scripts')
+}
+
+try {
+	console.log(await pool.query('SELECT NOW() as currentTime;'))
+	console.log(await pool.query('SHOW DATABASES;'))
+	console.log(await pool.query('SHOW TABLES FROM testdb;'))
+} catch (err) {
+	console.error('failed to run sql statements to understand db structure')
+	console.error('error: ', err)
+}
+
 app.listen(PORT, () => {
-	console.log(`Wits Quest backend running on port ${PORT}`)
+	console.log(`A2A backend running on port ${PORT}`)
 })
