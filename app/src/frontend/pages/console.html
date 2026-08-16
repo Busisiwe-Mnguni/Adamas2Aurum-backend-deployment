@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A2A — Event Console</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="logo" href="events.html">
+        <span class="logo-a">A</span><span class="logo-sep">→</span><span class="logo-a">A</span>
+        <span class="logo-sub">Event Console</span>
+      </a>
+      <div class="header-right">
+        <span class="admin-badge">Admin</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div id="toast" class="toast" aria-live="polite"></div>
+
+    <!-- Access denied — shown if user isn't an author -->
+    <div id="access-denied" class="access-denied hidden">
+      <h2>Access Denied</h2>
+      <p>You need an Event Author or Super Admin role to use this console.</p>
+    </div>
+
+    <!-- Console content — hidden until role is verified -->
+    <div id="console-content" class="hidden">
+
+      <!-- ── List view ──────────────────────────────────────── -->
+      <div id="view-list">
+        <div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+          <div>
+            <h1 class="page-title">Manage Events</h1>
+            <p class="page-subtitle" id="event-count">Loading…</p>
+          </div>
+          <button class="btn btn-primary" id="btn-new">+ New Event</button>
+        </div>
+
+        <div id="loading" class="state-msg">Loading events…</div>
+        <div id="empty"   class="state-msg hidden">No events yet — create the first one.</div>
+        <div id="list-error" class="state-msg error hidden"></div>
+
+        <ul id="event-list" class="event-list"></ul>
+      </div>
+
+      <!-- ── Create / Edit form ─────────────────────────────── -->
+      <div id="view-form" class="hidden">
+        <div class="page-header">
+          <h1 class="page-title" id="form-heading">New Event</h1>
+        </div>
+
+        <div class="form-card">
+          <form id="event-form" novalidate>
+            <input type="hidden" id="edit-id" />
+
+            <div class="form-grid">
+
+              <!-- Left -->
+              <div class="form-col">
+                <div class="field">
+                  <label for="f-title">Title <span class="req">*</span></label>
+                  <input id="f-title" type="text" placeholder="e.g. Senate House Steps" required />
+                </div>
+
+                <div class="field">
+                  <label for="f-description">Description</label>
+                  <textarea id="f-description" rows="3" placeholder="What will players find here?"></textarea>
+                </div>
+
+                <div class="field-row">
+                  <div class="field">
+                    <label for="f-latitude">Latitude <span class="req">*</span></label>
+                    <input id="f-latitude" type="number" step="any" placeholder="-26.1929" required />
+                  </div>
+                  <div class="field">
+                    <label for="f-longitude">Longitude <span class="req">*</span></label>
+                    <input id="f-longitude" type="number" step="any" placeholder="28.0305" required />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="f-radius">Radius (metres) <span class="req">*</span></label>
+                  <input id="f-radius" type="number" min="10" placeholder="50" required />
+                </div>
+              </div>
+
+              <!-- Right -->
+              <div class="form-col">
+                <div class="field-row">
+                  <div class="field">
+                    <label for="f-starts">Starts at</label>
+                    <input id="f-starts" type="datetime-local" />
+                  </div>
+                  <div class="field">
+                    <label for="f-ends">Ends at</label>
+                    <input id="f-ends" type="datetime-local" />
+                  </div>
+                </div>
+
+                <div class="field-row">
+                  <div class="field">
+                    <label for="f-threshold">Point threshold</label>
+                    <input id="f-threshold" type="number" min="0" placeholder="0" />
+                  </div>
+                  <div class="field">
+                    <label for="f-reward">Point reward</label>
+                    <input id="f-reward" type="number" min="0" placeholder="10" />
+                  </div>
+                </div>
+
+                <div class="field-row">
+                  <div class="field">
+                    <label for="f-cooldown">Attempt cooldown (s)</label>
+                    <input id="f-cooldown" type="number" min="0" placeholder="86400" />
+                  </div>
+                  <div class="field">
+                    <label for="f-max-attempts">Max attempts / window</label>
+                    <input id="f-max-attempts" type="number" min="1" placeholder="1" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label for="f-interval">Repeat interval (s)</label>
+                  <input id="f-interval" type="number" min="0" placeholder="Leave blank for one-shot" />
+                </div>
+
+                <div class="field">
+                  <label class="checkbox-label">
+                    <input id="f-active" type="checkbox" checked />
+                    <span>Active — visible to players</span>
+                  </label>
+                </div>
+              </div>
+
+            </div><!-- /form-grid -->
+
+            <div class="form-actions">
+              <button type="button" class="btn btn-ghost" id="btn-cancel">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btn-submit">Save Event</button>
+            </div>
+          </form>
+        </div>
+      </div><!-- /view-form -->
+
+    </div><!-- /console-content -->
+  </main>
+
+  <!-- Delete confirm modal -->
+  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h2 class="modal-title">Delete this event?</h2>
+      <p id="modal-body" class="modal-body"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="modal-cancel">Keep it</button>
+        <button class="btn btn-danger" id="modal-confirm">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/utils.js"></script>
+  <script src="../js/console.js"></script>
+</body>
+</html>
