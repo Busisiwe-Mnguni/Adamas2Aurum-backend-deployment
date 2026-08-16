@@ -29,6 +29,15 @@ CREATE TABLE admin_roles (
 );
 
 
+CREATE TABLE user_credentials (
+    user_id   INT          PRIMARY KEY,
+    pin_hash  VARCHAR(64)  NOT NULL,
+    created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_ucred_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+);
+
+
 
 CREATE TABLE events (
     event_id          INT             AUTO_INCREMENT PRIMARY KEY,

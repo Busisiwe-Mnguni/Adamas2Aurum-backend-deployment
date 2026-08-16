@@ -15,7 +15,8 @@
         <span class="logo-sub">Event Console</span>
       </a>
       <div class="header-right">
-        <span class="admin-badge">Admin</span>
+        <span class="admin-badge" id="user-badge" style="display:none;"></span>
+        <button class="btn btn-ghost btn-sm" id="btn-logout" style="display:none;">Logout</button>
       </div>
     </div>
   </header>
@@ -23,10 +24,32 @@
   <main class="main">
     <div id="toast" class="toast" aria-live="polite"></div>
 
-    <!-- Access denied — shown if user isn't an author -->
+    <!-- Login form — shown if user isn't authenticated -->
+    <div id="login-view" class="hidden">
+      <div style="max-width:380px; margin:4rem auto;">
+        <div class="form-card">
+          <h2 class="page-title" style="margin-bottom:1.5rem; font-size:1.4rem;">Sign in to Console</h2>
+          <form id="login-form" novalidate>
+            <div class="field" style="margin-bottom:1rem;">
+              <label for="login-email">Email <span class="req">*</span></label>
+              <input id="login-email" type="text" placeholder="admin@wits.ac.za" required />
+            </div>
+            <div class="field" style="margin-bottom:1.5rem;">
+              <label for="login-pin">PIN <span class="req">*</span></label>
+              <input id="login-pin" type="password" placeholder="1234" required />
+            </div>
+            <div id="login-error" class="state-msg error hidden" style="padding:0.5rem 0;"></div>
+            <button type="submit" class="btn btn-primary" id="btn-login" style="width:100%;">Sign in</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Access denied — shown if user is logged in but lacks role -->
     <div id="access-denied" class="access-denied hidden">
       <h2>Access Denied</h2>
       <p>You need an Event Author or Super Admin role to use this console.</p>
+      <button class="btn btn-ghost" id="btn-logout-denied" style="margin-top:1rem;">Logout</button>
     </div>
 
     <!-- Console content — hidden until role is verified -->

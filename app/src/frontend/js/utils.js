@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000/api/events';
+const API_BASE = '/api/events';
 
 let _toastTimer;
 function showToast(msg, type = 'success') {

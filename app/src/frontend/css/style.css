@@ -1,31 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;800&display=swap');
-
 :root {
-  --bg:           #0d0f14;
-  --surface:      #151820;
-  --surface-2:    #1c2030;
-  --border:       #252b3b;
-  --border-focus: #c9a84c;
+  --bg:           #f0f2f5;
+  --surface:      #ffffff;
+  --surface-2:    #f5f6fa;
+  --border:       #dcdde1;
+  --border-focus: #0c2461;
 
-  --gold:         #c9a84c;
-  --gold-dim:     #7a6328;
-  --gold-glow:    rgba(201,168,76,0.12);
+  --accent:       #0c2461;
+  --accent-light: #1e3799;
+  --accent-glow:  rgba(12,36,97,0.1);
 
-  --text:         #e8eaf0;
-  --text-muted:   #6b7280;
-  --text-dim:     #9ca3af;
+  --text:         #2f3640;
+  --text-muted:   #7f8fa6;
+  --text-dim:     #576574;
 
   --danger:       #e05252;
-  --danger-dim:   rgba(224,82,82,0.12);
-  --success:      #4caf7a;
-  --success-dim:  rgba(76,175,122,0.12);
+  --danger-dim:   rgba(224,82,82,0.1);
+  --success:      #27ae60;
+  --success-dim:  rgba(39,174,96,0.1);
 
   --radius:       8px;
   --radius-lg:    14px;
   --transition:   180ms ease;
 
-  --font-display: 'Syne', system-ui, sans-serif;
-  --font-body:    system-ui, -apple-system, sans-serif;
+  --font-display: 'Segoe UI', system-ui, sans-serif;
+  --font-body:    'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -39,11 +37,12 @@ body  {
 }
 
 .site-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--accent);
+  border-bottom: none;
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 .header-inner {
   max-width: 1100px;
@@ -61,14 +60,14 @@ body  {
   font-family: var(--font-display);
   text-decoration: none;
 }
-.logo-a   { font-size: 1.3rem; font-weight: 800; color: var(--gold); }
-.logo-sep { font-size: 1rem;   font-weight: 600; color: var(--text-muted); margin: 0 0.15rem; }
+.logo-a   { font-size: 1.3rem; font-weight: 800; color: #ffffff; }
+.logo-sep { font-size: 1rem;   font-weight: 600; color: rgba(255,255,255,0.6); margin: 0 0.15rem; }
 .logo-sub {
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: rgba(255,255,255,0.7);
   margin-left: 0.6rem;
 }
 .header-right { display: flex; align-items: center; gap: 0.75rem; }
@@ -109,8 +108,8 @@ body  {
   align-items: center;
   gap: 0.4rem;
 }
-.btn-primary  { background: var(--gold);    color: #0d0f14; border-color: var(--gold); }
-.btn-primary:hover { background: #dbbe60; border-color: #dbbe60; }
+.btn-primary  { background: var(--accent); color: #ffffff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-light); border-color: var(--accent-light); }
 .btn-ghost    { background: transparent; color: var(--text-muted); border-color: var(--border); }
 .btn-ghost:hover { color: var(--text); border-color: var(--text-muted); }
 .btn-danger   { background: var(--danger);  color: #fff; border-color: var(--danger); }
@@ -132,9 +131,9 @@ body  {
   color: var(--text-muted);
   background: var(--surface-2);
 }
-.meta-pill.gold     { border-color: var(--gold-dim);  color: var(--gold);    background: var(--gold-glow); }
-.meta-pill.active   { border-color: #2a6644;           color: var(--success); background: var(--success-dim); }
-.meta-pill.inactive { border-color: #5a2a2a;           color: var(--danger);  background: var(--danger-dim); }
+.meta-pill.gold     { border-color: var(--accent);  color: var(--accent); background: var(--accent-glow); }
+.meta-pill.active   { border-color: #27ae60;        color: var(--success); background: var(--success-dim); }
+.meta-pill.inactive { border-color: #c0392b;        color: var(--danger);  background: var(--danger-dim); }
 
 .event-list { list-style: none; display: grid; gap: 1rem; }
 
@@ -146,9 +145,9 @@ body  {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.5rem 1rem;
-  transition: border-color var(--transition), transform var(--transition);
+  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
 }
-.event-card:hover { border-color: var(--gold-dim); transform: translateY(-1px); }
+.event-card:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(12,36,97,0.08); }
 
 .event-card-title {
   font-family: var(--font-display);
@@ -180,6 +179,7 @@ body  {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .form-grid {
   display: grid;
@@ -197,10 +197,11 @@ label {
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.req { color: var(--gold); margin-left: 2px; }
+.req { color: var(--accent); margin-left: 2px; }
 
 input[type="text"],
 input[type="number"],
+input[type="password"],
 input[type="datetime-local"],
 textarea {
   background: var(--surface-2);
@@ -214,13 +215,13 @@ textarea {
   outline: none;
   transition: border-color var(--transition), box-shadow var(--transition);
 }
-input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 0.5; }
+input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
 input:focus, textarea:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px var(--gold-glow);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.5); cursor: pointer;
+  filter: invert(0.3); cursor: pointer;
 }
 textarea { resize: vertical; }
 
@@ -237,7 +238,7 @@ textarea { resize: vertical; }
 }
 .checkbox-label input[type="checkbox"] {
   width: 1rem; height: 1rem;
-  accent-color: var(--gold);
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
@@ -254,7 +255,7 @@ textarea { resize: vertical; }
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
@@ -266,15 +267,16 @@ textarea { resize: vertical; }
   transition: opacity 250ms ease, transform 250ms ease;
   pointer-events: none;
   max-width: 320px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 .toast.show    { opacity: 1; transform: translateY(0); pointer-events: auto; }
-.toast.success { border-color: #2a6644; color: var(--success); }
-.toast.error   { border-color: #5a2a2a; color: var(--danger);  }
+.toast.success { border-color: var(--success); color: var(--success); }
+.toast.error   { border-color: var(--danger);  color: var(--danger);  }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -287,8 +289,9 @@ textarea { resize: vertical; }
   padding: 2rem;
   max-width: 420px;
   width: 90%;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
 }
-.modal-title   { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+.modal-title   { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; }
 .modal-body    { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.5; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
 
@@ -297,9 +300,9 @@ textarea { resize: vertical; }
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  background: var(--gold-glow);
-  color: var(--gold);
-  border: 1px solid var(--gold-dim);
+  background: rgba(255,255,255,0.15);
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.25);
   padding: 0.2rem 0.6rem;
   border-radius: 99px;
 }
@@ -316,7 +319,6 @@ textarea { resize: vertical; }
 }
 .access-denied p { color: var(--text-muted); font-size: 0.9rem; }
 
-/*Responsive*/
 @media (max-width: 720px) {
   .form-grid  { grid-template-columns: 1fr; }
   .event-card { grid-template-columns: 1fr; }

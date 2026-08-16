@@ -34,7 +34,17 @@ function requireEventAuthor(req, res, next) {
 
 
 router.get('/', (req, res) => {
-  db.query('SELECT * FROM events WHERE is_active = TRUE', (err, results) => {
+  const showAll = req.query.all === 'true' && req.session?.user?.user_id;
+
+  const sql = showAll
+    ? 'SELECT * FROM events ORDER BY created_at DESC'
+    : `SELECT * FROM events
+       WHERE is_active = TRUE
+         AND (starts_at IS NULL OR starts_at <= NOW())
+         AND (ends_at   IS NULL OR ends_at   >= NOW())
+       ORDER BY created_at DESC`;
+
+  db.query(sql, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
