@@ -1,5 +1,23 @@
-import { distance } from '../utils/general.js'
-import { get_player_location } from '../utils/geolocation.js'
+import { api_url } from './constants.js'
+import { distance } from './general.js'
+import { get_player_location } from './geolocation.js'
+
+function get_event(event_id) {
+	return fetch(`${api_url}/events/get-event?event_id=${event_id}`)
+		.then(async (res) => {
+			if (!res.ok) {
+				const err = await res.json()
+				console.error(`error ${res.status}: `, err)
+				return null
+			}
+			const data = await res.json()
+			return data
+		})
+		.catch((err) => {
+			console.error('error: ', err)
+			return null
+		})
+}
 
 // returns: [latitude, longitude]
 function get_event_location(game_event) {
