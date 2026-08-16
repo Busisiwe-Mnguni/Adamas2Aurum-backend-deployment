@@ -1,3 +1,4 @@
+import { API_BASE } from './constants.js'
 /* Role check:
    On load we hit GET /api/auth/me, the server returns the
    session user with their roles. If the user doesn't hold
@@ -33,9 +34,11 @@ const modalConfirm = document.getElementById('modal-confirm')
 
 const f = (id) => document.getElementById(id)
 
+const api_base = `${API_BASE}/api/events`
+
 async function checkAccess() {
 	try {
-		const res = await fetch('http://localhost:3000/api/auth/me', {
+		const res = await fetch(`${API_BASE}/api/auth/me`, {
 			credentials: 'include',
 		})
 		if (!res.ok) throw new Error('Not authenticated')
@@ -73,7 +76,7 @@ async function loadEvents() {
 	elEventCount.textContent = 'Loading…'
 
 	try {
-		const res = await fetch(API_BASE)
+		const res = await fetch(api_base)
 		if (!res.ok)
 			throw new Error(`Server responded with ${res.status}`)
 		const data = await res.json()
@@ -203,7 +206,7 @@ eventForm.addEventListener('submit', async (e) => {
 	btnSubmit.textContent = 'Saving…'
 
 	try {
-		const url = id ? `${API_BASE}/${id}` : API_BASE
+		const url = id ? `${api_base}/${id}` : api_base
 		const method = id ? 'PUT' : 'POST'
 
 		const res = await fetch(url, {
@@ -257,7 +260,7 @@ modalConfirm.addEventListener('click', async () => {
 	closeModal()
 
 	try {
-		const res = await fetch(`${API_BASE}/${id}`, {
+		const res = await fetch(`${api_base}/${id}`, {
 			method: 'DELETE',
 			credentials: 'include',
 		})

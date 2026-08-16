@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:3000/api/events'
+import { API_BASE } from './constants.js'
+
+const api_base = `${API_BASE}/api/events`
 
 let _toastTimer
 function showToast(msg, type = 'success') {
