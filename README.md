@@ -51,22 +51,28 @@ A location-based campus trivia and card-battle game.
 Install dependencies:
 
 ```bash
-npm install
+$ npm install
 ```
 
 Start the backend in dev mode:
 
 ```bash
-npm run dev
+$ npm run dev:backend
 ```
 
 Or run it in production mode:
 
 ```bash
-npm start
+$ npm run start:backend
 ```
 
 > **Note:** `dev` and `start` delegate to `app/src/backend`, which needs its own `package.json` with matching `dev` and `start` scripts.
+
+Once the backend is up and running, you will need to serve the frontend
+as well:
+```bash
+$ npm run start:frontend
+```
 
 ---
 
@@ -116,10 +122,10 @@ $ cp .env.example .env
 Tests run on Jest in native ESM mode, split into the two projects `frontend` (jsdom) and `backend` (Node):
 
 ```bash
-npm test              # run all tests
-npm run test:frontend # frontend only
-npm run test:backend  # backend only
-npm run test:watch    # watch mode
+$ npm test              # run all tests
+$ npm run test:frontend # frontend only
+$ npm run test:backend  # backend only
+$ npm run test:watch    # watch mode
 ```
 
 Test files are matched as `*.test.js` under each project's `rootDir`.
@@ -131,6 +137,6 @@ Test files are matched as `*.test.js` under each project's `rootDir`.
 Code style is enforced with Prettier:
 
 ```bash
-npm run format        # write formatting fixes
-npm run format:check  # verify formatting (CI-friendly, no writes)
+$ npm run format        # write formatting fixes
+$ npm run format:check  # verify formatting (CI-friendly, no writes)
 ```
