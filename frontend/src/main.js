@@ -17,6 +17,14 @@ const CONFIG = {
 }
 
 /**
+ * AUTHENTICATION STATE (MOCK)
+ * Set isLoggedIn to false to test visitor behavior, or true to test authenticated users.
+ */
+const AUTH_STATE = {
+  isLoggedIn: false,
+}
+
+/**
  * DEV MODE — COORDINATE PICKER
  * Set DEV_MODE = true to click on the map and log exact coordinates to your console.
  */
@@ -47,6 +55,7 @@ async function fetchCampusEvents() {
             category: 'Landmark',
             description: '🏛️ Central graduation hall & core architectural landmark.',
             coordinates: [-26.1925, 28.0305],
+            hasChallenge: true,
           },
           {
             id: 'bldg_002',
@@ -55,6 +64,7 @@ async function fetchCampusEvents() {
             category: 'Administration',
             description: '🏢 Main administrative concourse and student services.',
             coordinates: [-26.1932, 28.0305],
+            hasChallenge: false,
           },
           {
             id: 'bldg_003',
@@ -63,6 +73,7 @@ async function fetchCampusEvents() {
             category: 'Academic',
             description: '🏫 Major lecture halls and central academic facilities.',
             coordinates: [-26.1928, 28.0301],
+            hasChallenge: false,
           },
           {
             id: 'bldg_004',
@@ -71,6 +82,7 @@ async function fetchCampusEvents() {
             category: 'Library',
             description: '📚 Historic central library overlooking Library Lawns.',
             coordinates: [-26.1918, 28.0298],
+            hasChallenge: true,
           },
           {
             id: 'bldg_005',
@@ -79,6 +91,7 @@ async function fetchCampusEvents() {
             category: 'Library',
             description: '📖 Primary 24-hour undergraduate study library.',
             coordinates: [-26.1918, 28.0311],
+            hasChallenge: false,
           },
           {
             id: 'bldg_006',
@@ -87,6 +100,7 @@ async function fetchCampusEvents() {
             category: 'Student Hub',
             description: '🍔 Central student food court, shops, and social hub.',
             coordinates: [-26.1905, 28.0315],
+            hasChallenge: true,
           },
           {
             id: 'bldg_007',
@@ -95,6 +109,7 @@ async function fetchCampusEvents() {
             category: 'Academic & Labs',
             description: '💻 Major lecture theatre complex and central computer labs.',
             coordinates: [-26.1912, 28.0312],
+            hasChallenge: false,
           },
 
           /* ===================================================================
@@ -107,6 +122,7 @@ async function fetchCampusEvents() {
             category: 'Architecture & Design',
             description: '📐 School of Architecture, Planning, and Fine Arts.',
             coordinates: [-26.1910, 28.0291],
+            hasChallenge: false,
           },
           {
             id: 'bldg_009',
@@ -115,6 +131,7 @@ async function fetchCampusEvents() {
             category: 'Engineering Faculty',
             description: '⚙️ Mechanical & Aeronautical Engineering laboratories.',
             coordinates: [-26.1920, 28.0289],
+            hasChallenge: false,
           },
           {
             id: 'bldg_010',
@@ -123,6 +140,7 @@ async function fetchCampusEvents() {
             category: 'Engineering Faculty',
             description: '⚡ Electrical, Information & Civil Engineering offices.',
             coordinates: [-26.1927, 28.0292],
+            hasChallenge: false,
           },
 
           /* ===================================================================
@@ -135,6 +153,7 @@ async function fetchCampusEvents() {
             category: 'Science Faculty',
             description: '🔭 Department of Physics laboratories and lecture halls.',
             coordinates: [-26.1926, 28.0315],
+            hasChallenge: true,
           },
           {
             id: 'bldg_012',
@@ -143,6 +162,7 @@ async function fetchCampusEvents() {
             category: 'Science Faculty',
             description: '🧪 School of Chemistry research facilities.',
             coordinates: [-26.1930, 28.0315],
+            hasChallenge: false,
           },
           {
             id: 'bldg_013',
@@ -151,6 +171,7 @@ async function fetchCampusEvents() {
             category: 'Science Faculty',
             description: '🔬 Biological & Environmental Sciences research complex.',
             coordinates: [-26.1922, 28.0320],
+            hasChallenge: false,
           },
           {
             id: 'bldg_014',
@@ -159,6 +180,7 @@ async function fetchCampusEvents() {
             category: 'Administration & Entrance',
             description: '🚪 Main University Avenue entrance and visitor control.',
             coordinates: [-26.1931, 28.0322],
+            hasChallenge: false,
           },
           {
             id: 'bldg_015',
@@ -167,6 +189,7 @@ async function fetchCampusEvents() {
             category: 'Arts & Media',
             description: '🎨 Fine Arts, Film, Television, and Music departments.',
             coordinates: [-26.1935, 28.0325],
+            hasChallenge: false,
           },
           {
             id: 'bldg_016',
@@ -175,6 +198,7 @@ async function fetchCampusEvents() {
             category: 'Arts & Media',
             description: '🎶 Concert venue for Wits Music recitals & performances.',
             coordinates: [-26.1930, 28.0324],
+            hasChallenge: false,
           },
           {
             id: 'bldg_017',
@@ -183,6 +207,7 @@ async function fetchCampusEvents() {
             category: 'Sports & Athletics',
             description: '🏀 Wits Sport Multipurpose indoor sports arena.',
             coordinates: [-26.1902, 28.0294],
+            hasChallenge: false,
           },
           {
             id: 'bldg_018',
@@ -191,6 +216,7 @@ async function fetchCampusEvents() {
             category: 'Sports & Athletics',
             description: '⚽ Multipurpose sports stadium, former home of Bidvest Wits FC.',
             coordinates: [-26.1882, 28.0287],
+            hasChallenge: false,
           },
           {
             id: 'bldg_019',
@@ -199,6 +225,7 @@ async function fetchCampusEvents() {
             category: 'Museum',
             description: '🦴 Museum of human origins and African rock art.',
             coordinates: [-26.1936, 28.0328],
+            hasChallenge: true,
           },
           {
             id: 'bldg_020',
@@ -207,6 +234,7 @@ async function fetchCampusEvents() {
             category: 'Museum',
             description: '🖼️ Public gallery housing Wits\' African art collection.',
             coordinates: [-26.1942, 28.0331],
+            hasChallenge: true,
           },
           {
             id: 'bldg_021',
@@ -215,6 +243,7 @@ async function fetchCampusEvents() {
             category: 'Arts & Media',
             description: '🎭 Main stage for Wits Theatre & Drama for Life productions.',
             coordinates: [-26.1938, 28.0326],
+            hasChallenge: false,
           },
           {
             id: 'bldg_022',
@@ -223,6 +252,7 @@ async function fetchCampusEvents() {
             category: 'Science Faculty',
             description: '🌋 Geophysics and seismology research institute.',
             coordinates: [-26.1934, 28.0318],
+            hasChallenge: false,
           },
           {
             id: 'bldg_023',
@@ -231,6 +261,7 @@ async function fetchCampusEvents() {
             category: 'Science Faculty',
             description: '🪨 School of Geosciences labs and lecture venues.',
             coordinates: [-26.1932, 28.0315],
+            hasChallenge: false,
           },
           {
             id: 'bldg_024',
@@ -239,6 +270,7 @@ async function fetchCampusEvents() {
             category: 'Landmark',
             description: '🌌 Public planetarium and astronomy shows on East Campus.',
             coordinates: [-26.1895, 28.0310],
+            hasChallenge: true,
           },
           {
             id: 'bldg_025',
@@ -247,6 +279,7 @@ async function fetchCampusEvents() {
             category: 'Student Residence',
             description: '🛏️ Traditional men\'s residence hall.',
             coordinates: [-26.1901, 28.0322],
+            hasChallenge: false,
           },
           {
             id: 'bldg_026',
@@ -255,6 +288,7 @@ async function fetchCampusEvents() {
             category: 'Student Residence',
             description: '🛏️ Student residence near East Campus sports fields.',
             coordinates: [-26.1896, 28.0318],
+            hasChallenge: false,
           },
           {
             id: 'bldg_027',
@@ -263,6 +297,7 @@ async function fetchCampusEvents() {
             category: 'Student Residence',
             description: '🛏️ Mixed student residence on East Campus.',
             coordinates: [-26.1892, 28.0321],
+            hasChallenge: false,
           },
 
           /* ===================================================================
@@ -275,6 +310,7 @@ async function fetchCampusEvents() {
             category: 'Commerce',
             description: '📊 School of Accountancy & Finance auditoriums.',
             coordinates: [-26.1898, 28.0255],
+            hasChallenge: false,
           },
           {
             id: 'bldg_102',
@@ -283,6 +319,7 @@ async function fetchCampusEvents() {
             category: 'Law Faculty',
             description: '⚖️ Law library, Chalsty Centre, and law courts.',
             coordinates: [-26.1904, 28.0248],
+            hasChallenge: true,
           },
           {
             id: 'bldg_103',
@@ -291,6 +328,7 @@ async function fetchCampusEvents() {
             category: 'Commerce',
             description: '💼 School of Business Sciences & Economics.',
             coordinates: [-26.1910, 28.0255],
+            hasChallenge: false,
           },
           {
             id: 'bldg_104',
@@ -299,6 +337,7 @@ async function fetchCampusEvents() {
             category: 'Science',
             description: '🔬 Large lecture stadium complex for foundational sciences.',
             coordinates: [-26.1925, 28.0242],
+            hasChallenge: true,
           },
           {
             id: 'bldg_105',
@@ -307,6 +346,7 @@ async function fetchCampusEvents() {
             category: 'Mathematics',
             description: '📐 School of Mathematics & Computational Sciences.',
             coordinates: [-26.1926, 28.0252],
+            hasChallenge: false,
           },
           {
             id: 'bldg_106',
@@ -315,6 +355,7 @@ async function fetchCampusEvents() {
             category: 'Engineering',
             description: '⛏️ Mining Engineering research labs and classrooms.',
             coordinates: [-26.1934, 28.0258],
+            hasChallenge: false,
           },
           {
             id: 'bldg_107',
@@ -323,6 +364,7 @@ async function fetchCampusEvents() {
             category: 'Library',
             description: '📚 Dedicated library for Commerce, Law & Management students.',
             coordinates: [-26.1908, 28.0248],
+            hasChallenge: false,
           },
           {
             id: 'bldg_108',
@@ -331,6 +373,7 @@ async function fetchCampusEvents() {
             category: 'Law Faculty',
             description: '⚖️ Free legal aid clinic run by Wits Law students.',
             coordinates: [-26.1906, 28.0246],
+            hasChallenge: false,
           },
           {
             id: 'bldg_109',
@@ -339,6 +382,7 @@ async function fetchCampusEvents() {
             category: 'Student Support',
             description: '🧠 Student counselling, wellness, and careers services.',
             coordinates: [-26.1928, 28.0256],
+            hasChallenge: false,
           },
           {
             id: 'bldg_110',
@@ -347,6 +391,7 @@ async function fetchCampusEvents() {
             category: 'Transport',
             description: '🚌 Campus shuttle & Metrobus stop for student transport.',
             coordinates: [-26.1920, 28.0232],
+            hasChallenge: false,
           },
           {
             id: 'bldg_111',
@@ -355,6 +400,7 @@ async function fetchCampusEvents() {
             category: 'Student Residence',
             description: '🏘️ Large self-catering student residence complex.',
             coordinates: [-26.1888, 28.0235],
+            hasChallenge: false,
           },
           {
             id: 'bldg_112',
@@ -363,6 +409,7 @@ async function fetchCampusEvents() {
             category: 'Sports & Athletics',
             description: '🏈 Sports fields used for rugby, football & athletics.',
             coordinates: [-26.1945, 28.0215],
+            hasChallenge: false,
           },
           {
             id: 'bldg_113',
@@ -371,6 +418,7 @@ async function fetchCampusEvents() {
             category: 'Student Residence',
             description: '🛏️ West Campus student residence.',
             coordinates: [-26.1888, 28.0252],
+            hasChallenge: false,
           },
           {
             id: 'bldg_114',
@@ -379,6 +427,7 @@ async function fetchCampusEvents() {
             category: 'Student Residence',
             description: '🛏️ Student residence overlooking Gavin Relly Green.',
             coordinates: [-26.1885, 28.0242],
+            hasChallenge: false,
           },
         ])
       }, 100)
@@ -391,15 +440,63 @@ async function fetchCampusEvents() {
 
 /**
  * POPUP TEMPLATE BUILDER
+ * Generates card content & appends the challenge button handler.
  */
 function buildPopupContent(buildingData) {
+  const challengeButtonHtml = buildingData.hasChallenge
+    ? `<button class="challenge-btn" style="margin-top: 10px; padding: 6px 12px; background: #0c2461; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="handleChallengeAttempt('${buildingData.id}')">⚡ Attempt Challenge</button>`
+    : `<p style="margin-top: 8px; font-size: 0.85rem; color: #666;">No active challenge here.</p>`
+
   return `
     <div class="event-popup">
       <h3>${buildingData.name}</h3>
       <p>${buildingData.description}</p>
       <span class="location-tag">${buildingData.campus} &bull; ${buildingData.category}</span>
+      <div class="popup-actions">
+        ${challengeButtonHtml}
+      </div>
     </div>
   `
+}
+
+/**
+ * CHALLENGE ATTEMPT INTERCEPTOR
+ * Invoked when clicking an "Attempt Challenge" button inside a marker popup.
+ */
+window.handleChallengeAttempt = function (buildingId) {
+  if (AUTH_STATE.isLoggedIn) {
+    // Registered User: proceeds directly
+    sessionStorage.removeItem('pending_challenge_id')
+    alert(`🎯 Starting Challenge for location ID: ${buildingId}!`)
+  } else {
+    // Visitor: Saves targeted location and prompts redirect to authentication
+    sessionStorage.setItem('pending_challenge_id', buildingId)
+    alert(`🔒 Login Required!\n\nRedirecting to login page...\n(Saved targeted challenge '${buildingId}' to session state)`)
+    
+    // Uncomment once your teammates merge the real auth route:
+    // window.location.href = '/login.html';
+  }
+}
+
+/**
+ * RESUME CHALLENGE CHECK
+ * Auto-detects saved challenge session state after logging in.
+ */
+function checkPendingChallenge(markersMap) {
+  const pendingChallengeId = sessionStorage.getItem('pending_challenge_id')
+
+  if (pendingChallengeId && AUTH_STATE.isLoggedIn) {
+    console.log(`[Auth Resume] Auto-opening pending challenge: ${pendingChallengeId}`)
+    
+    // Locate marker and open its popup directly on start
+    const targetMarker = markersMap.get(pendingChallengeId)
+    if (targetMarker) {
+      targetMarker.openPopup()
+    }
+
+    alert(`🎉 Welcome back! Resuming your saved challenge for building ID: ${pendingChallengeId}`)
+    sessionStorage.removeItem('pending_challenge_id')
+  }
 }
 
 /**
@@ -459,17 +556,22 @@ async function initializeApp() {
   }).addTo(map)
 
   const buildingsList = await fetchCampusEvents()
+  const markersMap = new Map()
 
   buildingsList.forEach((building) => {
     const marker = L.marker(building.coordinates).addTo(map)
-
     const popupContent = buildPopupContent(building)
     marker.bindPopup(popupContent)
 
-    if (building.name === 'Great Hall') {
+    markersMap.set(building.id, marker)
+
+    if (building.name === 'Great Hall' && !sessionStorage.getItem('pending_challenge_id')) {
       marker.openPopup()
     }
   })
+
+  // Evaluates whether a logged-in user is returning to attempt a previously selected challenge
+  checkPendingChallenge(markersMap)
 
   if (DEV_MODE) {
     attachCoordinatePicker(map)
