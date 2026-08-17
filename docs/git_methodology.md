@@ -17,6 +17,7 @@ Reference: [GitHub-flow](https://docs.github.com/en/get-started/using-github/git
 Format: `type/short-description`, lowercase, hyphen-separated.
 
 Types:
+
 - `feat/` — new feature or user story
 - `fix/` — bug fix
 - `chore/` — tooling, config, non-feature work
@@ -50,6 +51,7 @@ Types: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`.
 Every PR merges `feat/... → dev` (or, at milestone points, `dev → main`).
 
 Before merging, a PR must:
+
 1. Have at least **one teammate's review and approval**
 2. **Pass CI** (lint + automated tests)
 3. Actually do what its description claims — reviewer should verify, not rubber-stamp
@@ -72,11 +74,11 @@ Move your own card when your status changes — don't wait for someone else to d
 
 We tag `main` at the end of each Sprint milestone using a simplified semantic scheme:
 
-| Milestone | Tag |
-|---|---|
-| Sprint 1 | `v0.1.0` |
-| Sprint 2 | `v0.2.0` |
-| Sprint 3 | `v0.3.0` |
+| Milestone        | Tag      |
+| ---------------- | -------- |
+| Sprint 1         | `v0.1.0` |
+| Sprint 2         | `v0.2.0` |
+| Sprint 3         | `v0.3.0` |
 | Final Submission | `v1.0.0` |
 
 Reference: [Semantic Versioning](https://semver.org).

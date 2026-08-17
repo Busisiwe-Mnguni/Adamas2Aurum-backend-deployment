@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0"
+		/>
+		<title>A2A — Campus Events</title>
+		<link rel="stylesheet" href="../css/style.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<div class="header-inner">
+				<a class="logo" href="/">
+					<span class="logo-a">A</span>
+					<span class="logo-sep">→</span>
+					<span class="logo-a">A</span>
+					<span class="logo-sub">
+						Adamas to Aurum
+					</span>
+				</a>
+				<div class="header-right">
+					<span
+						class="admin-badge"
+						id="user-badge"
+						style="display: none"
+					></span>
+					<button
+						class="btn btn-ghost btn-sm"
+						id="btn-logout"
+						style="
+							display: none;
+							color: rgba(
+								255,
+								255,
+								255,
+								0.7
+							);
+							border-color: rgba(
+								255,
+								255,
+								255,
+								0.3
+							);
+						"
+					>
+						Logout
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<main class="main">
+			<div id="toast" class="toast" aria-live="polite"></div>
+
+			<!-- Login form shown if not authenticated -->
+			<div id="login-view" class="hidden">
+				<div
+					style="
+						max-width: 380px;
+						margin: 3rem auto;
+					"
+				>
+					<div class="form-card">
+						<h2
+							class="page-title"
+							style="
+								margin-bottom: 0.5rem;
+								font-size: 1.4rem;
+							"
+						>
+							Sign in to view Events
+						</h2>
+						<p
+							class="page-subtitle"
+							style="
+								margin-bottom: 1.5rem;
+							"
+						>
+							Log in to see active
+							campus events and
+							challenges.
+						</p>
+						<form
+							id="login-form"
+							novalidate
+						>
+							<div
+								class="field"
+								style="
+									margin-bottom: 1rem;
+								"
+							>
+								<label
+									for="login-email"
+								>
+									Email
+									<span
+										class="req"
+									>
+										*
+									</span>
+								</label>
+								<input
+									id="login-email"
+									type="text"
+									placeholder="your@email.com"
+									required
+								/>
+							</div>
+							<div
+								class="field"
+								style="
+									margin-bottom: 1.5rem;
+								"
+							>
+								<label
+									for="login-pin"
+								>
+									PIN
+									<span
+										class="req"
+									>
+										*
+									</span>
+								</label>
+								<input
+									id="login-pin"
+									type="password"
+									placeholder="1234"
+									required
+								/>
+							</div>
+							<div
+								id="login-error"
+								class="state-msg error hidden"
+								style="
+									padding: 0.5rem
+										0;
+								"
+							></div>
+							<button
+								type="submit"
+								class="btn btn-primary"
+								id="btn-login"
+								style="
+									width: 100%;
+								"
+							>
+								Sign in
+							</button>
+						</form>
+					</div>
+				</div>
+			</div>
+
+			<!-- Eventshidden until authenticated -->
+			<div id="events-content">
+				<div class="page-header">
+					<h1 class="page-title">
+						Campus Events
+					</h1>
+					<p class="page-subtitle">
+						Head to a location on campus to
+						participate and earn cards.
+					</p>
+				</div>
+
+				<div id="loading" class="state-msg">
+					Loading events…
+				</div>
+				<div id="empty" class="state-msg hidden">
+					No active events right now — check back
+					later.
+				</div>
+				<div
+					id="error"
+					class="state-msg error hidden"
+				></div>
+
+				<ul id="event-list" class="event-list"></ul>
+			</div>
+		</main>
+
+		<script type="module" src="../js/events.js"></script>
+	</body>
+</html>

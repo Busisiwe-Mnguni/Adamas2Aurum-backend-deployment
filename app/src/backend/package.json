@@ -1,18 +1,19 @@
 {
-  "name": "backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "mysql2": "^3.23.3"
-  }
+	"dependencies": {
+		"cors": "^2.8.6",
+		"dotenv": "^17.4.2",
+		"express": "^5.2.1",
+		"express-session": "^1.19.0",
+		"mysql2": "^3.23.3"
+	},
+	"main": "server.js",
+	"name": "a2a-backend",
+	"scripts": {
+		"db:down": "docker compose down",
+		"db:up": "docker compose up -d",
+		"dev": "node --watch server.js",
+		"start": "node server.js"
+	},
+	"type": "module",
+	"version": "1.0.0"
 }
