@@ -1,0 +1,12 @@
+{
+  "name": "live-map",
+  "version": "0.1.0",
+  "description": "Live real-world map with current location, using free OpenStreetMap tiles (Leaflet.js) and the browser Geolocation API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
