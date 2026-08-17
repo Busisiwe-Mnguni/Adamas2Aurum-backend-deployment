@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import express from 'express'
+import session from 'express-session'
 import cors from 'cors'
 
 import pool from './utils/db.js'
@@ -11,7 +12,32 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 //CORS
-app.use(cors())
+const allowed_origins = ['http://localhost:8055']
+app.use(
+	cors({
+		origin: (origin, callback) => {
+			if (!origin || allowed_origins.includes(origin)) {
+				callback(null, true)
+			} else {
+				callback(new Error('Not allowed by CORS'))
+			}
+		},
+		credentials: true,
+	})
+)
+
+app.use(
+	session({
+		secret: process.env.SESSION_SECRET || 'a2a-dev-secret',
+		resave: false,
+		saveUninitialized: false,
+		cookie: {
+			httpOnly: true,
+			secure: false, // set true in production with HTTPS
+			maxAge: 1000 * 60 * 60 * 8, // 8 hours
+		},
+	})
+)
 
 app.use(express.json())
 
