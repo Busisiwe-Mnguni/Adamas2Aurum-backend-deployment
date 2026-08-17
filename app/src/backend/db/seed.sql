@@ -190,3 +190,17 @@ INSERT INTO leaderboard_entries (entry_id, season_id, user_id, wins, losses, sco
 INSERT INTO user_credentials (user_id, pin_hash) VALUES
 (1, SHA2('1234', 256)),
 (2, SHA2('1234', 256));
+
+-- Seed test admin user (mirrors scripts/seed-admin.js)
+-- email: admin@wits.ac.za | pin: 1234 (sha256 hashed)
+
+INSERT IGNORE INTO users (provider_id, email, name)
+VALUES ('local:admin@wits.ac.za', 'admin@wits.ac.za', 'Test Admin');
+
+SET @admin_user_id = (SELECT user_id FROM users WHERE email = 'admin@wits.ac.za');
+
+REPLACE INTO user_credentials (user_id, pin_hash)
+VALUES (@admin_user_id, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4');
+
+INSERT IGNORE INTO admin_roles (user_id, role, granted_by)
+VALUES (@admin_user_id, 'SUPER_ADMIN', @admin_user_id);
