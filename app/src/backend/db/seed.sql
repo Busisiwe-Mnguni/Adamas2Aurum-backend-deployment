@@ -51,8 +51,8 @@ INSERT INTO admin_roles (role_id, user_id, role, granted_by) VALUES
 --  3. EVENTS
 -- ============================================================
 INSERT INTO events (event_id, title, description, latitude, longitude, radius_meters, point_threshold, point_reward, starts_at, ends_at, repeat_interval, attempt_cooldown_s, max_attempts_per_window, is_active, author_id) VALUES
-(1, 'Origins of Gold Reef City', 'Trivia about the founding of the Witwatersrand gold rush.', -26.20227000, 28.04363000, 100, 0, 20, '2026-01-01 00:00:00', '2026-12-31 23:59:59', NULL, 86400, 1, TRUE, 1),
-(2, 'Constitution Hill Chronicles', 'History of the old fort and Constitutional Court.', -26.19070000, 28.04120000, 75, 0, 15, '2026-01-01 00:00:00', '2026-12-31 23:59:59', NULL, 43200, 2, TRUE, 2);
+(1, 'Origins of Gold Reef City', 'Trivia about the founding of the Witwatersrand gold rush.', -26.19360000, 28.03280000, 100, 0, 20, '2026-01-01 00:00:00', '2026-12-31 23:59:59', NULL, 86400, 1, TRUE, 1),
+(2, 'Constitution Hill Chronicles', 'History of the old fort and Constitutional Court.', -26.19250000, 28.03050000, 75, 0, 15, '2026-01-01 00:00:00', '2026-12-31 23:59:59', NULL, 43200, 2, TRUE, 2);
 
 -- ============================================================
 --  4. TRIVIA QUESTIONS
@@ -102,15 +102,15 @@ INSERT INTO event_card_awards (award_id, user_id, event_id, card_id) VALUES
 --  10. LOCATION CHECK LOG
 -- ============================================================
 INSERT INTO location_check_log (check_id, user_id, event_id, claimed_lat, claimed_lng, distance_meters, status, prev_check_id, travel_speed_ms) VALUES
-(1, 1, 1, -26.20230000, 28.04360000, 4.20, 'VERIFIED', NULL, NULL),
-(2, 2, 2, -26.19075000, 28.04125000, 6.80, 'VERIFIED', NULL, NULL);
+(1, 1, 1, -26.19362000, 28.03282000, 4.20, 'VERIFIED', NULL, NULL),
+(2, 2, 2, -26.19252000, 28.03052000, 6.80, 'VERIFIED', NULL, NULL);
 
 -- ============================================================
 --  11. TRIVIA ATTEMPTS
 -- ============================================================
-INSERT INTO trivia_attempts (attempt_id, user_id, event_id, question_id, location_check_id, is_correct, answer_time_ms, card_awarded_id, points_awarded, hint_used, attempt_number, cooldown_until) VALUES
-(1, 1, 1, 1, 1, TRUE,  4200, 1, 20, FALSE, 1, '2026-01-02 00:00:00'),
-(2, 2, 2, 2, 2, FALSE, 8900, NULL, 0, TRUE,  1, '2026-01-01 12:00:00');
+INSERT INTO trivia_attempts (attempt_id, user_id, event_id, question_id, location_check_id, is_correct, answer_time_ms, card_awarded_id, points_awarded, hint_used, attempt_number, cooldown_until, attempted_at) VALUES
+(1, 1, 1, 1, 1, TRUE,  4200, 1, 20, FALSE, 1, '2026-01-02 00:00:00', '2026-01-01 00:00:00'),
+(2, 2, 2, 2, 2, FALSE, 8900, NULL, 0, TRUE,  1, '2026-01-01 12:00:00', '2025-12-31 00:00:00');
 
 -- ============================================================
 --  12. USER DISCOVERED EVENTS

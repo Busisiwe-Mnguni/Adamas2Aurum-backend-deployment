@@ -48,9 +48,22 @@ function requireEventAuthor(req, res, next) {
 
 router.get('/', async (req, res) => {
 	try {
-		const [results] = await pool.query(
-			'SELECT * FROM events WHERE is_active = TRUE'
-		)
+		const wantAll = req.query.all === 'true'
+		const isAuthor =
+			req.user?.user_id &&
+			(
+				await pool.query(
+					`SELECT 1 FROM admin_roles
+					 WHERE user_id = ? AND role IN ('SUPER_ADMIN','EVENT_AUTHOR') LIMIT 1`,
+					[req.user.user_id]
+				)
+			)[0].length > 0
+
+		const sql =
+			wantAll && isAuthor
+				? 'SELECT * FROM events'
+				: 'SELECT * FROM events WHERE is_active = TRUE'
+		const [results] = await pool.query(sql)
 		res.json(results)
 	} catch (err) {
 		res.status(500).json({ error: err.message })

@@ -4,50 +4,65 @@ export const api_base = `${API_BASE}/api/events`
 
 let _toastTimer
 export function showToast(msg, type = 'success') {
-  const toast = document.getElementById('toast')
-  if (!toast) return
-  clearTimeout(_toastTimer)
-  toast.textContent = msg
-  toast.className = `toast show ${type}`
-  _toastTimer = setTimeout(() => { toast.className = 'toast' }, 3200)
+	const toast = document.getElementById('toast')
+	if (!toast) return
+	clearTimeout(_toastTimer)
+	toast.textContent = msg
+	toast.className = `toast show ${type}`
+	_toastTimer = setTimeout(() => {
+		toast.className = 'toast'
+	}, 3200)
 }
 
 export function esc(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+	return String(str ?? '')
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
 }
 
 export function formatDT(iso) {
-  if (!iso) return null
-  try {
-    return new Date(iso).toLocaleString('en-ZA', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    })
-  } catch { return iso }
+	if (!iso) return null
+	try {
+		return new Date(iso).toLocaleString('en-ZA', {
+			day: '2-digit',
+			month: 'short',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		})
+	} catch {
+		return iso
+	}
 }
 
 //Convert ISO to datetime-local input value
 export function toDatetimeLocal(iso) {
-  if (!iso) return ''
-  try { return new Date(iso).toISOString().slice(0, 16) }
-  catch { return '' }
+	if (!iso) return ''
+	try {
+		return new Date(iso).toISOString().slice(0, 16)
+	} catch {
+		return ''
+	}
 }
 
 // Build shared event card body
 export function buildCardBody(ev) {
-  const activeClass = ev.is_active ? 'active' : 'inactive'
-  const activeLabel = ev.is_active ? 'Active'  : 'Inactive'
-  const startLabel  = ev.starts_at ? `From ${formatDT(ev.starts_at)}` : 'Always on'
-  const endPill     = ev.ends_at
-    ? `<span class="meta-pill">${formatDT(ev.ends_at)}</span>` : ''
-  const lockPill    = ev.point_threshold > 0
-    ? `<span class="meta-pill">🔒 ${ev.point_threshold} pts to unlock</span>` : ''
+	const activeClass = ev.is_active ? 'active' : 'inactive'
+	const activeLabel = ev.is_active ? 'Active' : 'Inactive'
+	const startLabel = ev.starts_at
+		? `From ${formatDT(ev.starts_at)}`
+		: 'Always on'
+	const endPill = ev.ends_at
+		? `<span class="meta-pill">${formatDT(ev.ends_at)}</span>`
+		: ''
+	const lockPill =
+		ev.point_threshold > 0
+			? `<span class="meta-pill">🔒 ${ev.point_threshold} pts to unlock</span>`
+			: ''
 
-  return `
+	return `
     <div class="event-card-title">${esc(ev.title)}</div>
     <div class="event-card-desc">${esc(ev.description || 'No description.')}</div>
     <div class="event-meta">

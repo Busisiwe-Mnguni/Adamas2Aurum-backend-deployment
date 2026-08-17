@@ -1,3 +1,9 @@
+node_modules/
+.env
+*.p8
+app/src/frontend/js/auth-client.bundle.mjs
+app/src/frontend/js/auth-client.bundle.mjs.map
+
 .env
 ca.pem
 

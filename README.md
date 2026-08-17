@@ -70,6 +70,7 @@ $ npm run start:backend
 
 Once the backend is up and running, you will need to serve the frontend
 as well:
+
 ```bash
 $ npm run start:frontend
 ```
