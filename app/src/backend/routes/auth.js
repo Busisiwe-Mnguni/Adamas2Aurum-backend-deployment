@@ -8,6 +8,13 @@ function hashPin(pin) {
 	return crypto.createHash('sha256').update(String(pin)).digest('hex')
 }
 
+router.use((req, res, next) => {
+	console.log(
+		`[Auth Router Log] ${new Date().toISOString()} - ${req.method} ${req.originalUrl}`
+	)
+	next()
+})
+
 router.post('/login', async (req, res) => {
 	const { email, pin } = req.body
 
