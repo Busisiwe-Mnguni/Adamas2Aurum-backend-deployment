@@ -1,66 +1,84 @@
-const express = require('express');
-const crypto  = require('crypto');
-const router  = express.Router();
-const db      = require('../db');
+import express        from 'express'
+import crypto         from 'crypto'
+import pool           from '../utils/db.js'
+
+const router = express.Router()
 
 function hashPin(pin) {
-  return crypto.createHash('sha256').update(pin).digest('hex');
+  return crypto.createHash('sha256').update(String(pin)).digest('hex')
 }
 
-router.post('/login', (req, res) => {
-  const { email, pin } = req.body;
+router.post('/login', async (req, res) => {
+  const { email, pin } = req.body
 
   if (!email || !pin) {
-    return res.status(400).json({ error: 'email and pin are required' });
+    return res.status(400).json({ error: 'email and pin are required' })
   }
 
-  const sql = `
-    SELECT u.user_id, u.name, u.email, uc.pin_hash
-    FROM users u
-    JOIN user_credentials uc ON uc.user_id = u.user_id
-    WHERE u.email = ?
-  `;
+  try {
+    const [users] = await pool.query(
+      'SELECT user_id, name, email FROM users WHERE email = ?',
+      [email]
+    )
 
-  db.query(sql, [email], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
-
-    const user = rows[0];
-    if (user.pin_hash !== hashPin(pin)) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (!users.length) {
+      return res.status(401).json({ error: 'Invalid credentials' })
     }
 
-    req.session.user = { user_id: user.user_id, name: user.name, email: user.email };
-    res.json({ message: 'Logged in', user: req.session.user });
-  });
-});
+    const user = users[0]
 
-router.get('/me', (req, res) => {
+    const [creds] = await pool.query(
+      'SELECT pin_hash FROM user_credentials WHERE user_id = ?',
+      [user.user_id]
+    )
+
+    if (!creds.length || creds[0].pin_hash !== hashPin(pin)) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    // Store session
+    req.session.user = {
+      user_id: user.user_id,
+      name:    user.name,
+      email:   user.email,
+    }
+
+    res.json({ message: 'Logged in', user: req.session.user })
+
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/me', async (req, res) => {
   if (!req.session?.user?.user_id) {
-    return res.status(401).json({ error: 'Not authenticated' });
+    return res.status(401).json({ error: 'Not authenticated' })
   }
 
-  const { user_id, name, email } = req.session.user;
+  const { user_id, name, email } = req.session.user
 
-  db.query(
-    'SELECT role FROM admin_roles WHERE user_id = ?',
-    [user_id],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({
-        user_id,
-        name,
-        email,
-        roles: rows.map(r => r.role),
-      });
-    }
-  );
-});
+  try {
+    const [rows] = await pool.query(
+      'SELECT role FROM admin_roles WHERE user_id = ?',
+      [user_id]
+    )
+
+    res.json({
+      user_id,
+      name,
+      email,
+      roles: rows.map(r => r.role),
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
 
 router.post('/logout', (req, res) => {
   req.session.destroy(() => {
-    res.json({ message: 'Logged out' });
-  });
-});
+    res.clearCookie('connect.sid')
+    res.json({ message: 'Logged out' })
+  })
+})
 
-module.exports = router;
+export default router

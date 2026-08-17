@@ -9,6 +9,11 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS user_credentials (
+    user_id   INT         NOT NULL PRIMARY KEY,
+    pin_hash  VARCHAR(64) NOT NULL,
+    CONSTRAINT fk_ucred_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+);
 -- ============================================================
 --  2. [B] ADMIN ROLES  (authoring console access)
 --

@@ -7,6 +7,7 @@
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+TRUNCATE TABLE user_credentials;
 TRUNCATE TABLE leaderboard_entries;
 TRUNCATE TABLE seasons;
 TRUNCATE TABLE user_cosmetics;
@@ -184,3 +185,8 @@ INSERT INTO seasons (season_id, name, starts_at, ends_at, is_active) VALUES
 INSERT INTO leaderboard_entries (entry_id, season_id, user_id, wins, losses, score) VALUES
 (1, 1, 1, 3, 1, 320),
 (2, 1, 2, 1, 3, 110);
+
+-- USER CREDENTIALS (PIN: 1234 for both users)
+INSERT INTO user_credentials (user_id, pin_hash) VALUES
+(1, SHA2('1234', 256)),
+(2, SHA2('1234', 256));
