@@ -12,7 +12,7 @@
 	<body>
 		<header class="site-header">
 			<div class="header-inner">
-				<a class="logo" href="events.html">
+				<a class="logo" href="/events">
 					<span class="logo-a">A</span>
 					<span class="logo-sep">→</span>
 					<span class="logo-a">A</span>
@@ -39,97 +39,6 @@
 
 		<main class="main">
 			<div id="toast" class="toast" aria-live="polite"></div>
-
-			<!-- Login  shown if not authenticated -->
-			<div id="login-view" class="hidden">
-				<div
-					style="
-						max-width: 380px;
-						margin: 4rem auto;
-					"
-				>
-					<div class="form-card">
-						<h2
-							class="page-title"
-							style="
-								margin-bottom: 1.5rem;
-								font-size: 1.4rem;
-							"
-						>
-							Sign in to Console
-						</h2>
-						<form
-							id="login-form"
-							novalidate
-						>
-							<div
-								class="field"
-								style="
-									margin-bottom: 1rem;
-								"
-							>
-								<label
-									for="login-email"
-								>
-									Email
-									<span
-										class="req"
-									>
-										*
-									</span>
-								</label>
-								<input
-									id="login-email"
-									type="text"
-									placeholder="admin@wits.ac.za"
-									required
-								/>
-							</div>
-							<div
-								class="field"
-								style="
-									margin-bottom: 1.5rem;
-								"
-							>
-								<label
-									for="login-pin"
-								>
-									PIN
-									<span
-										class="req"
-									>
-										*
-									</span>
-								</label>
-								<input
-									id="login-pin"
-									type="password"
-									placeholder="1234"
-									required
-								/>
-							</div>
-							<div
-								id="login-error"
-								class="state-msg error hidden"
-								style="
-									padding: 0.5rem
-										0;
-								"
-							></div>
-							<button
-								type="submit"
-								class="btn btn-primary"
-								id="btn-login"
-								style="
-									width: 100%;
-								"
-							>
-								Sign in
-							</button>
-						</form>
-					</div>
-				</div>
-			</div>
 
 			<!--logged in but missing role -->
 			<div id="access-denied" class="access-denied hidden">
@@ -528,6 +437,10 @@
 			</div>
 		</div>
 
+		<script
+			type="module"
+			src="../js/auth-client.bundle.mjs"
+		></script>
 		<script type="module" src="../js/console.js"></script>
 	</body>
 </html>

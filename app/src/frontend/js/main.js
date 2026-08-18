@@ -1,8 +1,6 @@
 import { API_BASE } from './constants.js'
-import { showToast } from './utils.js'
 
 const EVENTS_API = `${API_BASE}/api/events`
-const AUTH_API = `${API_BASE}/api/auth`
 
 const CONFIG = {
 	CENTER_COORDINATES: [-26.1905, 28.0285],
@@ -447,125 +445,7 @@ const EVENT_ICON = L.divIcon({
 	iconAnchor: [10, 10],
 })
 
-async function checkAuthAndRedirect() {
-	try {
-		const res = await fetch(`${AUTH_API}/me`, {
-			credentials: 'include',
-		})
-		if (res.ok) {
-			window.location.href = 'events.html'
-		}
-	} catch {
-		/* not logged in — stay on landing */
-	}
-}
-
-function initAuthForms() {
-	const tabSignin = document.getElementById('tab-signin')
-	const tabSignup = document.getElementById('tab-signup')
-	const signinForm = document.getElementById('signin-form')
-	const signupForm = document.getElementById('signup-form')
-
-	function showTab(tab) {
-		const isSignin = tab === 'signin'
-		tabSignin.classList.toggle('active', isSignin)
-		tabSignup.classList.toggle('active', !isSignin)
-		signinForm.classList.toggle('hidden', !isSignin)
-		signupForm.classList.toggle('hidden', isSignin)
-	}
-
-	tabSignin.addEventListener('click', () => showTab('signin'))
-	tabSignup.addEventListener('click', () => showTab('signup'))
-
-	signinForm.addEventListener('submit', async (e) => {
-		e.preventDefault()
-		const errEl = document.getElementById('signin-error')
-		const btn = document.getElementById('btn-signin')
-		errEl.classList.add('hidden')
-		const email = document
-			.getElementById('signin-email')
-			.value.trim()
-		const pin = document.getElementById('signin-pin').value
-		if (!email || !pin) {
-			errEl.textContent = 'Email and PIN are required.'
-			errEl.classList.remove('hidden')
-			return
-		}
-		btn.disabled = true
-		btn.textContent = 'Signing in…'
-		try {
-			const res = await fetch(`${AUTH_API}/login`, {
-				method: 'POST',
-				credentials: 'include',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, pin }),
-			})
-			const data = await res.json()
-			if (!res.ok)
-				throw new Error(data.error || 'Login failed')
-			window.location.href = 'events.html'
-		} catch (err) {
-			errEl.textContent = err.message
-			errEl.classList.remove('hidden')
-		} finally {
-			btn.disabled = false
-			btn.textContent = 'Sign in'
-		}
-	})
-
-	signupForm.addEventListener('submit', async (e) => {
-		e.preventDefault()
-		const errEl = document.getElementById('signup-error')
-		const btn = document.getElementById('btn-signup')
-		errEl.classList.add('hidden')
-		const name = document.getElementById('signup-name').value.trim()
-		const email = document
-			.getElementById('signup-email')
-			.value.trim()
-		const pin = document.getElementById('signup-pin').value
-		const pin2 = document.getElementById('signup-pin2').value
-		if (!name || !email || !pin) {
-			errEl.textContent = 'All fields are required.'
-			errEl.classList.remove('hidden')
-			return
-		}
-		if (pin.length < 4) {
-			errEl.textContent = 'PIN must be at least 4 characters.'
-			errEl.classList.remove('hidden')
-			return
-		}
-		if (pin !== pin2) {
-			errEl.textContent = 'PINs do not match.'
-			errEl.classList.remove('hidden')
-			return
-		}
-		btn.disabled = true
-		btn.textContent = 'Creating…'
-		try {
-			const res = await fetch(`${AUTH_API}/register`, {
-				method: 'POST',
-				credentials: 'include',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, email, pin }),
-			})
-			const data = await res.json()
-			if (!res.ok)
-				throw new Error(data.error || 'Sign up failed')
-			window.location.href = 'events.html'
-		} catch (err) {
-			errEl.textContent = err.message
-			errEl.classList.remove('hidden')
-		} finally {
-			btn.disabled = false
-			btn.textContent = 'Create account'
-		}
-	})
-}
-
 async function initializeApp() {
-	checkAuthAndRedirect()
-	initAuthForms()
-
 	const map = L.map('map', {
 		center: CONFIG.CENTER_COORDINATES,
 		zoom: CONFIG.DEFAULT_ZOOM,

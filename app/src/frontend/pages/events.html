@@ -7,7 +7,100 @@
 			content="width=device-width, initial-scale=1.0"
 		/>
 		<title>A2A — Campus Events</title>
+		<link
+			rel="stylesheet"
+			href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+			integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+			crossorigin=""
+		/>
 		<link rel="stylesheet" href="../css/style.css" />
+		<style>
+			html,
+			body {
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+			}
+			.map-wrap {
+				position: relative;
+				width: 100%;
+				height: calc(100vh - 56px);
+			}
+			#map {
+				width: 100%;
+				height: 100%;
+			}
+			.map-banner {
+				position: absolute;
+				top: 0.75rem;
+				left: 0.75rem;
+				z-index: 500;
+				background: rgba(12, 36, 97, 0.92);
+				color: #fff;
+				padding: 0.7rem 1rem;
+				border-radius: 10px;
+				box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+				border-left: 4px solid var(--gold, #f1c40f);
+				max-width: 280px;
+			}
+			.map-banner h2 {
+				font-size: 1rem;
+				margin: 0 0 0.15rem;
+				font-weight: 700;
+			}
+			.map-banner p {
+				font-size: 0.78rem;
+				margin: 0;
+				color: rgba(255, 255, 255, 0.75);
+			}
+			.event-popup h3 {
+				margin: 0 0 4px;
+				font-size: 0.95rem;
+				font-weight: 600;
+			}
+			.event-popup p {
+				margin: 0 0 6px;
+				font-size: 0.82rem;
+				color: #555;
+			}
+			.event-popup .popup-meta {
+				font-size: 0.72rem;
+				color: #888;
+				margin-bottom: 8px;
+			}
+			.event-popup .btn-attempt {
+				width: 100%;
+				padding: 6px 10px;
+				border: none;
+				border-radius: 6px;
+				background: #0c2461;
+				color: #fff;
+				font-weight: 600;
+				font-size: 0.8rem;
+				cursor: pointer;
+			}
+			.event-popup .btn-attempt:hover {
+				background: #1e3799;
+			}
+			.event-popup .btn-attempt:disabled {
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+			#loading,
+			#empty,
+			#error {
+				position: absolute;
+				bottom: 1rem;
+				left: 50%;
+				transform: translateX(-50%);
+				z-index: 500;
+				background: rgba(255, 255, 255, 0.95);
+				padding: 0.5rem 1.2rem;
+				border-radius: 8px;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+				font-size: 0.85rem;
+			}
+		</style>
 	</head>
 	<body>
 		<header class="site-header">
@@ -59,135 +152,34 @@
 			</div>
 		</header>
 
-		<main class="main">
+		<main>
 			<div id="toast" class="toast" aria-live="polite"></div>
 
-			<!-- Login form shown if not authenticated -->
-			<div id="login-view" class="hidden">
-				<div
-					style="
-						max-width: 380px;
-						margin: 3rem auto;
-					"
-				>
-					<div class="form-card">
-						<h2
-							class="page-title"
-							style="
-								margin-bottom: 0.5rem;
-								font-size: 1.4rem;
-							"
-						>
-							Sign in to view Events
-						</h2>
-						<p
-							class="page-subtitle"
-							style="
-								margin-bottom: 1.5rem;
-							"
-						>
-							Log in to see active
-							campus events and
-							challenges.
-						</p>
-						<form
-							id="login-form"
-							novalidate
-						>
-							<div
-								class="field"
-								style="
-									margin-bottom: 1rem;
-								"
-							>
-								<label
-									for="login-email"
-								>
-									Email
-									<span
-										class="req"
-									>
-										*
-									</span>
-								</label>
-								<input
-									id="login-email"
-									type="text"
-									placeholder="your@email.com"
-									required
-								/>
-							</div>
-							<div
-								class="field"
-								style="
-									margin-bottom: 1.5rem;
-								"
-							>
-								<label
-									for="login-pin"
-								>
-									PIN
-									<span
-										class="req"
-									>
-										*
-									</span>
-								</label>
-								<input
-									id="login-pin"
-									type="password"
-									placeholder="1234"
-									required
-								/>
-							</div>
-							<div
-								id="login-error"
-								class="state-msg error hidden"
-								style="
-									padding: 0.5rem
-										0;
-								"
-							></div>
-							<button
-								type="submit"
-								class="btn btn-primary"
-								id="btn-login"
-								style="
-									width: 100%;
-								"
-							>
-								Sign in
-							</button>
-						</form>
-					</div>
-				</div>
-			</div>
-
-			<!-- Eventshidden until authenticated -->
+			<!-- Events hidden until authenticated -->
 			<div id="events-content" class="hidden">
-				<div class="page-header">
-					<h1 class="page-title">
-						Campus Events
-					</h1>
-					<p class="page-subtitle">
-						Head to a location on campus to
-						participate and earn cards.
-					</p>
-				</div>
+				<div class="map-wrap">
+					<div class="map-banner">
+						<h2>Campus Events</h2>
+						<p>
+							Tap a marker to see the
+							challenge. Head there to
+							participate.
+						</p>
+					</div>
+					<div id="map"></div>
 
-				<div id="loading" class="state-msg">
-					Loading events…
+					<div id="loading" class="state-msg hidden">
+						Loading events…
+					</div>
+					<div id="empty" class="state-msg hidden">
+						No active events right now — check
+						back later.
+					</div>
+					<div
+						id="error"
+						class="state-msg error hidden"
+					></div>
 				</div>
-				<div id="empty" class="state-msg hidden">
-					No active events right now — check back
-					later.
-				</div>
-				<div
-					id="error"
-					class="state-msg error hidden"
-				></div>
-
-				<ul id="event-list" class="event-list"></ul>
 			</div>
 
 			<!-- Trivia challenge modal -->
@@ -229,6 +221,15 @@
 			</div>
 		</main>
 
+		<script
+			src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+			integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+			crossorigin=""
+		></script>
+		<script
+			type="module"
+			src="../js/auth-client.bundle.mjs"
+		></script>
 		<script type="module" src="../js/events.js"></script>
 	</body>
 </html>

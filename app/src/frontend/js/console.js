@@ -5,11 +5,8 @@ import { api_base, showToast, toDatetimeLocal, buildCardBody } from './utils.js'
 import { API_BASE } from './constants.js'
 
 const AUTHOR_ROLES = ['SUPER_ADMIN', 'EVENT_AUTHOR']
-const AUTH_API = `${API_BASE}/api/auth`
+const ME_API = `${API_BASE}/api/me`
 
-const elLoginView = document.getElementById('login-view')
-const elLoginForm = document.getElementById('login-form')
-const elLoginError = document.getElementById('login-error')
 const elAccessDenied = document.getElementById('access-denied')
 const elConsole = document.getElementById('console-content')
 
@@ -40,64 +37,28 @@ const btnLogoutDenied = document.getElementById('btn-logout-denied')
 const f = (id) => document.getElementById(id)
 
 async function doLogout() {
-	await fetch(`${AUTH_API}/logout`, {
-		method: 'POST',
-		credentials: 'include',
-	})
-	elConsole.classList.add('hidden')
-	elAccessDenied.classList.add('hidden')
-	elUserBadge.style.display = 'none'
-	btnLogout.style.display = 'none'
-	elLoginView.classList.remove('hidden')
+	try {
+		if (window.authClient) {
+			await window.authClient.signOut()
+		}
+	} catch (err) {
+		console.warn('[logout] signOut failed:', err.message)
+	}
+	window.location.href = '/'
 }
 
 btnLogout.addEventListener('click', doLogout)
 btnLogoutDenied.addEventListener('click', doLogout)
 
-elLoginForm.addEventListener('submit', async (e) => {
-	e.preventDefault()
-	elLoginError.classList.add('hidden')
-
-	const email = f('login-email').value.trim()
-	const pin = f('login-pin').value
-
-	if (!email || !pin) {
-		elLoginError.textContent = 'Email and PIN are required.'
-		elLoginError.classList.remove('hidden')
-		return
-	}
-
-	f('btn-login').disabled = true
-	f('btn-login').textContent = 'Signing in…'
-
-	try {
-		const res = await fetch(`${AUTH_API}/login`, {
-			method: 'POST',
-			credentials: 'include',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ email, pin }),
-		})
-		const data = await res.json()
-		if (!res.ok) throw new Error(data.error || 'Login failed')
-
-		elLoginView.classList.add('hidden')
-		f('login-pin').value = ''
-		checkAccess()
-	} catch (err) {
-		elLoginError.textContent = err.message
-		elLoginError.classList.remove('hidden')
-	} finally {
-		f('btn-login').disabled = false
-		f('btn-login').textContent = 'Sign in'
-	}
-})
-
 async function checkAccess() {
 	try {
-		const res = await fetch(`${AUTH_API}/me`, {
+		const res = await fetch(ME_API, {
 			credentials: 'include',
 		})
-		if (!res.ok) throw new Error('Not authenticated')
+		if (!res.ok) {
+			window.location.href = '/'
+			return
+		}
 		const user = await res.json()
 
 		const hasRole = (user.roles ?? []).some((r) =>
@@ -114,7 +75,7 @@ async function checkAccess() {
 		elConsole.classList.remove('hidden')
 		loadEvents()
 	} catch {
-		elLoginView.classList.remove('hidden')
+		window.location.href = '/'
 	}
 }
 
