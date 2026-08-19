@@ -5,6 +5,7 @@ import cors from 'cors'
 
 import pool from './utils/db.js'
 import event_routes from './routes/events.js'
+import card_routes from './routes/cards.js'
 import auth_routes from './routes/auth.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
@@ -39,10 +40,16 @@ app.use(
 	})
 )
 
+app.use((req, res, next) => {
+	req.user = req.session.user || null
+	next()
+})
+
 app.use(express.json())
 
 app.use('/api/auth', auth_routes)
 app.use('/api/events', event_routes)
+app.use('/api/cards', card_routes)
 
 app.get('/api/health', async (req, res) => {
 	try {
