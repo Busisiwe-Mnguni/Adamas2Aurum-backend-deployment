@@ -5,13 +5,8 @@
 const CONFIG = {
   CENTER_COORDINATES: [-26.1905, 28.0285], // Center adjusted slightly north
   DEFAULT_ZOOM: 16.5,
-  MIN_ZOOM: 16, // Keeps users tightly framed within the campus boundary
+  MIN_ZOOM: 2, // Unrestricted: Allows users to zoom out globally
   MAX_ZOOM: 19,
-  // Adjusted bounding box: Bottom limit shifted up past Smit St (hides railways), Top limit extended north past Empire Rd
-  BOUNDS: [
-    [-26.1945, 28.0210], // South-West corner (Shifted North to chop off railways)
-    [-26.1835, 28.0340], // North-East corner (Extended North to show more top area)
-  ],
   TILE_URL: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   TILE_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }
@@ -538,7 +533,7 @@ function attachCoordinatePicker(map) {
 }
 
 /**
- * MAP INITIALIZATION FUNCTION
+ * MAP INITIALIZATION FUNCTION (UNRESTRICTED)
  */
 async function initializeApp() {
   const map = L.map('map', {
@@ -546,13 +541,10 @@ async function initializeApp() {
     zoom: CONFIG.DEFAULT_ZOOM,
     minZoom: CONFIG.MIN_ZOOM,
     maxZoom: CONFIG.MAX_ZOOM,
-    maxBounds: CONFIG.BOUNDS,
-    maxBoundsViscosity: 1.0,
   })
 
   L.tileLayer(CONFIG.TILE_URL, {
     attribution: CONFIG.TILE_ATTRIBUTION,
-    bounds: CONFIG.BOUNDS,
   }).addTo(map)
 
   const buildingsList = await fetchCampusEvents()
