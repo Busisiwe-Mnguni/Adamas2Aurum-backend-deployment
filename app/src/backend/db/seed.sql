@@ -75,8 +75,28 @@ INSERT INTO trivia_options (option_id, question_id, body, is_correct) VALUES
 --  6. CARDS
 -- ============================================================
 INSERT INTO cards (card_id, name, flavour_text, image_url, category, rarity, stat_attack, stat_location, stat_influence, stat_legacy, stat_era, ability_name, ability_desc) VALUES
-(1, 'Barney Barnato', 'A diamond magnate turned gold speculator.', 'https://example.com/cards/barnato.png', 'CHARACTER', 'RARE', 45, 20, 60, 100, 1886, 'Market Cornering', 'Boosts influence stat by 10 for one turn.'),
-(2, 'Gold Reef City Mine Shaft', 'A relic of the original mining boom.', 'https://example.com/cards/mineshaft.png', 'LOCATION', 'COMMON', 10, 55, 15, 100, 1886, NULL, NULL);
+(1, 'Jan Smuts', 'Statesman and soldier who served as the first Chancellor of the University of the Witwatersrand.', 'https://example.com/cards/jan_smuts.png', 'CHARACTER', 'LEGENDARY', 40, 25, 90, 100, 1922, 'Statesman''s Address', 'Boosts influence stat by 15 for one turn.'),
+(2, 'Jan Hofmeyr', 'Precocious scholar appointed the first Principal of Wits at just 27 years old.', 'https://example.com/cards/jan_hofmeyr.png', 'CHARACTER', 'RARE', 30, 20, 65, 100, 1922, 'Founding Vision', 'Boosts legacy stat by 10 for one turn.'),
+(3, 'Raymond Dart', 'Anatomy professor whose analysis of a small skull rewrote the story of human origins.', 'https://example.com/cards/raymond_dart.png', 'CHARACTER', 'RARE', 25, 15, 55, 100, 1925, 'Taung Discovery', 'Reveals the opponent''s highest stat before this round.'),
+(4, 'Phillip Tobias', 'Palaeoanthropologist who spent decades excavating and interpreting the Sterkfontein fossils.', 'https://example.com/cards/phillip_tobias.png', 'CHARACTER', 'RARE', 20, 20, 60, 100, 1959, 'Fossil Record', 'Boosts era stat by 10 for one turn.'),
+(5, 'Nelson Mandela', 'Studied law at Wits in the 1940s, forming friendships and convictions that shaped his future.', 'https://example.com/cards/nelson_mandela.png', 'CHARACTER', 'LEGENDARY', 35, 20, 100, 100, 1943, 'Long Walk', 'Boosts all stats by 5 for one turn.'),
+(6, 'Robert Sobukwe', 'Wits-educated activist who went on to found the Pan Africanist Congress.', 'https://example.com/cards/robert_sobukwe.png', 'CHARACTER', 'RARE', 35, 15, 70, 90, 1949, 'Call to Action', 'Boosts influence stat by 12 for one turn.'),
+(7, 'Helen Suzman', 'Wits economics graduate who became a lone parliamentary voice against apartheid for decades.', 'https://example.com/cards/helen_suzman.png', 'CHARACTER', 'RARE', 25, 15, 75, 95, 1953, 'Sole Dissent', 'Negates one opposing buff for this round.'),
+(8, 'Joe Slovo', 'Wits law graduate and anti-apartheid activist who later helped negotiate South Africa''s transition.', 'https://example.com/cards/joe_slovo.png', 'CHARACTER', 'COMMON', 30, 10, 55, 85, 1950, NULL, NULL),
+(9, 'Ruth First', 'Wits graduate, journalist and academic whose writing exposed the machinery of apartheid.', 'https://example.com/cards/ruth_first.png', 'CHARACTER', 'COMMON', 20, 10, 60, 85, 1946, NULL, NULL),
+(10, 'Es''kia Mphahlele', 'Writer and scholar who held a professorship in African Literature at Wits.', 'https://example.com/cards/eskia_mphahlele.png', 'CHARACTER', 'COMMON', 15, 10, 45, 80, 1979, NULL, NULL),
+(11, 'South African School of Mines', 'The Kimberley institution founded in 1896 that would eventually grow into Wits.', 'https://example.com/cards/school_of_mines.png', 'HISTORICAL', 'RARE', 15, 30, 40, 90, 1896, 'Humble Beginnings', 'Boosts legacy stat by 10 for one turn.'),
+(12, 'Founding of Wits', 'The University of the Witwatersrand was formally established by an Act of Parliament.', 'https://example.com/cards/founding_of_wits.png', 'HISTORICAL', 'LEGENDARY', 20, 35, 80, 100, 1922, 'Act of Parliament', 'Boosts legacy stat by 20 for one turn.'),
+(13, 'The Taung Child Discovery', 'A fossilised skull from Taung became the first evidence of Australopithecus africanus.', 'https://example.com/cards/taung_child.png', 'HISTORICAL', 'RARE', 10, 25, 50, 100, 1924, 'Missing Link', 'Reveals the opponent''s lowest stat before this round.'),
+(14, 'Milner Park', 'The former Johannesburg showgrounds that became the site of Wits'' main campus.', 'https://example.com/cards/milner_park.png', 'LOCATION', 'COMMON', 5, 45, 20, 85, 1922, NULL, NULL),
+(15, 'The Great Hall', 'Wits'' ceremonial centrepiece, its cornerstone laid in the early 1930s.', 'https://example.com/cards/great_hall.png', 'LOCATION', 'COMMON', 5, 50, 25, 90, 1932, NULL, NULL),
+(16, 'William Cullen Library', 'Home to Wits'' rare books, manuscripts and historical archives.', 'https://example.com/cards/cullen_library.png', 'LOCATION', 'COMMON', 5, 40, 20, 85, 1932, NULL, NULL),
+(17, 'Sterkfontein Caves', 'A fossil-rich cave system in the Cradle of Humankind, long studied by Wits researchers.', 'https://example.com/cards/sterkfontein.png', 'LOCATION', 'RARE', 10, 55, 30, 95, 1936, 'Cradle of Humankind', 'Boosts location stat by 15 for one turn.'),
+(18, 'Bernard Price Institute', 'A geophysics research institute established at Wits through Bernard Price''s funding.', 'https://example.com/cards/bernard_price_institute.png', 'INFLUENCE', 'COMMON', 10, 20, 45, 80, 1937, NULL, NULL),
+(19, 'Chamber of Mines', 'The mining industry body whose backing helped establish the original School of Mines.', 'https://example.com/cards/chamber_of_mines.png', 'INFLUENCE', 'COMMON', 15, 15, 50, 80, 1896, NULL, NULL),
+(20, 'Wits Rag', 'A long-running student festival and charity tradition dating back to the 1920s.', 'https://example.com/cards/wits_rag.png', 'INFLUENCE', 'COMMON', 5, 10, 35, 75, 1925, NULL, NULL),
+(21, 'Barney Barnato', 'A diamond magnate turned gold speculator.', 'https://example.com/cards/barnato.png', 'CHARACTER', 'RARE', 45, 20, 60, 100, 1886, 'Market Cornering', 'Boosts influence stat by 10 for one turn.'),
+(22, 'Gold Reef City Mine Shaft', 'A relic of the original mining boom.', 'https://example.com/cards/mineshaft.png', 'LOCATION', 'COMMON', 10, 55, 15, 100, 1886, NULL, NULL);
 
 -- ============================================================
 --  7. EVENT CARD POOL
@@ -89,8 +109,16 @@ INSERT INTO event_card_pool (pool_id, event_id, card_id, weight, global_copy_lim
 --  8. USER CARDS
 -- ============================================================
 INSERT INTO user_cards (user_card_id, user_id, card_id, quantity) VALUES
-(1, 1, 1, 1),
-(2, 2, 2, 2);
+(1, 2, 2, 2),
+(2, 1, 1, 3),
+(3, 1, 2, 1),
+(4, 1, 3, 1),
+(5, 1, 4, 1),
+(6, 1, 5, 1),
+(7, 1, 6, 1),
+(8, 1, 7, 1),
+(9, 1, 8, 1),
+(10, 1, 9, 1);
 
 -- ============================================================
 --  9. EVENT CARD AWARDS
@@ -198,9 +226,13 @@ INSERT IGNORE INTO users (provider_id, email, name)
 VALUES ('local:admin@wits.ac.za', 'admin@wits.ac.za', 'Test Admin');
 
 SET @admin_user_id = (SELECT user_id FROM users WHERE email = 'admin@wits.ac.za');
+SET @test_user_id = (SELECT user_id FROM users WHERE email = 'alice@example.com');
 
 REPLACE INTO user_credentials (user_id, pin_hash)
 VALUES (@admin_user_id, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4');
+
+REPLACE INTO user_credentials (user_id, pin_hash)
+VALUES (@test_user_id, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4');
 
 INSERT IGNORE INTO admin_roles (user_id, role, granted_by)
 VALUES (@admin_user_id, 'SUPER_ADMIN', @admin_user_id);
