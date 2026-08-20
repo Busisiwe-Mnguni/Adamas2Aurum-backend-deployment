@@ -2,6 +2,7 @@ import express from 'express'
 
 import pool from '../utils/db.js'
 import { error, success } from '../utils/response.js'
+import { validUserCards } from '../utils/battle.js'
 
 const router = express.Router()
 
@@ -20,6 +21,18 @@ function requireAuth(req, res, next) {
 	}
 	next()
 }
+
+router.post('/valid-cards', requireAuth, async (req, res) => {
+	try {
+		var deck = req.body
+		if (deck.length != 5) success(res, false)
+		if (!(await validUserCards(req.user, deck))) success(res, false)
+		success(res, true)
+	} catch (err) {
+		console.error(err)
+		error(res, 500, err.message)
+	}
+})
 
 router.get('/get-all', requireAuth, async (req, res) => {
 	try {

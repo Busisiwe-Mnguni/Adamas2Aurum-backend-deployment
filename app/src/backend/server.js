@@ -77,8 +77,8 @@ async function initialize_database() {
 	await execute_sql_script(pool, './db/schema.sql')
 }
 
-async function seed_database() {
-	await execute_sql_script(pool, './db/seed.sql')
+async function seed_database(file) {
+	await execute_sql_script(pool, file)
 }
 
 async function view_database() {
@@ -89,7 +89,7 @@ async function view_database() {
 
 try {
 	//await initialize_database()
-	//await seed_database()
+	await seed_database('./db/battle-seed.sql')
 	await view_database()
 } catch (err) {
 	console.error('error: ', err.message)

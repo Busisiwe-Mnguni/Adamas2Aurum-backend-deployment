@@ -1,0 +1,40 @@
+import pool from './db.js'
+
+export async function validUserCards(user, deck) {
+	if (!Array.isArray(deck) || deck.length != 5) return false
+	var values = []
+	const placeholders = deck.map(x => {
+		values.push(x.card_id)
+		return '?'
+	}).join(',')
+	values.push(user.user_id)
+
+	try {
+		const [rows, fields] = await pool.query(
+			`SELECT COUNT(DISTINCT uc.card_id) AS count FROM user_cards uc WHERE uc.card_id IN (${placeholders}) AND uc.user_id = ?`,
+			values
+		)
+
+		if (rows.length == 0 || rows[0].count != deck.length)
+			return false
+		else return true
+	} catch {
+		return false
+	}
+}
+
+export async function getActiveBattle(user) {
+	try {
+		const [rows, fields] = await pool.query(
+			`SELECT battle_id FROM battles WHERE ? IN (battles.player1_id, battles.player2_id) AND battles.status = 'ACTIVE'`,
+			[user.user_id]
+		)
+
+		if (rows.length == 0)
+			return null
+		else return rows[0].battle_id
+	} catch {
+		return false
+	}
+
+}
