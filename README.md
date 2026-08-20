@@ -1,41 +1,143 @@
-﻿# Adamas2Aurum
-# 🗺️ Feature: Visitor Map Access & Challenge Interceptor (User Story #2)
+# Adamas2Aurum
 
-## 📌 Overview
-This feature implements **User Story #2**, allowing unauthenticated visitors to explore the interactive Wits Braamfontein Campus map, view available building events/challenges, and smoothly transition to login when attempting a challenge without losing their selected destination.
+A location-based campus trivia and card-battle game.
 
 ---
 
-## 🛠️ Tech Stack & Mapping Library
-* **Mapping Library:** [Leaflet.js](https://leafletjs.com/) with [OpenStreetMap](https://www.openstreetmap.org/) tiles.
-* **Build Tool:** Vite + Vanilla JavaScript.
-* **Test Runner:** Vitest + `jsdom`.
+## Tech Stack
 
-> **⚠️ Note on Geolocation & Pin Accuracy:**  
-> Due to API key constraints and restrictions with the Google Maps JavaScript API during this sprint, we integrated **Leaflet.js** using OpenStreetMap tiles as our primary mapping solution. As a result, exact building pins and coordinates are approximate estimates and may not be 100% precisely aligned on the campus boundary for now. Refining pin coordinates and exploring Google Maps API reintegration will be addressed in future sprints.
+### **Frontend**
 
----
+- JavaScript (ESM)
 
-## ✨ Features Implemented
+### **Backend**
 
-1. **Visitor Campus Browsing (Guest Mode):**
-   * Visitors can pan, zoom, and explore Wits East & West Campus within restricted geographical bounding box limits (`CONFIG.BOUNDS`).
-   * Clicking building markers displays interactive popups containing building details, categories, and challenge availability.
+- Node.js
 
-2. **Challenge Attempt Interceptor (`handleChallengeAttempt`):**
-   * When an unauthenticated visitor clicks **⚡ Attempt Challenge**:
-     1. The application intercepts the request and blocks access to the challenge.
-     2. The targeted building ID is stored in `sessionStorage` under `pending_challenge_id`.
-     3. The visitor is prompted/redirected to authenticate.
+### **Testing**
 
-3. **Post-Login Challenge Resume Flow (`checkPendingChallenge`):**
-   * Upon logging in, the app checks `sessionStorage` for `pending_challenge_id`.
-   * If a target ID is detected, the map automatically pans to and opens the saved target building's popup so the user can immediately begin the challenge.
-   * `sessionStorage` is cleared after resuming.
+- Jest (`jest-environment-jsdom` for frontend, Node environment for backend)
 
-4. **Dev Tools (Coordinate Picker):**
-   * Toggle `DEV_MODE = true` in `src/main.js` to click anywhere on the map and log/copy exact `[latitude, longitude]` pairs for fast coordinate calibration.
+### **Formatting**
+
+- Prettier
 
 ---
 
-## ⚙️ How It Works (Code Architecture)
+## Project Structure
+
+```
+.
+├── package.json
+├── .prettierrc.yaml
+├── .prettierignore
+└── app/
+    └── src/
+        ├── frontend/     # client-side game logic, UI, geolocation
+        └── backend/      # server, game state, API
+```
+
+---
+
+## Prerequisites
+
+- Node.js
+- npm
+
+---
+
+## Getting Started
+
+Install dependencies:
+
+```bash
+$ npm install
+```
+
+Start the backend in dev mode:
+
+```bash
+$ npm run dev:backend
+```
+
+Or run it in production mode:
+
+```bash
+$ npm run start:backend
+```
+
+> **Note:** `dev` and `start` delegate to `app/src/backend`, which needs its own `package.json` with matching `dev` and `start` scripts.
+
+Once the backend is up and running, you will need to serve the frontend
+as well:
+
+```bash
+$ npm run start:frontend
+```
+
+---
+
+## Local DB setup
+
+This project can be setup to use MySQL locally via docker.
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/)
+- [Docker Compose](https://docs.docker.com/compose/install/)
+
+### Setup
+
+1. Copy the example env file:
+
+```bash
+$ cp app/src/.env.example app/src/.env
+```
+
+2. Start the database:
+
+```bash
+# npm run db:up
+```
+
+### Scripts
+
+- Start the database:
+
+```bash
+# npm run db:up
+```
+
+- Stop the database:
+
+```bash
+# npm run db:down
+```
+
+> **Note**: To delete the DB completely, run `# docker compose down -v`.
+
+---
+
+## Testing
+
+Tests run on Jest in native ESM mode, split into the two projects `frontend` (jsdom) and `backend` (Node):
+
+```bash
+$ npm test              # run all tests
+$ npm run test:frontend # frontend only
+$ npm run test:backend  # backend only
+$ npm run test:watch    # watch mode
+```
+
+Test files are matched as `*.test.js` under each project's `rootDir`.
+
+---
+
+## Formatting
+
+Code style is enforced with Prettier:
+
+```bash
+$ npm run format        # write formatting fixes
+$ npm run format:check  # verify formatting (CI-friendly, no writes)
+```

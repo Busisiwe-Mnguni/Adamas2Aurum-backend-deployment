@@ -1,5 +1,8 @@
-node_modules/
 .env
-*.p8
-public/js/auth-client.bundle.mjs
-public/js/auth-client.bundle.mjs.map
+ca.pem
+
+node_modules
+package-lock.json
+
+.vscode
+*.pdf
