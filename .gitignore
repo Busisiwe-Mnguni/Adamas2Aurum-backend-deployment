@@ -1,0 +1,5 @@
+node_modules/
+.env
+*.p8
+public/js/auth-client.bundle.mjs
+public/js/auth-client.bundle.mjs.map
