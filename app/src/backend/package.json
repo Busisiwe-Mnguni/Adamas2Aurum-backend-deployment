@@ -12,7 +12,9 @@
 		"db:down": "docker compose down",
 		"db:up": "docker compose up -d",
 		"dev": "node --watch server.js",
-		"start": "node server.js"
+		"start": "node server.js",
+		
+  		"db:seed": "node seed.js"
 	},
 	"type": "module",
 	"version": "1.0.0"
