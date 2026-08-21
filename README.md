@@ -54,7 +54,7 @@ See [RUNNING.md](./RUNNING.md) for full local setup instructions, including envi
 Quick start:
 
 ```bash
-git clone <repo-url>
+git clone <https://sdp.ms.wits.ac.za/404-found-us/Adamas2Aurum.git>
 cd Adamas2Aurum
 npm install
 
