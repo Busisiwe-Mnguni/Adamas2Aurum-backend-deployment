@@ -66,6 +66,24 @@ npm run dev
 # Frontend (new terminal)
 cd app/src/frontend
 npm run dev
+
+### Seeding the database
+
+Seeding is **not automatic** — `npm run dev` only creates tables if they don't
+exist yet (safe, non-destructive). To populate test data (users, events,
+trivia questions, etc.), run once:
+
+```bash
+npm run db:seed
+```
+
+> ⚠️ This TRUNCATEs and re-inserts all seed data on the **shared** Aiven
+> database. Don't run it while teammates are actively testing — check in
+> the group chat first. If your login suddenly stops working with
+> "Invalid credentials" even though nothing changed, it likely means
+> someone else ran `db:seed` (or an older backend re-seeded automatically)
+> and your test account got wiped — just log in with a seeded account
+> again, or re-run `db:seed` yourself if needed.
 ```
 
 Frontend runs at `http://localhost:5173`, backend API at `http://localhost:3000`.
