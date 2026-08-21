@@ -1,594 +1,342 @@
 /**
  * MAP CONFIGURATION CONSTANTS
- * Centered precisely on Wits Braamfontein Campus.
  */
 const CONFIG = {
-	CENTER_COORDINATES: [-26.1905, 28.0285],
-	DEFAULT_ZOOM: 16.5,
-	MIN_ZOOM: 16,
-	MAX_ZOOM: 19,
-	BOUNDS: [
-		[-26.1945, 28.021],
-		[-26.1835, 28.034],
-	],
-	TILE_URL: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-	TILE_ATTRIBUTION:
-		'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  CENTER_COORDINATES: [-26.1905, 28.0285],
+  DEFAULT_ZOOM: 16.5,
+  MIN_ZOOM: 2,
+  MAX_ZOOM: 18,
+  TILE_URL: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  TILE_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }
 
-const AUTH_STATE = {
-	isLoggedIn: false,
-}
+const API_BASE = 'http://localhost:3000/api'
 
-const DEV_MODE = false
-
-const EVENTS_API = '/api/events'
+// Tracks the currently logged-in user (null if not authenticated).
+// Set by checkAuthSession(); read by handleChallengeAttempt() to gate access.
+let currentUser = null
 
 /**
- * STATIC CAMPUS LANDMARKS
- * Always visible as grey map pins for spatial context.
+ * CUSTOM LEAFLET PIN ICONS
  */
-const CAMPUS_LANDMARKS = [
-	{
-		id: 'bldg_001',
-		name: 'Great Hall',
-		campus: 'East Campus',
-		category: 'Landmark',
-		description:
-			'🏛️ Central graduation hall & core architectural landmark.',
-		coordinates: [-26.1925, 28.0305],
-	},
-	{
-		id: 'bldg_002',
-		name: 'Solomon Mahlangu House',
-		campus: 'East Campus',
-		category: 'Administration',
-		description:
-			'🏢 Main administrative concourse and student services.',
-		coordinates: [-26.1932, 28.0305],
-	},
-	{
-		id: 'bldg_003',
-		name: 'Robert Sobukwe Block',
-		campus: 'East Campus',
-		category: 'Academic',
-		description:
-			'🏫 Major lecture halls and central academic facilities.',
-		coordinates: [-26.1928, 28.0301],
-	},
-	{
-		id: 'bldg_004',
-		name: 'William Cullen Library',
-		campus: 'East Campus',
-		category: 'Library',
-		description:
-			'📚 Historic central library overlooking Library Lawns.',
-		coordinates: [-26.1918, 28.0298],
-	},
-	{
-		id: 'bldg_005',
-		name: 'Wartenweiler Library',
-		campus: 'East Campus',
-		category: 'Library',
-		description: '📖 Primary 24-hour undergraduate study library.',
-		coordinates: [-26.1918, 28.0311],
-	},
-	{
-		id: 'bldg_006',
-		name: 'The Matrix',
-		campus: 'East Campus',
-		category: 'Student Hub',
-		description:
-			'🍔 Central student food court, shops, and social hub.',
-		coordinates: [-26.1905, 28.0315],
-	},
-	{
-		id: 'bldg_007',
-		name: 'Umthombo Building',
-		campus: 'East Campus',
-		category: 'Academic & Labs',
-		description:
-			'💻 Major lecture theatre complex and central computer labs.',
-		coordinates: [-26.1912, 28.0312],
-	},
-	{
-		id: 'bldg_008',
-		name: 'John Moffat Building',
-		campus: 'East Campus',
-		category: 'Architecture & Design',
-		description:
-			'📐 School of Architecture, Planning, and Fine Arts.',
-		coordinates: [-26.191, 28.0291],
-	},
-	{
-		id: 'bldg_009',
-		name: 'North West Engineering',
-		campus: 'East Campus',
-		category: 'Engineering Faculty',
-		description:
-			'⚙️ Mechanical & Aeronautical Engineering laboratories.',
-		coordinates: [-26.192, 28.0289],
-	},
-	{
-		id: 'bldg_010',
-		name: 'South West Engineering',
-		campus: 'East Campus',
-		category: 'Engineering Faculty',
-		description:
-			'⚡ Electrical, Information & Civil Engineering offices.',
-		coordinates: [-26.1927, 28.0292],
-	},
-	{
-		id: 'bldg_011',
-		name: 'Physics Building',
-		campus: 'East Campus',
-		category: 'Science Faculty',
-		description:
-			'🔭 Department of Physics laboratories and lecture halls.',
-		coordinates: [-26.1926, 28.0315],
-	},
-	{
-		id: 'bldg_012',
-		name: 'Humphrey Raikes Building',
-		campus: 'East Campus',
-		category: 'Science Faculty',
-		description: '🧪 School of Chemistry research facilities.',
-		coordinates: [-26.193, 28.0315],
-	},
-	{
-		id: 'bldg_013',
-		name: 'Oppenheimer Life Sciences Building',
-		campus: 'East Campus',
-		category: 'Science Faculty',
-		description:
-			'🔬 Biological & Environmental Sciences research complex.',
-		coordinates: [-26.1922, 28.032],
-	},
-	{
-		id: 'bldg_014',
-		name: 'Gate House',
-		campus: 'East Campus',
-		category: 'Administration & Entrance',
-		description:
-			'🚪 Main University Avenue entrance and visitor control.',
-		coordinates: [-26.1931, 28.0322],
-	},
-	{
-		id: 'bldg_015',
-		name: 'Wits School of Arts (WSOA)',
-		campus: 'East Campus',
-		category: 'Arts & Media',
-		description:
-			'🎨 Fine Arts, Film, Television, and Music departments.',
-		coordinates: [-26.1935, 28.0325],
-	},
-	{
-		id: 'bldg_016',
-		name: 'Chris Seabrooke Music Hall',
-		campus: 'East Campus',
-		category: 'Arts & Media',
-		description:
-			'🎶 Concert venue for Wits Music recitals & performances.',
-		coordinates: [-26.193, 28.0324],
-	},
-	{
-		id: 'bldg_017',
-		name: 'Old Mutual Sports Hall',
-		campus: 'East Campus',
-		category: 'Sports & Athletics',
-		description: '🏀 Wits Sport Multipurpose indoor sports arena.',
-		coordinates: [-26.1902, 28.0294],
-	},
-	{
-		id: 'bldg_018',
-		name: 'Bidvest Stadium',
-		campus: 'East Campus',
-		category: 'Sports & Athletics',
-		description:
-			'⚽ Multipurpose sports stadium, former home of Bidvest Wits FC.',
-		coordinates: [-26.1882, 28.0287],
-	},
-	{
-		id: 'bldg_019',
-		name: 'Origins Centre',
-		campus: 'East Campus',
-		category: 'Museum',
-		description: '🦴 Museum of human origins and African rock art.',
-		coordinates: [-26.1936, 28.0328],
-	},
-	{
-		id: 'bldg_020',
-		name: 'Wits Art Museum (WAM)',
-		campus: 'East Campus',
-		category: 'Museum',
-		description:
-			"🖼️ Public gallery housing Wits' African art collection.",
-		coordinates: [-26.1942, 28.0331],
-	},
-	{
-		id: 'bldg_021',
-		name: 'Wits Theatre',
-		campus: 'East Campus',
-		category: 'Arts & Media',
-		description:
-			'🎭 Main stage for Wits Theatre & Drama for Life productions.',
-		coordinates: [-26.1938, 28.0326],
-	},
-	{
-		id: 'bldg_022',
-		name: 'Bernard Price Building',
-		campus: 'East Campus',
-		category: 'Science Faculty',
-		description: '🌋 Geophysics and seismology research institute.',
-		coordinates: [-26.1934, 28.0318],
-	},
-	{
-		id: 'bldg_023',
-		name: 'Geosciences Building',
-		campus: 'East Campus',
-		category: 'Science Faculty',
-		description:
-			'🪨 School of Geosciences labs and lecture venues.',
-		coordinates: [-26.1932, 28.0315],
-	},
-	{
-		id: 'bldg_024',
-		name: 'Johannesburg Planetarium',
-		campus: 'East Campus',
-		category: 'Landmark',
-		description:
-			'🌌 Public planetarium and astronomy shows on East Campus.',
-		coordinates: [-26.1895, 28.031],
-	},
-	{
-		id: 'bldg_025',
-		name: "Men's Residence (David Webster Hall East)",
-		campus: 'East Campus',
-		category: 'Student Residence',
-		description: "🛏️ Traditional men's residence hall.",
-		coordinates: [-26.1901, 28.0322],
-	},
-	{
-		id: 'bldg_026',
-		name: 'Jubilee Hall',
-		campus: 'East Campus',
-		category: 'Student Residence',
-		description:
-			'🛏️ Student residence near East Campus sports fields.',
-		coordinates: [-26.1896, 28.0318],
-	},
-	{
-		id: 'bldg_027',
-		name: 'College House',
-		campus: 'East Campus',
-		category: 'Student Residence',
-		description: '🛏️ Mixed student residence on East Campus.',
-		coordinates: [-26.1892, 28.0321],
-	},
-	{
-		id: 'bldg_101',
-		name: 'FNB Building / School of Accountancy',
-		campus: 'West Campus',
-		category: 'Commerce',
-		description: '📊 School of Accountancy & Finance auditoriums.',
-		coordinates: [-26.1898, 28.0255],
-	},
-	{
-		id: 'bldg_102',
-		name: 'Oliver Schreiner School of Law',
-		campus: 'West Campus',
-		category: 'Law Faculty',
-		description: '⚖️ Law library, Chalsty Centre, and law courts.',
-		coordinates: [-26.1904, 28.0248],
-	},
-	{
-		id: 'bldg_103',
-		name: 'Wits Business Sciences',
-		campus: 'West Campus',
-		category: 'Commerce',
-		description: '💼 School of Business Sciences & Economics.',
-		coordinates: [-26.191, 28.0255],
-	},
-	{
-		id: 'bldg_104',
-		name: 'Science Stadium Auditoriums',
-		campus: 'West Campus',
-		category: 'Science',
-		description:
-			'🔬 Large lecture stadium complex for foundational sciences.',
-		coordinates: [-26.1925, 28.0242],
-	},
-	{
-		id: 'bldg_105',
-		name: 'TW Kambule Mathematical Sciences',
-		campus: 'West Campus',
-		category: 'Mathematics',
-		description:
-			'📐 School of Mathematics & Computational Sciences.',
-		coordinates: [-26.1926, 28.0252],
-	},
-	{
-		id: 'bldg_106',
-		name: 'Chamber of Mines Building',
-		campus: 'West Campus',
-		category: 'Engineering',
-		description:
-			'⛏️ Mining Engineering research labs and classrooms.',
-		coordinates: [-26.1934, 28.0258],
-	},
-	{
-		id: 'bldg_107',
-		name: 'Commerce Library',
-		campus: 'West Campus',
-		category: 'Library',
-		description:
-			'📚 Dedicated library for Commerce, Law & Management students.',
-		coordinates: [-26.1908, 28.0248],
-	},
-	{
-		id: 'bldg_108',
-		name: 'Law Clinic',
-		campus: 'West Campus',
-		category: 'Law Faculty',
-		description:
-			'⚖️ Free legal aid clinic run by Wits Law students.',
-		coordinates: [-26.1906, 28.0246],
-	},
-	{
-		id: 'bldg_109',
-		name: 'CCDU (Counselling & Careers Development Unit)',
-		campus: 'West Campus',
-		category: 'Student Support',
-		description:
-			'🧠 Student counselling, wellness, and careers services.',
-		coordinates: [-26.1928, 28.0256],
-	},
-	{
-		id: 'bldg_110',
-		name: 'Metro Bus Depot',
-		campus: 'West Campus',
-		category: 'Transport',
-		description:
-			'🚌 Campus shuttle & Metrobus stop for student transport.',
-		coordinates: [-26.192, 28.0232],
-	},
-	{
-		id: 'bldg_111',
-		name: 'West Campus Village',
-		campus: 'West Campus',
-		category: 'Student Residence',
-		description:
-			'🏘️ Large self-catering student residence complex.',
-		coordinates: [-26.1888, 28.0235],
-	},
-	{
-		id: 'bldg_112',
-		name: 'Sturrock Park',
-		campus: 'West Campus',
-		category: 'Sports & Athletics',
-		description:
-			'🏈 Sports fields used for rugby, football & athletics.',
-		coordinates: [-26.1945, 28.0215],
-	},
-	{
-		id: 'bldg_113',
-		name: 'David Webster Hall',
-		campus: 'West Campus',
-		category: 'Student Residence',
-		description: '🛏️ West Campus student residence.',
-		coordinates: [-26.1888, 28.0252],
-	},
-	{
-		id: 'bldg_114',
-		name: 'Barnato Hall',
-		campus: 'West Campus',
-		category: 'Student Residence',
-		description:
-			'🛏️ Student residence overlooking Gavin Relly Green.',
-		coordinates: [-26.1885, 28.0242],
-	},
-]
+const buildingIcon = L.divIcon({
+  className: 'custom-building-pin',
+  html: `
+    <div style="
+      background-color: #0c2461;
+      width: 32px;
+      height: 32px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ffffff;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+    ">
+      <span style="transform: rotate(45deg); font-size: 16px;">🏛️</span>
+    </div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32],
+})
+
+const playerIcon = L.divIcon({
+  className: 'custom-player-pin',
+  html: `
+    <div style="position: relative; width: 36px; height: 36px;">
+      <div style="
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background-color: rgba(231, 76, 60, 0.4);
+        animation: pulse-ring 1.8s infinite ease-out;
+      "></div>
+      <div style="
+        background-color: #e74c3c;
+        width: 32px;
+        height: 32px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #ffffff;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        position: absolute;
+        top: 2px;
+        left: 2px;
+      ">
+        <span style="transform: rotate(45deg); font-size: 16px;">📍</span>
+      </div>
+    </div>
+    <style>
+      @keyframes pulse-ring {
+        0% { transform: scale(0.8); opacity: 0.8; }
+        100% { transform: scale(1.6); opacity: 0; }
+      }
+    </style>
+  `,
+  iconSize: [36, 36],
+  iconAnchor: [18, 36],
+  popupAnchor: [0, -36],
+})
 
 /**
- * FETCH ACTIVE EVENTS FROM DATABASE
- * Returns events created by authors via the admin console.
+ * DYNAMIC DATA FETCHING SERVICE (BACKEND INTEGRATED)
  */
-async function fetchMapEvents() {
-	try {
-		const response = await fetch(EVENTS_API)
-		if (!response.ok) throw new Error(`HTTP ${response.status}`)
-		return await response.json()
-	} catch (error) {
-		console.warn(
-			'[map] Could not fetch events from API:',
-			error.message
-		)
-		return []
-	}
-}
+async function fetchCampusEvents() {
+  try {
+    const res = await fetch(`${API_BASE}/events`)
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
 
-function formatTimeWindow(event) {
-	const parts = []
-	if (event.starts_at) {
-		parts.push(
-			`From ${new Date(event.starts_at).toLocaleString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-		)
-	}
-	if (event.ends_at) {
-		parts.push(
-			`Until ${new Date(event.ends_at).toLocaleString('en-ZA', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
-		)
-	}
-	return parts.length ? parts.join(' — ') : 'Always active'
+    const dbEvents = await res.json()
+
+    if (Array.isArray(dbEvents) && dbEvents.length > 0) {
+      return dbEvents.map((event) => ({
+        id: event.event_id,
+        name: event.title,
+        campus: event.campus || 'Wits Campus',
+        category: event.category || 'General',
+        description: event.description || '',
+        coordinates: [parseFloat(event.latitude), parseFloat(event.longitude)],
+        hasChallenge: event.point_reward > 0 || event.hasChallenge,
+      }))
+    }
+  } catch (err) {
+    console.warn('Backend API connection failed, falling back to static locations:', err)
+  }
+
+  return [
+    { id: 1, name: 'Great Hall', campus: 'East Campus', category: 'Landmark', description: '🏛️ Central graduation hall & core architectural landmark.', coordinates: [-26.1925, 28.0305], hasChallenge: true },
+    { id: 2, name: 'Solomon Mahlangu House', campus: 'East Campus', category: 'Administration', description: '🏢 Main administrative concourse and student services.', coordinates: [-26.1932, 28.0305], hasChallenge: false },
+    { id: 3, name: 'Robert Sobukwe Block', campus: 'East Campus', category: 'Academic', description: '🏫 Major lecture halls and central academic facilities.', coordinates: [-26.1928, 28.0301], hasChallenge: false },
+    { id: 4, name: 'William Cullen Library', campus: 'East Campus', category: 'Library', description: '📚 Historic central library overlooking Library Lawns.', coordinates: [-26.1918, 28.0298], hasChallenge: true },
+    { id: 5, name: 'Wartenweiler Library', campus: 'East Campus', category: 'Library', description: '📖 Primary 24-hour undergraduate study library.', coordinates: [-26.1918, 28.0311], hasChallenge: false },
+    { id: 6, name: 'The Matrix', campus: 'East Campus', category: 'Student Hub', description: '🍔 Central student food court, shops, and social hub.', coordinates: [-26.1905, 28.0315], hasChallenge: true },
+  ]
 }
 
 /**
- * LANDMARK POPUP — static building info, no challenge action
+ * POPUP TEMPLATE BUILDER
  */
-function buildLandmarkPopup(building) {
-	return `
+function buildPopupContent(buildingData) {
+  const challengeButtonHtml = buildingData.hasChallenge
+    ? `<button class="challenge-btn" onclick="handleChallengeAttempt('${buildingData.id}')">⚡ Attempt Challenge</button>`
+    : `<p style="margin-top: 8px; font-size: 0.85rem; color: #666;">No active challenge here.</p>`
+
+  return `
     <div class="event-popup">
-      <h3>${building.name}</h3>
-      <p>${building.description}</p>
-      <span class="location-tag">${building.campus} &bull; ${building.category}</span>
+      <h3>${buildingData.name}</h3>
+      <p style="margin: 6px 0;">${buildingData.description}</p>
+      <span style="font-size: 0.8rem; background: #e0e0e0; padding: 2px 6px; border-radius: 3px;">${buildingData.campus} &bull; ${buildingData.category}</span>
+      <div>
+        ${challengeButtonHtml}
+      </div>
     </div>
   `
 }
 
 /**
- * EVENT POPUP — DB event with challenge action
+ * CHALLENGE ATTEMPT INTERCEPTOR & TRIVIA MODAL
+ * Gated on auth: unauthenticated users are redirected to the login/register
+ * page instead of being able to fetch or attempt a challenge.
  */
-function buildEventPopup(event) {
-	const challengeBtnHtml = `<button style="margin-top:10px;padding:6px 12px;background:#0c2461;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;" onclick="handleChallengeAttempt(${event.event_id})">⚡ Attempt Challenge</button>`
+window.handleChallengeAttempt = async function (eventId) {
+  if (!currentUser) {
+    // Preserve where the player was headed so auth.html can send them back
+    window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+    return
+  }
 
-	return `
-    <div class="event-popup">
-      <h3>${event.title}</h3>
-      <p>${event.description || 'No description.'}</p>
-      <span class="location-tag">📍 ${event.radius_meters}m radius &bull; ⚡ ${event.point_reward} pts</span>
-      <p style="margin-top:6px;font-size:0.8rem;color:#666;">${formatTimeWindow(event)}</p>
-      ${event.point_threshold > 0 ? `<p style="font-size:0.8rem;color:#666;">🔒 ${event.point_threshold} pts to unlock</p>` : ''}
-      <div class="popup-actions">${challengeBtnHtml}</div>
+  try {
+    const res = await fetch(`${API_BASE}/trivia/event/${eventId}`, {
+      credentials: 'include',
+    })
+    if (!res.ok) {
+      if (res.status === 401) {
+        // Session expired/invalidated server-side since page load
+        window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+        return
+      }
+      alert('No trivia challenges available for this location right now!')
+      return
+    }
+
+    const trivia = await res.json()
+    showTriviaModal(eventId, trivia)
+  } catch (err) {
+    alert('Error connecting to challenge server.')
+  }
+}
+
+function showTriviaModal(eventId, trivia) {
+  let modal = document.getElementById('trivia-modal')
+  if (!modal) {
+    modal = document.createElement('div')
+    modal.id = 'trivia-modal'
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+      z-index: 10000;
+    `
+    document.body.appendChild(modal)
+  }
+
+  const optionsHtml = trivia.options.map(opt => `
+    <button style="display: block; width: 100%; margin: 8px 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer;"
+            onclick="submitTriviaAnswer(${eventId}, ${trivia.question_id}, ${opt.option_id})">
+      ${opt.body}
+    </button>
+  `).join('')
+
+  modal.innerHTML = `
+    <div style="background: #fff; padding: 24px; border-radius: 8px; max-width: 400px; width: 90%;">
+      <h3>🎯 Campus Challenge</h3>
+      <p style="margin: 12px 0;"><strong>${trivia.body}</strong></p>
+      <div>${optionsHtml}</div>
+      <button style="margin-top: 12px; background: none; border: none; color: #888; cursor: pointer; text-decoration: underline;"
+              onclick="document.getElementById('trivia-modal').remove()">Close</button>
     </div>
   `
 }
 
-/**
- * CHALLENGE ATTEMPT INTERCEPTOR
- */
-window.handleChallengeAttempt = function (eventId) {
-	if (AUTH_STATE.isLoggedIn) {
-		sessionStorage.removeItem('pending_challenge_id')
-		alert(`🎯 Starting Challenge for event ID: ${eventId}!`)
-	} else {
-		sessionStorage.setItem('pending_challenge_id', String(eventId))
-		alert(
-			`🔒 Login Required!\n\nRedirecting to login page...\n(Saved targeted challenge '${eventId}' to session state)`
-		)
-		// window.location.href = '/login.html';
-	}
-}
+window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
+  try {
+    const res = await fetch(`${API_BASE}/trivia/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        event_id: eventId,
+        question_id: questionId,
+        selected_option_id: optionId,
+        answer_time_ms: 1500
+      })
+    })
 
-function checkPendingChallenge(markersMap) {
-	const pendingId = sessionStorage.getItem('pending_challenge_id')
-	if (pendingId && AUTH_STATE.isLoggedIn) {
-		const targetMarker = markersMap.get(Number(pendingId))
-		if (targetMarker) targetMarker.openPopup()
-		alert(
-			`🎉 Welcome back! Resuming your saved challenge for event ID: ${pendingId}`
-		)
-		sessionStorage.removeItem('pending_challenge_id')
-	}
-}
+    if (res.status === 401) {
+      alert('Your session has expired. Please log in again.')
+      window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+      return
+    }
 
-/**
- * DEV TOOL: click-to-copy coordinate picker
- */
-function attachCoordinatePicker(map) {
-	let pickerMarker = null
-
-	map.on('click', (e) => {
-		const { lat, lng } = e.latlng
-		const rounded = [Number(lat.toFixed(5)), Number(lng.toFixed(5))]
-		const snippet = `[${rounded[0]}, ${rounded[1]}],`
-
-		if (pickerMarker) map.removeLayer(pickerMarker)
-		pickerMarker = L.marker(rounded, {
-			icon: L.divIcon({
-				className: 'coord-picker-marker',
-				html: '📍',
-				iconSize: [24, 24],
-			}),
-		})
-			.addTo(map)
-			.bindPopup(`<code>${snippet}</code>`)
-			.openPopup()
-
-		console.log('[coord-picker]', snippet)
-		if (navigator.clipboard && window.isSecureContext) {
-			navigator.clipboard.writeText(snippet).catch(() => {})
-		}
-	})
-
-	console.info(
-		'%c[DEV_MODE] Coordinate picker active — click the map to log & copy [lat, lng] pairs.',
-		'color:#0c2461;font-weight:bold;'
-	)
+    const data = await res.json()
+    alert(data.message)
+    const modal = document.getElementById('trivia-modal')
+    if (modal) modal.remove()
+  } catch (err) {
+    alert('Failed to submit answer. Ensure you are signed in.')
+  }
 }
 
 /**
- * MARKER ICONS
+ * PLAYER GEOLOCATION TRACKER
  */
-const LANDMARK_ICON = L.divIcon({
-	className: 'landmark-marker',
-	html: '<div style="width:10px;height:10px;background:#999;border:2px solid #666;border-radius:50%;"></div>',
-	iconSize: [14, 14],
-	iconAnchor: [7, 7],
-})
+function setupPlayerGeolocation(map) {
+  let playerMarker = null
 
-const EVENT_ICON = L.divIcon({
-	className: 'event-marker',
-	html: '<div style="width:16px;height:16px;background:#0c2461;border:2px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(12,36,97,0.5);"></div>',
-	iconSize: [20, 20],
-	iconAnchor: [10, 10],
-})
+  function updatePosition(position) {
+    const { latitude, longitude } = position.coords
+    const latLng = [latitude, longitude]
+
+    if (!playerMarker) {
+      playerMarker = L.marker(latLng, { icon: playerIcon })
+        .addTo(map)
+        .bindPopup('📍 You are here!')
+    } else {
+      playerMarker.setLatLng(latLng)
+    }
+  }
+
+  if ('geolocation' in navigator) {
+    navigator.geolocation.watchPosition(updatePosition, (err) => console.warn(err.message), {
+      enableHighAccuracy: true,
+      maximumAge: 10000,
+      timeout: 10000,
+    })
+  }
+}
 
 /**
- * MAP INITIALIZATION
+ * AUTH SESSION TRACKER
+ * Populates `currentUser` so the rest of the app (challenge gating, etc.)
+ * knows whether a player is logged in.
+ */
+async function checkAuthSession() {
+  const container = document.getElementById('auth-nav-container')
+  if (!container) return
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      method: 'GET',
+      credentials: 'include',
+    })
+
+    if (res.ok) {
+      const user = await res.json()
+      currentUser = user
+      container.innerHTML = `
+        <div class="user-badge">
+          <span>👤 ${user.name}</span>
+          <button id="logout-btn" class="logout-btn">Log Out</button>
+        </div>
+      `
+      document.getElementById('logout-btn').addEventListener('click', handleLogout)
+    } else {
+      currentUser = null
+      container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
+    }
+  } catch (err) {
+    currentUser = null
+    container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
+  }
+}
+
+async function handleLogout() {
+  try {
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    window.location.reload()
+  } catch (err) {
+    console.error('Logout error:', err)
+  }
+}
+
+/**
+ * MAP INITIALIZATION FUNCTION
  */
 async function initializeApp() {
-	const map = L.map('map', {
-		center: CONFIG.CENTER_COORDINATES,
-		zoom: CONFIG.DEFAULT_ZOOM,
-		minZoom: CONFIG.MIN_ZOOM,
-		maxZoom: CONFIG.MAX_ZOOM,
-		maxBounds: CONFIG.BOUNDS,
-		maxBoundsViscosity: 1.0,
-	})
+  const map = L.map('map', {
+    center: CONFIG.CENTER_COORDINATES,
+    zoom: CONFIG.DEFAULT_ZOOM,
+    minZoom: CONFIG.MIN_ZOOM,
+    maxZoom: CONFIG.MAX_ZOOM,
+    maxNativeZoom: 18,
+  })
 
-	L.tileLayer(CONFIG.TILE_URL, {
-		attribution: CONFIG.TILE_ATTRIBUTION,
-		bounds: CONFIG.BOUNDS,
-	}).addTo(map)
+  L.tileLayer(CONFIG.TILE_URL, {
+    attribution: CONFIG.TILE_ATTRIBUTION,
+    maxZoom: 19,
+    maxNativeZoom: 18,
+  }).addTo(map)
 
-	// Layer 1: Static campus landmarks (grey pins)
-	CAMPUS_LANDMARKS.forEach((building) => {
-		L.marker(building.coordinates, { icon: LANDMARK_ICON })
-			.addTo(map)
-			.bindPopup(buildLandmarkPopup(building))
-	})
+  // Auth state must be known before markers are added, since popups
+  // decide whether "Attempt Challenge" is gated based on currentUser.
+  await checkAuthSession()
 
-	// Layer 2: Dynamic events from database (gold pins with radius circles)
-	const events = await fetchMapEvents()
-	const eventMarkers = new Map()
+  const buildingsList = await fetchCampusEvents()
 
-	events.forEach((event) => {
-		const coords = [Number(event.latitude), Number(event.longitude)]
+  buildingsList.forEach((building) => {
+    const marker = L.marker(building.coordinates, { icon: buildingIcon }).addTo(map)
+    marker.bindPopup(buildPopupContent(building))
+  })
 
-		L.circle(coords, {
-			radius: event.radius_meters,
-			color: '#0c2461',
-			fillColor: '#0c2461',
-			fillOpacity: 0.08,
-			weight: 1.5,
-		}).addTo(map)
-
-		const marker = L.marker(coords, { icon: EVENT_ICON })
-			.addTo(map)
-			.bindPopup(buildEventPopup(event))
-
-		eventMarkers.set(event.event_id, marker)
-	})
-
-	checkPendingChallenge(eventMarkers)
-
-	if (DEV_MODE) {
-		attachCoordinatePicker(map)
-	}
-
-	console.log(
-		`[map] Rendered ${CAMPUS_LANDMARKS.length} landmarks + ${events.length} events`
-	)
+  setupPlayerGeolocation(map)
 }
 
 document.addEventListener('DOMContentLoaded', initializeApp)
