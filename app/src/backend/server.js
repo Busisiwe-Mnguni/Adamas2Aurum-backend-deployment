@@ -6,7 +6,7 @@
  * Serves static files from /public.
  */
 
-import "dotenv/config";
+import "./env.js";
 import express from "express";
 import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import { auth } from "./src/auth.js";
@@ -30,9 +30,12 @@ app.all("/api/auth/*", toNodeHandler(auth));
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
-// 3. Static files (HTML, CSS, vanilla JS)
+// 3. Static files (CSS, JS, and bundled client from frontend directories)
 // ---------------------------------------------------------------------------
-app.use(express.static(path.join(__dirname, "public")));
+const frontendDir = path.join(__dirname, "..", "frontend");
+app.use("/css", express.static(path.join(frontendDir, "css")));
+app.use("/js", express.static(path.join(frontendDir, "js")));
+app.use(express.static(path.join(frontendDir, "public")));
 
 // ---------------------------------------------------------------------------
 // 4. Protected API route — get current session (for the dashboard)
@@ -49,10 +52,24 @@ app.get("/api/me", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. Fallback — serve index.html for root
+// 5. HTML pages (served from frontend/pages, not covered by express.static)
 // ---------------------------------------------------------------------------
+const pagesDir = path.join(frontendDir, "pages");
+
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(path.join(pagesDir, "index.html"));
+});
+
+app.get("/dashboard", (_req, res) => {
+  res.sendFile(path.join(pagesDir, "dashboard.html"));
+});
+
+app.get("/dashboard.html", (_req, res) => {
+  res.sendFile(path.join(pagesDir, "dashboard.html"));
+});
+
+app.get("/reset-password.html", (_req, res) => {
+  res.sendFile(path.join(pagesDir, "reset-password.html"));
 });
 
 // ---------------------------------------------------------------------------

@@ -4,7 +4,7 @@
  *
  * Usage: node migrate.js
  */
-import "dotenv/config";
+import "./env.js";
 import { getMigrations } from "better-auth/db/migration";
 import { auth } from "./src/auth.js";
 

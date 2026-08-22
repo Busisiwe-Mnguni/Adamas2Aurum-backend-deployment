@@ -1,5 +1,12 @@
-node_modules/
+.vscode
+
+*.pdf
 .env
+
+node_modules
+package-lock.json
+
 *.p8
-public/js/auth-client.bundle.mjs
-public/js/auth-client.bundle.mjs.map
+app/src/backend/data/
+app/src/frontend/public/js/auth-client.bundle.mjs
+app/src/frontend/public/js/auth-client.bundle.mjs.map

@@ -7,6 +7,10 @@
 
 const authClient = window.authClient;
 
+// Where to redirect after successful auth.
+// On dev this is the map (index.html). Update this path if the map moves.
+const MAP_URL = "/";
+
 // ---------------------------------------------------------------------------
 // Utility: show status message
 // ---------------------------------------------------------------------------
@@ -29,8 +33,8 @@ window.handleGoogleSignUp = async function () {
 
   const { error } = await authClient.signIn.social({
     provider: "google",
-    callbackURL: "/dashboard",
-    newUserCallbackURL: "/dashboard",
+    callbackURL: MAP_URL,
+    newUserCallbackURL: MAP_URL,
     errorCallbackURL: "/",
   });
 
@@ -48,7 +52,7 @@ window.handleGoogleLogin = async function () {
 
   const { error } = await authClient.signIn.social({
     provider: "google",
-    callbackURL: "/dashboard",
+    callbackURL: MAP_URL,
     errorCallbackURL: "/",
   });
 
@@ -78,14 +82,14 @@ window.handleEmailSignUp = async function (event) {
     name,
     email,
     password,
-    callbackURL: "/dashboard",
+    callbackURL: MAP_URL,
   });
 
   if (error) {
     showStatus("Sign up failed: " + error.message, true);
   } else {
     showStatus("Account created! Redirecting…", false);
-    window.location.href = "/dashboard";
+    window.location.href = MAP_URL;
   }
 };
 
@@ -103,14 +107,14 @@ window.handleEmailLogin = async function (event) {
   const { data, error } = await authClient.signIn.email({
     email,
     password,
-    callbackURL: "/dashboard",
+    callbackURL: MAP_URL,
   });
 
   if (error) {
     showStatus("Log in failed: " + error.message, true);
   } else {
     showStatus("Signed in! Redirecting…", false);
-    window.location.href = "/dashboard";
+    window.location.href = MAP_URL;
   }
 };
 
