@@ -1,5 +1,7 @@
 import pool from './db.js'
 
+export const TURN_TIMEOUT_MS = 10 * 1000
+
 export async function validUserCards(user, deck) {
 	if (!Array.isArray(deck) || deck.length != 5) return false
 	var values = []
