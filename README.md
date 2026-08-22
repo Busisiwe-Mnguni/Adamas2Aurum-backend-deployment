@@ -6,138 +6,90 @@ A location-based campus trivia and card-battle game.
 
 ## Tech Stack
 
-### **Frontend**
+### Frontend
+- Plain HTML, CSS, and JavaScript (no framework)
+- [Vite](https://vitejs.dev/) as the dev server and build tool
+- [Leaflet.js](https://leafletjs.com/) + OpenStreetMap tiles for the interactive campus map
+- No API keys required for map rendering
 
-- JavaScript (ESM)
+### Backend
+- [Node.js](https://nodejs.org/) with [Express](https://expressjs.com/)
+- [MySQL](https://www.mysql.com/) (hosted on Aiven) via `mysql2/promise`
+- `express-session` for session-based authentication (email + PIN login)
+- CORS configured for local frontend origins (`localhost:5173`, `localhost:8055`)
 
-### **Backend**
-
-- Node.js
-
-### **Testing**
-
-- Jest (`jest-environment-jsdom` for frontend, Node environment for backend)
-
-### **Formatting**
-
-- Prettier
+### Tooling
+- [Jest](https://jestjs.io/) for frontend and backend unit tests
+- [Prettier](https://prettier.io/) for code formatting
+- Task management via Taiga (Kanban)
 
 ---
 
 ## Project Structure
 
 ```
-.
-├── package.json
-├── .prettierrc.yaml
-├── .prettierignore
-└── app/
-    └── src/
-        ├── frontend/     # client-side game logic, UI, geolocation
-        └── backend/      # server, game state, API
+Adamas2Aurum/
+├── app/
+│   └── src/
+│       ├── frontend/       # Vite + vanilla JS + Leaflet map
+│       │   ├── js/
+│       │   ├── css/
+│       │   ├── pages/      # auth, events, console, map
+│       │   └── vite.config.js
+│       └── backend/        # Express API
+│           ├── routes/     # auth, events, trivia
+│           ├── db/         # schema.sql, seed.sql
+│           └── utils/
+├── docs/
+├── .env.example
+└── RUNNING.md              # local setup instructions
 ```
-
----
-
-## Prerequisites
-
-- Node.js
-- npm
 
 ---
 
 ## Getting Started
 
-Install dependencies:
+See [RUNNING.md](./RUNNING.md) for full local setup instructions, including environment variables, running the frontend and backend dev servers, and seeded test accounts.
+
+Quick start:
 
 ```bash
-$ npm install
-```
+git clone <https://sdp.ms.wits.ac.za/404-found-us/Adamas2Aurum.git>
+cd Adamas2Aurum
+npm install
 
-Start the backend in dev mode:
+# Backend (new terminal)
+cd app/src/backend
+npm install
+npm run dev
+
+# Frontend (new terminal)
+cd app/src/frontend
+npm run dev
+
+### Seeding the database
+
+Seeding is **not automatic** — `npm run dev` only creates tables if they don't
+exist yet (safe, non-destructive). To populate test data (users, events,
+trivia questions, etc.), run once:
 
 ```bash
-$ npm run dev:backend
+npm run db:seed
 ```
 
-Or run it in production mode:
-
-```bash
-$ npm run start:backend
+> ⚠️ This TRUNCATEs and re-inserts all seed data on the **shared** Aiven
+> database. Don't run it while teammates are actively testing — check in
+> the group chat first. If your login suddenly stops working with
+> "Invalid credentials" even though nothing changed, it likely means
+> someone else ran `db:seed` (or an older backend re-seeded automatically)
+> and your test account got wiped — just log in with a seeded account
+> again, or re-run `db:seed` yourself if needed.
 ```
 
-> **Note:** `dev` and `start` delegate to `app/src/backend`, which needs its own `package.json` with matching `dev` and `start` scripts.
-
-Once the backend is up and running, you will need to serve the frontend
-as well:
-
-```bash
-$ npm run start:frontend
-```
+Frontend runs at `http://localhost:5173`, backend API at `http://localhost:3000`.
 
 ---
 
-## Local DB setup
+## Team
 
-This project can be setup to use MySQL locally via docker.
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-
-### Setup
-
-1. Copy the example env file:
-
-```bash
-$ cp app/src/.env.example app/src/.env
-```
-
-2. Start the database:
-
-```bash
-# npm run db:up
-```
-
-### Scripts
-
-- Start the database:
-
-```bash
-# npm run db:up
-```
-
-- Stop the database:
-
-```bash
-# npm run db:down
-```
-
-> **Note**: To delete the DB completely, run `# docker compose down -v`.
-
----
-
-## Testing
-
-Tests run on Jest in native ESM mode, split into the two projects `frontend` (jsdom) and `backend` (Node):
-
-```bash
-$ npm test              # run all tests
-$ npm run test:frontend # frontend only
-$ npm run test:backend  # backend only
-$ npm run test:watch    # watch mode
-```
-
-Test files are matched as `*.test.js` under each project's `rootDir`.
-
----
-
-## Formatting
-
-Code style is enforced with Prettier:
-
-```bash
-$ npm run format        # write formatting fixes
-$ npm run format:check  # verify formatting (CI-friendly, no writes)
-```
+Developed by **404 Found Us**, Software Design Project — University of the Witwatersrand.
