@@ -189,6 +189,7 @@ function createBattleCard(card) {
 	li.setAttribute('class', 'battle-card')
 	li.setAttribute('data-slot', card.slot_position)
 	li.setAttribute('data-card-id', card.card_id)
+	li.setAttribute('data-rarity', card.rarity.toUpperCase())
 
 	const healthOuter = document.createElement('div')
 	healthOuter.classList.add('battle-card-health-bar')
@@ -198,10 +199,20 @@ function createBattleCard(card) {
 	healthOuter.appendChild(healthInner)
 	li.appendChild(healthOuter)
 
+	const add = document.createElement('div')
+	add.classList.add('battle-card-additional')
 	const category = document.createElement('span')
 	category.classList.add('battle-card-category-tag')
+	category.setAttribute('data-category', card.category)
 	category.textContent = card.category
-	li.appendChild(category)
+	add.appendChild(category)
+	const rarityTag = document.createElement('span')
+	rarityTag.classList.add('battle-card-rarity')
+	rarityTag.setAttribute('data-rarity', card.rarity.toUpperCase())
+	rarityTag.title = `${card.rarity.toUpperCase()} RARITY`
+	rarityTag.textContent = '◆'
+	add.appendChild(rarityTag)
+	li.appendChild(add)
 
 	const img = document.createElement('img')
 	img.classList.add('battle-card-img')
@@ -230,11 +241,13 @@ function createBattleCard(card) {
 	return li
 }
 
-function refreshActions(category) {
+function refreshActions(category = null) {
 	//   INFLUENCE -> BUFF / DEBUFF only
 	//   CHARACTER -> ATTACK, highest damage
 	//   LOCATION  -> ATTACK, but skews hit/dodge chance
 	//   HISTORICAL -> ATTACK, plus reviving a defeated CHARACTER (not built yet)
+	elBattleActions.replaceChildren()
+	if (category === null) return
 	const allowed = {
 		CHARACTER: ['ATTACK', 'DEFEND'],
 		LOCATION: ['ATTACK', 'DODGE', 'DEFEND'],
@@ -242,7 +255,6 @@ function refreshActions(category) {
 		HISTORICAL: ['ATTACK', 'DEFEND'],
 	}
 	if (allowed[category] === undefined) return
-	elBattleActions.replaceChildren()
 	for (const action of allowed[category]) {
 		const button = document.createElement('button')
 		button.classList.add('btn')
@@ -254,31 +266,168 @@ function refreshActions(category) {
 	}
 }
 
+let pendingAction = null
+let pendingAttackerSlot = null
+let pendingTargetType = null
+const ACTION_TARGETS = {
+	SELF: ['DEFEND', 'DODGE'],
+	OPPONENT: ['ATTACK', 'DEBUFF'],
+	TEAM: ['REVIVE', 'BUFF'],
+}
+
 function actionEvent(event) {
-	const actionElement = event.currentTarget
+	const action = event.currentTarget.getAttribute('data-action')
 	const attacker = document.body.querySelector(
 		'#player-cards .battle-card.selected'
 	)
-	const target = document.body.querySelector(
-		'#opponent-cards .battle-card.selected'
-	)
-	if (!attacker || !target) return
-	const attacker_slot = parseInt(attacker.getAttribute('data-slot'))
-	const target_slot = parseInt(target.getAttribute('data-slot'))
-	sendAttack(attacker_slot, target_slot)
-	attacker.classList.remove('selected')
-	target.classList.remove('selected')
-	refreshActions()
+	if (!attacker) return
+
+	const attackerSlot = parseInt(attacker.getAttribute('data-slot'), 10)
+
+	// 1. Instant execution for self-target actions
+	if (ACTION_TARGETS.SELF.includes(action)) {
+		sendAttack(attackerSlot, attackerSlot, action)
+		clearSelectionState()
+		return
+	}
+
+	// 2. Set pending targeting mode
+	pendingAction = action
+	pendingAttackerSlot = attackerSlot
+
+	if (ACTION_TARGETS.OPPONENT.includes(action)) {
+		pendingTargetType = 'OPPONENT'
+		document.body.classList.add('awaiting-opponent-target')
+	} else if (ACTION_TARGETS.TEAM.includes(action)) {
+		pendingTargetType = 'TEAM'
+		document.body.classList.add('awaiting-team-target')
+	}
+
+	renderCancelBanner(action)
 }
 
-function sendAttack(attacker_slot, target_slot) {
+function onCardClick(event) {
+	const cardElement = event.currentTarget
+	const isPlayerCard = cardElement.closest('#player-cards') !== null
+	const isOpponentCard = cardElement.closest('#opponent-cards') !== null
+
+	// --- TARGET INTERCEPTION ---
+	if (pendingTargetType) {
+		const clickedSlot = parseInt(
+			cardElement.getAttribute('data-slot'),
+			10
+		)
+
+		if (pendingTargetType === 'OPPONENT' && isOpponentCard) {
+			sendAttack(
+				pendingAttackerSlot,
+				clickedSlot,
+				pendingAction
+			)
+			clearSelectionState()
+			return
+		}
+
+		if (pendingTargetType === 'TEAM' && isPlayerCard) {
+			sendAttack(
+				pendingAttackerSlot,
+				clickedSlot,
+				pendingAction
+			)
+			clearSelectionState()
+			return
+		}
+
+		cancelTargeting()
+	}
+
+	if (cardElement.parentElement.getAttribute('id') === 'opponent-cards')
+		return
+	if (cardElement.classList.contains('selected')) {
+		elBattleActions.replaceChildren()
+		return cardElement.classList.remove('selected')
+	}
+
+	cardElement.parentElement
+		.querySelector('.battle-card.selected')
+		?.classList.remove('selected')
+
+	cardElement.classList.add('selected')
+
+	const category = cardElement
+		.querySelector('.battle-card-category-tag')
+		?.getAttribute('data-category')
+	refreshActions(category)
+}
+
+function clearSelectionState() {
+	cancelTargeting()
+	document.querySelectorAll('.battle-card.selected').forEach((card) =>
+		card.classList.remove('selected')
+	)
+	elBattleActions.replaceChildren()
+}
+
+function cancelTargeting() {
+	pendingAction = null
+	pendingAttackerSlot = null
+	pendingTargetType = null
+	document.body.classList.remove(
+		'awaiting-opponent-target',
+		'awaiting-team-target'
+	)
+}
+
+function renderCancelBanner(action) {
+	elBattleActions.replaceChildren()
+
+	const banner = document.createElement('span')
+	banner.classList.add('targeting-hint')
+	banner.textContent = `Select ${pendingTargetType === 'OPPONENT' ? 'an Opponent' : 'a Teammate'} for ${action}`
+
+	const cancelBtn = document.createElement('button')
+	cancelBtn.classList.add('btn', 'btn-cancel')
+	cancelBtn.textContent = 'Cancel'
+	cancelBtn.addEventListener('click', () => {
+		cancelTargeting()
+		const attacker = document.body.querySelector(
+			'#player-cards .battle-card.selected'
+		)
+		if (attacker) {
+			const category = attacker
+				.querySelector('.battle-card-category-tag')
+				?.getAttribute('data-category')
+			refreshActions(category)
+		}
+	})
+
+	elBattleActions.appendChild(banner)
+	elBattleActions.appendChild(cancelBtn)
+}
+
+document.addEventListener('keydown', (e) => {
+	if (e.key === 'Escape' && pendingTargetType) {
+		cancelTargeting()
+		const attacker = document.body.querySelector(
+			'#player-cards .battle-card.selected'
+		)
+		if (attacker) {
+			const category = attacker
+				.querySelector('.battle-card-category-tag')
+				?.getAttribute('data-category')
+			refreshActions(category)
+		}
+	}
+})
+
+function sendAttack(attacker_slot, target_slot, action) {
 	if (!ws) return
 	ws.send(
 		JSON.stringify({
 			type: 'attack',
 			attacker_slot,
 			target_slot,
-			action: 'ATTACK',
+			action,
 		})
 	)
 }
@@ -311,7 +460,12 @@ function refreshBattleLogs(
 		li = document.createElement('li')
 		li.classList.add('player-log')
 		actor = player_cards[player_result.attacker_slot].name
-		target = player_cards[player_result.target_slot].name
+		if (
+			ACTION_TARGETS.SELF.includes(player_result.action) ||
+			ACTION_TARGETS.TEAM.includes(player_result.action)
+		)
+			target = player_cards[player_result.target_slot].name
+		else target = opponent_cards[player_result.target_slot].name
 		li.textContent = action_log(
 			`Player "${actor}"`,
 			`Opponent "${target}"`,
@@ -323,7 +477,13 @@ function refreshBattleLogs(
 		li = document.createElement('li')
 		li.classList.add('opponent-log')
 		actor = opponent_cards[opponent_result.attacker_slot].name
-		target = opponent_cards[opponent_result.target_slot].name
+		if (
+			ACTION_TARGETS.SELF.includes(opponent_result.action) ||
+			ACTION_TARGETS.TEAM.includes(opponent_result.action)
+		)
+			target =
+				opponent_cards[opponent_result.target_slot].name
+		else target = player_cards[opponent_result.target_slot].name
 		li.textContent = action_log(
 			`Opponent "${actor}"`,
 			`Player "${target}"`,
@@ -357,21 +517,12 @@ function refreshBattleView(battle_id, user_id, state) {
 			.querySelector('.battle-card.selected')
 			?.classList.remove('selected')
 		cardElement.classList.add('selected')
-		if (
-			cardElement.parentElement.getAttribute('id') ===
-			'player-cards'
-		)
-			refreshActions(
-				cardElement.querySelector(
-					'.battle-card-category-tag'
-				).textContent
-			)
 	}
 	for (const card of player_cards) {
 		const cardElement = createBattleCard(card)
 		if (card.health <= 0) cardElement.classList.add('dead')
 		elBattlePlayerCardsList.appendChild(cardElement)
-		cardElement.addEventListener('click', selectCard)
+		cardElement.addEventListener('click', onCardClick)
 	}
 	elBattleOppCardsList.replaceChildren()
 	for (const card of opponent_cards) {
@@ -379,7 +530,7 @@ function refreshBattleView(battle_id, user_id, state) {
 		if (card.health > 0) cardElement.classList.add('targetable')
 		if (card.health <= 0) cardElement.classList.add('dead')
 		elBattleOppCardsList.appendChild(cardElement)
-		cardElement.addEventListener('click', selectCard)
+		cardElement.addEventListener('click', onCardClick)
 	}
 }
 
@@ -568,7 +719,10 @@ function refreshDeck() {
 			continue
 		}
 		if (deckCard.cardElement == null) {
-			deckCard.cardElement = buildCard(deckCard.card)
+			deckCard.cardElement = createBattleCard(deckCard.card)
+			deckCard.cardElement
+				.querySelector('.battle-card-health-bar')
+				.remove()
 			deckCard.cardElement.addEventListener('click', () => {
 				deckCard.cardElement.remove()
 				deckCard.card = null
@@ -605,30 +759,6 @@ function addToDeck(card) {
 	refreshDeck()
 }
 
-function buildCard(card) {
-	const li = document.createElement('li')
-	li.classList.add('card-tile')
-
-	const name = document.createElement('h2')
-	name.classList.add('card-tile-name')
-	name.textContent = card.name
-	li.appendChild(name)
-	const rarity = document.createElement('p')
-	rarity.classList.add('card-tile-rarity')
-	rarity.textContent = card.rarity
-	li.appendChild(rarity)
-	const badge = document.createElement('p')
-	badge.classList.add('card-tile-badge')
-	badge.textContent = card.category
-	li.appendChild(badge)
-
-	const image = document.createElement('img')
-	image.src = card.image_url
-	li.appendChild(image)
-
-	return li
-}
-
 async function loadSelectionEvents() {
 	elListError.classList.add('hidden')
 	try {
@@ -646,7 +776,8 @@ async function loadSelectionEvents() {
 			elCardCollectionEmpty.classList.remove('hidden')
 
 		for (const card of data) {
-			const li = buildCard(card)
+			const li = createBattleCard(card)
+			li.querySelector('.battle-card-health-bar').remove()
 			elCardCollection.appendChild(li)
 			li.addEventListener('click', (el) => addToDeck(card))
 		}

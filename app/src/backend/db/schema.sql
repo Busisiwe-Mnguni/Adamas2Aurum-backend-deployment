@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS cards (
     flavour_text    TEXT,
     image_url       VARCHAR(500),
     category        ENUM('CHARACTER','LOCATION','INFLUENCE','HISTORICAL') NOT NULL,
-    rarity          ENUM('COMMON','RARE','LEGENDARY')                     NOT NULL,
+    rarity          ENUM('COMMON','UNCOMMON','RARE','EPIC','LEGENDARY')                     NOT NULL,
     stat_attack     INT          NOT NULL DEFAULT 0,
     stat_location   INT          NOT NULL DEFAULT 0,
     stat_influence  INT          NOT NULL DEFAULT 0,
@@ -273,7 +273,7 @@ CREATE TABLE IF NOT EXISTS battle_decks (
 CREATE TABLE IF NOT EXISTS battle_turns (
     turn_id        INT      AUTO_INCREMENT PRIMARY KEY,
     battle_id      INT      NOT NULL,
-    turn_number    INT      NOT NULL,
+    turn_number    FLOAT      NOT NULL,
     acting_user_id INT,
     deck_slot_played_id INT      NOT NULL,
     deck_slot_targeted_id INT    NOT NULL,

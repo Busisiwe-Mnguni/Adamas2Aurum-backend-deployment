@@ -13,7 +13,7 @@ export async function load_battle_state(pool, battle_id) {
 
 	const [rows] = await pool.query(
 		`SELECT bd.deck_id, bd.user_id, bd.card_id, bd.slot_position,
-		        c.name, c.image_url, c.category, c.stat_attack, c.stat_location, c.stat_influence, c.stat_legacy, c.stat_era
+		        c.name, c.image_url, c.category, c.rarity, c.stat_attack, c.stat_location, c.stat_influence, c.stat_legacy, c.stat_era
 		 FROM battle_decks bd
 		 JOIN cards c ON c.card_id = bd.card_id
 		 WHERE bd.battle_id = ?
@@ -39,6 +39,7 @@ export async function load_battle_state(pool, battle_id) {
 			name: row.name,
 			image_url: row.image_url,
 			category: row.category,
+			rarity: row.rarity,
 			health: row.stat_legacy,
 			ability_cooldown: 0,
 			stat_attack: row.stat_attack,

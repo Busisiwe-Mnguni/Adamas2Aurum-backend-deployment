@@ -13,6 +13,7 @@ import {
 	apply_defence_stance,
 	apply_revive,
 	tick_effects,
+	TEAM_ACTIONS,
 } from './battle_effects.js'
 
 const active_players = new Map()
@@ -58,10 +59,10 @@ function is_valid_attacker(cards, slot_position) {
 	return { ok: true, card }
 }
 
-function is_valid_target(cards, slot_position) {
+function is_valid_target(action, cards, slot_position) {
 	const card = find_card(cards, slot_position)
 	if (!card) return { ok: false, reason: 'No opponent card in that slot' }
-	if (card.health <= 0)
+	if (card.health <= 0 && action != 'REVIVE')
 		return { ok: false, reason: 'Target already defeated' }
 	return { ok: true, card }
 }
@@ -126,11 +127,6 @@ function resolve_attack(attacker, target) {
 	const attacker_attack = get_effective_stat(attacker, 'stat_attack')
 	const attacker_location = get_effective_stat(attacker, 'stat_location')
 	const target_location = get_effective_stat(target, 'stat_location')
-	console.log(
-		`THIS IS A M*THERF*CKEN ANNOUNCEMENT: `,
-		attacker_attack,
-		attacker.stat_attack
-	)
 
 	let hit_chance = Math.min(
 		0.95,
@@ -150,7 +146,7 @@ function resolve_attack(attacker, target) {
 
 	let damage = attacker_attack
 	if (attacker.category === 'CHARACTER') damage *= 1.5
-	damage = Math.max(1, Math.round(damage - defence))
+	damage = Math.max(1, apply_defence(target, Math.round(damage - defence)))
 
 	target.health = Math.max(0, target.health - damage)
 	return {
@@ -176,6 +172,14 @@ function resolve_action(attacker, target, action) {
 			return apply_defence_stance(
 				attacker,
 				Math.round(attacker.stat_legacy / 10)
+			)
+		case 'DODGE':
+			return apply_buff(
+				attacker,
+				target,
+				'stat_location',
+				10,
+				1
 			)
 		case 'BUFF':
 			return apply_buff(
@@ -379,7 +383,10 @@ battleWss.on('connection', (ws, request) => {
 					)
 				}
 				const target_check = is_valid_target(
-					opponent_cards,
+					msg.action,
+					TEAM_ACTIONS.includes(msg.action)
+						? player_cards
+						: opponent_cards,
 					msg.target_slot
 				)
 				if (!target_check.ok) {
@@ -444,7 +451,7 @@ battleWss.on('connection', (ws, request) => {
 							...cpu_result.result,
 						}
 
-						if (opponent_result) {
+						if (cpu_result) {
 							await log_turn(
 								battle_id,
 								state.turn_number,
@@ -453,7 +460,7 @@ battleWss.on('connection', (ws, request) => {
 									cpu_result
 										.attacker_slot
 								],
-								opponent_cards[
+								player_cards[
 									cpu_result
 										.target_slot
 								],
