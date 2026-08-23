@@ -291,10 +291,7 @@ function action_log(actor, target, result) {
 	switch (result.action) {
 		case 'ATTACK': {
 			if (result.landed) {
-				const defense = Math.round(
-					result.target_defence ?? 0
-				)
-				return `${actor} attacked ${target} dealing ${result.damage ?? 0} damage (def: ${defense})`
+				return `${actor} attacked ${target} dealing ${result.damage ?? 0} damage`
 			}
 			return `${actor} attacked ${target} and missed`
 		}
@@ -352,8 +349,10 @@ function refreshBattleView(battle_id, user_id, state) {
 
 	function selectCard(event) {
 		const cardElement = event.currentTarget
-		if (cardElement.classList.contains('selected'))
+		if (cardElement.classList.contains('selected')) {
+			elBattleActions.replaceChildren()
 			return cardElement.classList.remove('selected')
+		}
 		cardElement.parentElement
 			.querySelector('.battle-card.selected')
 			?.classList.remove('selected')

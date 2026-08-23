@@ -1,3 +1,5 @@
+SET FOREIGN_KEY_CHECKS = 0;
+
 CREATE TABLE IF NOT EXISTS users (
     user_id       INT            AUTO_INCREMENT PRIMARY KEY,
     provider_id   VARCHAR(255)   NOT NULL UNIQUE,
@@ -259,9 +261,8 @@ CREATE TABLE IF NOT EXISTS battle_decks (
     battle_id     INT     NOT NULL,
     user_id       INT,
     card_id       INT     NOT NULL,
-    health       INT     NOT NULL DEFAULT 100,
-    ability_cooldown       INT     NOT NULL DEFAULT 0,
     slot_position TINYINT NOT NULL,
+    final_health       INT     NOT NULL DEFAULT 100,
 
     CONSTRAINT fk_bd_battle FOREIGN KEY (battle_id) REFERENCES battles (battle_id),
     CONSTRAINT fk_bd_user   FOREIGN KEY (user_id)   REFERENCES users   (user_id),
@@ -274,16 +275,18 @@ CREATE TABLE IF NOT EXISTS battle_turns (
     battle_id      INT      NOT NULL,
     turn_number    INT      NOT NULL,
     acting_user_id INT,
-    card_played_id INT      NOT NULL,
-    card_targeted_id INT      NOT NULL,
-    action         ENUM('ATTACK','BUFF','DEBUFF','DEFEND','DODGE') NOT NULL,
+    deck_slot_played_id INT      NOT NULL,
+    deck_slot_targeted_id INT    NOT NULL,
+    action               ENUM('ATTACK','BUFF','DEBUFF','DEFEND','DODGE','REVIVE') NOT NULL,
     damage_dealt   INT      NOT NULL DEFAULT 0,
-    effect_desc    TEXT,
+    landed	BOOLEAN NULL,
+    effect_data    JSON NULL,
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_bt_battle FOREIGN KEY (battle_id)      REFERENCES battles (battle_id),
-    CONSTRAINT fk_bt_user   FOREIGN KEY (acting_user_id) REFERENCES users   (user_id),
-    CONSTRAINT fk_bt_card   FOREIGN KEY (card_played_id) REFERENCES cards   (card_id)
+    CONSTRAINT fk_bt_battle FOREIGN KEY (battle_id)             REFERENCES battles      (battle_id),
+    CONSTRAINT fk_bt_user   FOREIGN KEY (acting_user_id)        REFERENCES users        (user_id),
+    CONSTRAINT fk_bt_card   FOREIGN KEY (deck_slot_played_id)   REFERENCES battle_decks (deck_id),
+    CONSTRAINT fk_bt_target FOREIGN KEY (deck_slot_targeted_id) REFERENCES battle_decks (deck_id)
 );
 
 -- ============================================================
@@ -373,3 +376,5 @@ CREATE TABLE IF NOT EXISTS leaderboard_entries (
     CONSTRAINT fk_lb_user   FOREIGN KEY (user_id)   REFERENCES users   (user_id),
     CONSTRAINT uq_lb        UNIQUE (season_id, user_id)
 );
+
+SET FOREIGN_KEY_CHECKS = 1;

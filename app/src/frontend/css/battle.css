@@ -184,7 +184,10 @@
 	box-shadow: var(--battle-shadow);
 	padding: 0.6rem;
 	cursor: pointer;
-	transition: border-color 0.12s ease, box-shadow 0.12s ease, opacity 0.2s ease;
+	transition:
+		border-color 0.12s ease,
+		box-shadow 0.12s ease,
+		opacity 0.2s ease;
 }
 
 .battle-card:focus-visible {
@@ -231,7 +234,9 @@
 .battle-card-health-fill {
 	height: 100%;
 	background: var(--battle-win);
-	transition: width 0.3s ease, background 0.3s ease;
+	transition:
+		width 0.3s ease,
+		background 0.3s ease;
 }
 
 .battle-card-health-fill.low {
@@ -251,10 +256,22 @@
 	color: #555;
 }
 
-.battle-card-category-tag[data-category='CHARACTER'] { background: #fde2e2; color: #a33; }
-.battle-card-category-tag[data-category='LOCATION']  { background: #e2ecfd; color: #35c; }
-.battle-card-category-tag[data-category='INFLUENCE'] { background: #f3e2fd; color: #83c; }
-.battle-card-category-tag[data-category='HISTORICAL']{ background: #fdf3e2; color: #a73; }
+.battle-card-category-tag[data-category='CHARACTER'] {
+	background: #fde2e2;
+	color: #a33;
+}
+.battle-card-category-tag[data-category='LOCATION'] {
+	background: #e2ecfd;
+	color: #35c;
+}
+.battle-card-category-tag[data-category='INFLUENCE'] {
+	background: #f3e2fd;
+	color: #83c;
+}
+.battle-card-category-tag[data-category='HISTORICAL'] {
+	background: #fdf3e2;
+	color: #a73;
+}
 
 .battle-card-img {
 	width: 100%;

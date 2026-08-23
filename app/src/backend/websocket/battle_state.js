@@ -12,7 +12,7 @@ export async function load_battle_state(pool, battle_id) {
 	if (!battle) return null
 
 	const [rows] = await pool.query(
-		`SELECT bd.deck_id, bd.user_id, bd.card_id, bd.health, bd.ability_cooldown, bd.slot_position,
+		`SELECT bd.deck_id, bd.user_id, bd.card_id, bd.slot_position,
 		        c.name, c.image_url, c.category, c.stat_attack, c.stat_location, c.stat_influence, c.stat_legacy, c.stat_era
 		 FROM battle_decks bd
 		 JOIN cards c ON c.card_id = bd.card_id
@@ -39,13 +39,14 @@ export async function load_battle_state(pool, battle_id) {
 			name: row.name,
 			image_url: row.image_url,
 			category: row.category,
-			health: row.health,
-			ability_cooldown: row.ability_cooldown,
+			health: row.stat_legacy,
+			ability_cooldown: 0,
 			stat_attack: row.stat_attack,
 			stat_location: row.stat_location,
 			stat_influence: row.stat_influence,
 			stat_legacy: row.stat_legacy,
 			stat_era: row.stat_era,
+			effects: [],
 		}
 		if (row.user_id === battle.player1_id)
 			state.cards.player1.push(card)

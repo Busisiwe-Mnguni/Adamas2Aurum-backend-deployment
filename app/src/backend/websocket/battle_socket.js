@@ -5,6 +5,15 @@ import {
 	get_battle_state,
 	clear_battle_state,
 } from './battle_state.js'
+import {
+	get_effective_stat,
+	apply_defence,
+	apply_buff,
+	apply_debuff,
+	apply_defence_stance,
+	apply_revive,
+	tick_effects,
+} from './battle_effects.js'
 
 const active_players = new Map()
 
@@ -25,7 +34,6 @@ async function set_battle_finished(battle_id, reason, winner = null) {
 		`UPDATE battles SET status = '${reason}', winner_id = ?, ended_at = NOW() WHERE battle_id = ?`,
 		[winner, battle_id]
 	)
-	clear_battle_state(battle_id)
 }
 
 function next_turn(state) {
@@ -58,6 +66,144 @@ function is_valid_target(cards, slot_position) {
 	return { ok: true, card }
 }
 
+async function log_turn(
+	battle_id,
+	turn_number,
+	acting_user_id,
+	attacker,
+	target,
+	action,
+	result
+) {
+	const landed = action === 'ATTACK' ? result.landed : null
+	const damage = action === 'ATTACK' ? result.damage : 0
+
+	await pool.query(
+		`INSERT INTO battle_turns
+		 (battle_id, turn_number, acting_user_id, deck_slot_played_id, deck_slot_targeted_id, action, damage_dealt, landed, effect_data)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		[
+			battle_id,
+			turn_number,
+			acting_user_id,
+			attacker.deck_id,
+			target.deck_id,
+			action,
+			damage,
+			landed,
+			JSON.stringify(result),
+		]
+	)
+}
+
+async function persist_final_health(state) {
+	for (const card of [...state.cards.player, ...state.cards.cpu]) {
+		await pool.query(
+			'UPDATE battle_decks SET final_health = ? WHERE deck_id = ?',
+			[card.health, card.deck_id]
+		)
+	}
+}
+
+function calculate_defence(target) {
+	const target_legacy = get_effective_stat(target, 'stat_legacy')
+	const target_era = get_effective_stat(target, 'stat_era')
+
+	let current_year = 2026
+	let era_age = Math.max(0, current_year - target_era)
+
+	// adjust weights to balance era and legacy impact
+	let raw_input = era_age * 0.5 + target_legacy * 0.8
+
+	let max_cap = 30
+	// lower rate to make high defense harder to achieve
+	let rate = 0.015
+
+	return max_cap * (1 - Math.exp(-rate * raw_input))
+}
+
+function resolve_attack(attacker, target) {
+	const attacker_attack = get_effective_stat(attacker, 'stat_attack')
+	const attacker_location = get_effective_stat(attacker, 'stat_location')
+	const target_location = get_effective_stat(target, 'stat_location')
+	console.log(
+		`THIS IS A M*THERF*CKEN ANNOUNCEMENT: `,
+		attacker_attack,
+		attacker.stat_attack
+	)
+
+	let hit_chance = Math.min(
+		0.95,
+		1.0 - target_location / 100 + attacker_location / 100
+	)
+	if (target.category === 'LOCATION') hit_chance *= 0.9
+	if (Math.random() >= hit_chance) {
+		return {
+			landed: false,
+			damage: 0,
+			target_health_after: target.health,
+		}
+	}
+
+	let defence = calculate_defence(target)
+	if (target.category === 'HISTORICAL') defence *= 1.1
+
+	let damage = attacker_attack
+	if (attacker.category === 'CHARACTER') damage *= 1.5
+	damage = Math.max(1, Math.round(damage - defence))
+
+	target.health = Math.max(0, target.health - damage)
+	return {
+		landed: true,
+		damage,
+		target_health_after: target.health,
+	}
+}
+
+function get_target_pool(player_cards, opponent_cards, action) {
+	return action === 'BUFF' || action === 'REVIVE'
+		? player_cards
+		: opponent_cards
+}
+
+const ABILITY_DEFAULTS = { stat: 'stat_attack', amount: 10, duration: 2 }
+
+function resolve_action(attacker, target, action) {
+	switch (action) {
+		case 'ATTACK':
+			return resolve_attack(attacker, target)
+		case 'DEFEND':
+			return apply_defence_stance(
+				attacker,
+				Math.round(attacker.stat_legacy / 10)
+			)
+		case 'BUFF':
+			return apply_buff(
+				attacker,
+				target,
+				ABILITY_DEFAULTS.stat,
+				ABILITY_DEFAULTS.amount,
+				ABILITY_DEFAULTS.duration
+			)
+		case 'DEBUFF':
+			return apply_debuff(
+				attacker,
+				target,
+				ABILITY_DEFAULTS.stat,
+				ABILITY_DEFAULTS.amount,
+				ABILITY_DEFAULTS.duration
+			)
+		case 'REVIVE':
+			return apply_revive(
+				target,
+				Math.round(target.stat_legacy / 2),
+				3
+			)
+		default:
+			throw new Error(`Unhandled action: ${action}`)
+	}
+}
+
 function is_action_valid_for_category(category, action) {
 	//   INFLUENCE: ATTACK, BUFF, and DEBUFF
 	//   CHARACTER:  ATTACK, and DEFEND (highest damage)
@@ -72,56 +218,6 @@ function is_action_valid_for_category(category, action) {
 	return (allowed[category] || []).includes(action)
 }
 
-function calculate_defence(target) {
-	var current_year = 2026
-	var era_age = Math.max(0, current_year - target.stat_era)
-
-	// adjust weights to balance era and legacy impact
-	var raw_input = era_age * 0.5 + target.stat_legacy * 0.8
-
-	var max_cap = 30
-	// lower rate to make high defense harder to achieve
-	var rate = 0.015
-
-	return max_cap * (1 - Math.exp(-rate * raw_input))
-}
-
-function resolve_attack(attacker, target) {
-	var hit_chance = Math.min(
-		0.95,
-		1.0 - target.stat_location / 100 + attacker.stat_location / 100
-	)
-	if (target.category === 'LOCATION') hit_chance *= 0.9
-	if (Math.random() >= hit_chance) {
-		return {
-			attacker_card_id: attacker.card_id,
-			target_card_id: target.card_id,
-			action: 'ATTACK',
-			desc: 'attacked',
-			landed: false,
-			damage: 0,
-		}
-	}
-
-	var defence = calculate_defence(target)
-	if (target.category === 'HISTORICAL') defence *= 1.1
-
-	var damage = attacker.stat_attack
-	if (attacker.category === 'CHARACTER') damage *= 1.5
-	damage = Math.max(1, Math.round(damage - defence))
-
-	target.health = Math.max(0, target.health - damage)
-	return {
-		attacker_card_id: attacker.card_id,
-		target_card_id: target.card_id,
-		action: 'ATTACK',
-		desc: 'attacked',
-		landed: true,
-		target_defence: defence,
-		damage,
-	}
-}
-
 function take_cpu_turn(state) {
 	const alive_cpu = state.cards.player2.filter((c) => c.health > 0)
 	const alive_player = state.cards.player1.filter((c) => c.health > 0)
@@ -130,14 +226,13 @@ function take_cpu_turn(state) {
 	const attacker = alive_cpu[Math.floor(Math.random() * alive_cpu.length)]
 	const target =
 		alive_player[Math.floor(Math.random() * alive_player.length)]
-	const result = resolve_attack(attacker, target)
+	const result = resolve_action(attacker, target, 'ATTACK')
 
 	return {
-		attacker_card_id: attacker.card_id,
+		action: 'ATTACK',
 		attacker_slot: attacker.slot_position,
-		target_card_id: target.card_id,
 		target_slot: target.slot_position,
-		...result,
+		result,
 	}
 }
 
@@ -246,7 +341,7 @@ battleWss.on('connection', (ws, request) => {
 						})
 					)
 
-				var player_cards,
+				let player_cards,
 					opponent_cards,
 					player_id,
 					opponent_id
@@ -309,25 +404,26 @@ battleWss.on('connection', (ws, request) => {
 					)
 				}
 
-				const player_result = resolve_attack(
+				let player_result = resolve_action(
 					attacker_check.card,
-					target_check.card
+					target_check.card,
+					msg.action
 				)
-
-				await pool.query(
-					`INSERT INTO battle_turns (battle_id, turn_number, acting_user_id, card_played_id, card_targeted_id, action, damage_dealt, effect_desc)
-					 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-					[
-						battle_id,
-						state.turn_number,
-						user_id,
-						attacker_check.card.card_id,
-						target_check.card.card_id,
-						msg.action,
-						player_result.damage,
-						player_result.desc,
-					]
+				await log_turn(
+					battle_id,
+					state.turn_number,
+					user_id,
+					attacker_check.card,
+					target_check.card,
+					msg.action,
+					player_result
 				)
+				player_result = {
+					attacker_slot: msg.attacker_slot,
+					target_slot: msg.target_slot,
+					action: msg.action,
+					...player_result,
+				}
 
 				let winner = check_battle_over(state)
 				let opponent_result = null
@@ -336,29 +432,42 @@ battleWss.on('connection', (ws, request) => {
 					state.turn = next_turn(state)
 
 					if (opponent_id === null) {
-						opponent_result =
+						state.turn_number += 0.5
+						const cpu_result =
 							take_cpu_turn(state)
+						opponent_result = {
+							attacker_slot:
+								cpu_result.attacker_slot,
+							target_slot:
+								cpu_result.target_slot,
+							action: cpu_result.action,
+							...cpu_result.result,
+						}
 
 						if (opponent_result) {
-							await pool.query(
-								`INSERT INTO battle_turns (battle_id, turn_number, acting_user_id, card_played_id, card_targeted_id, action, damage_dealt, effect_desc)
-							 VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
-								[
-									battle_id,
-									state.turn_number,
-									opponent_result.attacker_card_id,
-									opponent_result.target_card_id,
-									opponent_result.action,
-									opponent_result.damage,
-									opponent_result.desc,
-								]
+							await log_turn(
+								battle_id,
+								state.turn_number,
+								null,
+								opponent_cards[
+									cpu_result
+										.attacker_slot
+								],
+								opponent_cards[
+									cpu_result
+										.target_slot
+								],
+								cpu_result.action,
+								cpu_result.result
 							)
 						}
 
 						winner =
 							check_battle_over(state)
+						state.turn_number += 0.5
+						if (state.turn_number > 1)
+							tick_effects(state)
 						state.turn = next_turn(state)
-						state.turn_number += 1
 					} else {
 						state.turn_number += 0.5
 					}
@@ -367,13 +476,7 @@ battleWss.on('connection', (ws, request) => {
 				ws.send(
 					JSON.stringify({
 						type: 'turn_result',
-						player_result: {
-							attacker_slot:
-								msg.attacker_slot,
-							target_slot:
-								msg.target_slot,
-							...player_result,
-						},
+						player_result,
 						opponent_result,
 						state,
 						user_id,
@@ -387,6 +490,8 @@ battleWss.on('connection', (ws, request) => {
 						'COMPLETED',
 						winner
 					)
+					persist_final_health(state)
+					clear_battle_state(battle_id)
 					if (state.player1_id !== null)
 						clear_player_connection(
 							state.player1_id

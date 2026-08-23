@@ -92,14 +92,14 @@ INSERT INTO event_card_pool (pool_id, event_id, card_id, weight, global_copy_lim
 INSERT INTO user_cards (user_card_id, user_id, card_id, quantity) VALUES
 (1, 2, 2, 2),
 (2, 1, 1, 3),
-(3, 1, 2, 1),
-(4, 1, 3, 1),
-(5, 1, 4, 1),
-(6, 1, 5, 1),
-(7, 1, 6, 1),
-(8, 1, 7, 1),
+(6, 1, 3, 1),
 (9, 1, 8, 1),
-(10, 1, 9, 1);
+(8, 1, 12, 1),
+(4, 1, 13, 1),
+(5, 1, 15, 1),
+(7, 1, 18, 1),
+(10, 1, 19, 1),
+(3, 1, 22, 1);
 
 -- 9. EVENT CARD AWARDS
 INSERT INTO event_card_awards (award_id, user_id, event_id, card_id) VALUES
@@ -135,9 +135,9 @@ INSERT INTO battle_decks (deck_id, battle_id, user_id, card_id, slot_position) V
 (2, 1, 2, 2, 1);
 
 -- 16. BATTLE TURNS
-INSERT INTO battle_turns (turn_id, battle_id, turn_number, acting_user_id, card_played_id, card_targeted_id, action, damage_dealt, effect_desc) VALUES
-(1, 1, 1, 1, 1, 2, 'ATTACK', 45, 'attacked'),
-(2, 1, 2, 2, 2, 2, 'DEFEND', 0, 'braced for impact');
+INSERT INTO battle_turns (turn_id, battle_id, turn_number, acting_user_id, deck_slot_played_id, deck_slot_targeted_id, action, damage_dealt, landed, effect_data) VALUES
+(1, 1, 1, 1, 1, 2, 'ATTACK', 45, true, null),
+(2, 1, 2, 2, 2, 2, 'DEFEND', 0, null, null);
 
 -- 17. TRADES
 INSERT INTO trades (trade_id, initiator_id, receiver_id, initiator_card_id, receiver_card_id, status, resolved_at) VALUES

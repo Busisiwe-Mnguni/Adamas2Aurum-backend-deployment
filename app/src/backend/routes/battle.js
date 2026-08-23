@@ -8,7 +8,7 @@ import {
 	abandon_battle,
 	TURN_TIMEOUT_MS,
 } from '../utils/battle.js'
-import {find_player_battle} from '../websocket/battle_socket.js'
+import { find_player_battle } from '../websocket/battle_socket.js'
 
 const router = express.Router()
 
@@ -42,20 +42,14 @@ async function build_npc_deck(battle_id) {
 	const values = []
 	const placeholders = cards
 		.map((card, idx) => {
-			values.push(
-				battle_id,
-				card.card_id,
-				card.stat_legacy,
-				0,
-				idx
-			)
-			return '(?, NULL, ?, ?, ?, ?)'
+			values.push(battle_id, card.card_id, idx)
+			return '(?, NULL, ?, ?)'
 		})
 		.join(',')
 
 	const [result] = await pool.query(
 		`INSERT INTO battle_decks
-		 (battle_id, user_id, card_id, health, ability_cooldown, slot_position) VALUES
+		 (battle_id, user_id, card_id, slot_position) VALUES
 		 ${placeholders}`,
 		values
 	)
@@ -67,7 +61,7 @@ async function build_npc_deck(battle_id) {
 	return result
 }
 
-async function start_n_p_c_battle(req, res) {
+async function start_npc_battle(req, res) {
 	try {
 		const [result] = await pool.query(
 			`INSERT INTO battles (
@@ -102,7 +96,7 @@ router.get('/start-battle', require_auth, async (req, res, next) => {
 	try {
 		if ((await get_active_battle(req.user.user_id)) != null)
 			return error(res, 500, 'Already in a battle')
-		if (req.query.npc) return start_n_p_c_battle(req, res)
+		if (req.query.npc) return start_npc_battle(req, res)
 		else return error(res, 500, 'Unfinished route')
 	} catch (err) {
 		console.error(err)
@@ -116,8 +110,7 @@ router.get('/find-battle', require_auth, async (req, res, next) => {
 		if (db_battle_id === null)
 			return success(res, { battle_id: null })
 		const battle_id = find_player_battle(req.user.user_id)
-		if (battle_id === null)
-			await abandon_battle(db_battle_id)
+		if (battle_id === null) await abandon_battle(db_battle_id)
 		return success(res, { battle_id })
 	} catch (err) {
 		console.error(err)
@@ -130,7 +123,10 @@ router.post('/build-battle-deck', require_auth, async (req, res, next) => {
 		const battle_id = await get_active_battle(req.user.user_id)
 		if (battle_id == null) return error(res, 500, 'Not in a battle')
 		var deck = req.body
-		if (!(await valid_user_cards(req.user, deck)) || deck.length != 5)
+		if (
+			!(await valid_user_cards(req.user, deck)) ||
+			deck.length != 5
+		)
 			error(
 				res,
 				500,
@@ -144,16 +140,14 @@ router.post('/build-battle-deck', require_auth, async (req, res, next) => {
 					battle_id,
 					req.user.user_id,
 					card.card_id,
-					card.stat_legacy,
-					0,
 					idx
 				)
-				return '(?,?,?,?,?,?)'
+				return '(?,?,?,?)'
 			})
 			.join(',')
 		const [result] = await pool.query(
 			`INSERT INTO battle_decks
-			(battle_id, user_id, card_id, health, ability_cooldown, slot_position) VALUES
+			(battle_id, user_id, card_id, slot_position) VALUES
 			${placeholders}
 			`,
 			values

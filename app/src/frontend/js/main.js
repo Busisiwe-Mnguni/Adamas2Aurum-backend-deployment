@@ -2,12 +2,13 @@
  * MAP CONFIGURATION CONSTANTS
  */
 const CONFIG = {
-  CENTER_COORDINATES: [-26.1905, 28.0285], // roughly Wits East Campus — where the map centers on load
-  DEFAULT_ZOOM: 16.5,
-  MIN_ZOOM: 2,
-  MAX_ZOOM: 18,
-  TILE_URL: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', // free OSM map tiles, no API key needed
-  TILE_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+	CENTER_COORDINATES: [-26.1905, 28.0285], // roughly Wits East Campus — where the map centers on load
+	DEFAULT_ZOOM: 16.5,
+	MIN_ZOOM: 2,
+	MAX_ZOOM: 18,
+	TILE_URL: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', // free OSM map tiles, no API key needed
+	TILE_ATTRIBUTION:
+		'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }
 
 const API_BASE = 'http://localhost:3000/api'
@@ -26,8 +27,8 @@ let currentUser = null
  * look visually distinct on the map.
  */
 const buildingIcon = L.divIcon({
-  className: 'custom-building-pin',
-  html: `
+	className: 'custom-building-pin',
+	html: `
     <div style="
       background-color: #0c2461;
       width: 32px;
@@ -43,14 +44,14 @@ const buildingIcon = L.divIcon({
       <span style="transform: rotate(45deg); font-size: 16px;">🏛️</span>
     </div>
   `,
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],   // bottom-center of the icon points at the actual coordinate
-  popupAnchor: [0, -32],  // popup opens above the pin, not on top of it
+	iconSize: [32, 32],
+	iconAnchor: [16, 32], // bottom-center of the icon points at the actual coordinate
+	popupAnchor: [0, -32], // popup opens above the pin, not on top of it
 })
 
 const playerIcon = L.divIcon({
-  className: 'custom-player-pin',
-  html: `
+	className: 'custom-player-pin',
+	html: `
     <div style="position: relative; width: 36px; height: 36px;">
       <div style="
         position: absolute;
@@ -85,9 +86,9 @@ const playerIcon = L.divIcon({
       }
     </style>
   `,
-  iconSize: [36, 36],
-  iconAnchor: [18, 36],
-  popupAnchor: [0, -36],
+	iconSize: [36, 36],
+	iconAnchor: [18, 36],
+	popupAnchor: [0, -36],
 })
 
 /**
@@ -99,39 +100,102 @@ const playerIcon = L.divIcon({
  * a blank screen during development.
  */
 async function fetchCampusEvents() {
-  try {
-    const res = await fetch(`${API_BASE}/events`)
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+	try {
+		const res = await fetch(`${API_BASE}/events`)
+		if (!res.ok)
+			throw new Error(`HTTP error! status: ${res.status}`)
 
-    const dbEvents = await res.json()
+		const dbEvents = await res.json()
 
-    if (Array.isArray(dbEvents) && dbEvents.length > 0) {
-      // Reshape the DB's column names into what the rest of this file
-      // expects (e.g. latitude/longitude → a single coordinates array
-      // Leaflet can use directly).
-      return dbEvents.map((event) => ({
-        id: event.event_id,
-        name: event.title,
-        campus: event.campus || 'Wits Campus',
-        category: event.category || 'General',
-        description: event.description || '',
-        coordinates: [parseFloat(event.latitude), parseFloat(event.longitude)],
-        hasChallenge: event.point_reward > 0 || event.hasChallenge,
-      }))
-    }
-  } catch (err) {
-    console.warn('Backend API connection failed, falling back to static locations:', err)
-  }
+		if (Array.isArray(dbEvents) && dbEvents.length > 0) {
+			// Reshape the DB's column names into what the rest of this file
+			// expects (e.g. latitude/longitude → a single coordinates array
+			// Leaflet can use directly).
+			return dbEvents.map((event) => ({
+				id: event.event_id,
+				name: event.title,
+				campus: event.campus || 'Wits Campus',
+				category: event.category || 'General',
+				description: event.description || '',
+				coordinates: [
+					parseFloat(event.latitude),
+					parseFloat(event.longitude),
+				],
+				hasChallenge:
+					event.point_reward > 0 ||
+					event.hasChallenge,
+			}))
+		}
+	} catch (err) {
+		console.warn(
+			'Backend API connection failed, falling back to static locations:',
+			err
+		)
+	}
 
-  // Fallback data — only used if the fetch above throws or returns empty.
-  return [
-    { id: 1, name: 'Great Hall', campus: 'East Campus', category: 'Landmark', description: '🏛️ Central graduation hall & core architectural landmark.', coordinates: [-26.1925, 28.0305], hasChallenge: true },
-    { id: 2, name: 'Solomon Mahlangu House', campus: 'East Campus', category: 'Administration', description: '🏢 Main administrative concourse and student services.', coordinates: [-26.1932, 28.0305], hasChallenge: false },
-    { id: 3, name: 'Robert Sobukwe Block', campus: 'East Campus', category: 'Academic', description: '🏫 Major lecture halls and central academic facilities.', coordinates: [-26.1928, 28.0301], hasChallenge: false },
-    { id: 4, name: 'William Cullen Library', campus: 'East Campus', category: 'Library', description: '📚 Historic central library overlooking Library Lawns.', coordinates: [-26.1918, 28.0298], hasChallenge: true },
-    { id: 5, name: 'Wartenweiler Library', campus: 'East Campus', category: 'Library', description: '📖 Primary 24-hour undergraduate study library.', coordinates: [-26.1918, 28.0311], hasChallenge: false },
-    { id: 6, name: 'The Matrix', campus: 'East Campus', category: 'Student Hub', description: '🍔 Central student food court, shops, and social hub.', coordinates: [-26.1905, 28.0315], hasChallenge: true },
-  ]
+	// Fallback data — only used if the fetch above throws or returns empty.
+	return [
+		{
+			id: 1,
+			name: 'Great Hall',
+			campus: 'East Campus',
+			category: 'Landmark',
+			description:
+				'🏛️ Central graduation hall & core architectural landmark.',
+			coordinates: [-26.1925, 28.0305],
+			hasChallenge: true,
+		},
+		{
+			id: 2,
+			name: 'Solomon Mahlangu House',
+			campus: 'East Campus',
+			category: 'Administration',
+			description:
+				'🏢 Main administrative concourse and student services.',
+			coordinates: [-26.1932, 28.0305],
+			hasChallenge: false,
+		},
+		{
+			id: 3,
+			name: 'Robert Sobukwe Block',
+			campus: 'East Campus',
+			category: 'Academic',
+			description:
+				'🏫 Major lecture halls and central academic facilities.',
+			coordinates: [-26.1928, 28.0301],
+			hasChallenge: false,
+		},
+		{
+			id: 4,
+			name: 'William Cullen Library',
+			campus: 'East Campus',
+			category: 'Library',
+			description:
+				'📚 Historic central library overlooking Library Lawns.',
+			coordinates: [-26.1918, 28.0298],
+			hasChallenge: true,
+		},
+		{
+			id: 5,
+			name: 'Wartenweiler Library',
+			campus: 'East Campus',
+			category: 'Library',
+			description:
+				'📖 Primary 24-hour undergraduate study library.',
+			coordinates: [-26.1918, 28.0311],
+			hasChallenge: false,
+		},
+		{
+			id: 6,
+			name: 'The Matrix',
+			campus: 'East Campus',
+			category: 'Student Hub',
+			description:
+				'🍔 Central student food court, shops, and social hub.',
+			coordinates: [-26.1905, 28.0315],
+			hasChallenge: true,
+		},
+	]
 }
 
 /**
@@ -142,11 +206,11 @@ async function fetchCampusEvents() {
  * "no challenge here" message instead.
  */
 function buildPopupContent(buildingData) {
-  const challengeButtonHtml = buildingData.hasChallenge
-    ? `<button class="challenge-btn" onclick="handleChallengeAttempt('${buildingData.id}')">⚡ Attempt Challenge</button>`
-    : `<p style="margin-top: 8px; font-size: 0.85rem; color: #666;">No active challenge here.</p>`
+	const challengeButtonHtml = buildingData.hasChallenge
+		? `<button class="challenge-btn" onclick="handleChallengeAttempt('${buildingData.id}')">⚡ Attempt Challenge</button>`
+		: `<p style="margin-top: 8px; font-size: 0.85rem; color: #666;">No active challenge here.</p>`
 
-  return `
+	return `
     <div class="event-popup">
       <h3>${buildingData.name}</h3>
       <p style="margin: 6px 0;">${buildingData.description}</p>
@@ -173,31 +237,33 @@ function buildPopupContent(buildingData) {
  * root.
  */
 window.handleChallengeAttempt = async function (eventId) {
-  if (!currentUser) {
-    window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
-    return
-  }
+	if (!currentUser) {
+		window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+		return
+	}
 
-  try {
-    const res = await fetch(`${API_BASE}/trivia/event/${eventId}`, {
-      credentials: 'include', // sends the session cookie along, so the backend's requireAuth check can identify who's asking
-    })
-    if (!res.ok) {
-      if (res.status === 401) {
-        // Session cookie expired or was invalidated server-side between
-        // page load and clicking this button — bounce to login again.
-        window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
-        return
-      }
-      alert('No trivia challenges available for this location right now!')
-      return
-    }
+	try {
+		const res = await fetch(`${API_BASE}/trivia/event/${eventId}`, {
+			credentials: 'include', // sends the session cookie along, so the backend's requireAuth check can identify who's asking
+		})
+		if (!res.ok) {
+			if (res.status === 401) {
+				// Session cookie expired or was invalidated server-side between
+				// page load and clicking this button — bounce to login again.
+				window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+				return
+			}
+			alert(
+				'No trivia challenges available for this location right now!'
+			)
+			return
+		}
 
-    const trivia = await res.json()
-    showTriviaModal(eventId, trivia)
-  } catch (err) {
-    alert('Error connecting to challenge server.')
-  }
+		const trivia = await res.json()
+		showTriviaModal(eventId, trivia)
+	} catch (err) {
+		alert('Error connecting to challenge server.')
+	}
 }
 
 /**
@@ -207,31 +273,35 @@ window.handleChallengeAttempt = async function (eventId) {
  * player picks an answer.
  */
 function showTriviaModal(eventId, trivia) {
-  let modal = document.getElementById('trivia-modal')
-  if (!modal) {
-    // Reuse the same modal element across multiple challenge attempts
-    // instead of creating a new one every time.
-    modal = document.createElement('div')
-    modal.id = 'trivia-modal'
-    modal.style.cssText = `
+	let modal = document.getElementById('trivia-modal')
+	if (!modal) {
+		// Reuse the same modal element across multiple challenge attempts
+		// instead of creating a new one every time.
+		modal = document.createElement('div')
+		modal.id = 'trivia-modal'
+		modal.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
       z-index: 10000;
     `
-    document.body.appendChild(modal)
-  }
+		document.body.appendChild(modal)
+	}
 
-  // Each button's onclick bakes in the eventId, question_id, and this
-  // specific option's option_id — that's all submitTriviaAnswer() needs
-  // to tell the server which question and which choice was picked.
-  const optionsHtml = trivia.options.map(opt => `
+	// Each button's onclick bakes in the eventId, question_id, and this
+	// specific option's option_id — that's all submitTriviaAnswer() needs
+	// to tell the server which question and which choice was picked.
+	const optionsHtml = trivia.options
+		.map(
+			(opt) => `
     <button style="display: block; width: 100%; margin: 8px 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer;"
             onclick="submitTriviaAnswer(${eventId}, ${trivia.question_id}, ${opt.option_id})">
       ${opt.body}
     </button>
-  `).join('')
+  `
+		)
+		.join('')
 
-  modal.innerHTML = `
+	modal.innerHTML = `
     <div style="background: #fff; padding: 24px; border-radius: 8px; max-width: 400px; width: 90%;">
       <h3>🎯 Campus Challenge</h3>
       <p style="margin: 12px 0;"><strong>${trivia.body}</strong></p>
@@ -253,73 +323,77 @@ function showTriviaModal(eventId, trivia) {
  * response (see routes/trivia.js for how that's computed).
  */
 window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
-  const optionsContainer = document.getElementById('trivia-options')
-  const resultContainer = document.getElementById('trivia-result')
+	const optionsContainer = document.getElementById('trivia-options')
+	const resultContainer = document.getElementById('trivia-result')
 
-  // Disable all answer buttons immediately so the player can't click a
-  // second option while the first request is still in flight (which
-  // would otherwise let them submit multiple answers to one question).
-  if (optionsContainer) {
-    optionsContainer.querySelectorAll('button').forEach((btn) => (btn.disabled = true))
-  }
+	// Disable all answer buttons immediately so the player can't click a
+	// second option while the first request is still in flight (which
+	// would otherwise let them submit multiple answers to one question).
+	if (optionsContainer) {
+		optionsContainer
+			.querySelectorAll('button')
+			.forEach((btn) => (btn.disabled = true))
+	}
 
-  try {
-    const res = await fetch(`${API_BASE}/trivia/submit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // same reason as above — the backend needs the session cookie to know who's submitting
-      body: JSON.stringify({
-        event_id: eventId,
-        question_id: questionId,
-        selected_option_id: optionId,
-        answer_time_ms: 1500 // TODO: currently hardcoded; a real implementation would time from when the modal opened
-      })
-    })
+	try {
+		const res = await fetch(`${API_BASE}/trivia/submit`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'include', // same reason as above — the backend needs the session cookie to know who's submitting
+			body: JSON.stringify({
+				event_id: eventId,
+				question_id: questionId,
+				selected_option_id: optionId,
+				answer_time_ms: 1500, // TODO: currently hardcoded; a real implementation would time from when the modal opened
+			}),
+		})
 
-    if (res.status === 401) {
-      alert('Your session has expired. Please log in again.')
-      window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
-      return
-    }
+		if (res.status === 401) {
+			alert('Your session has expired. Please log in again.')
+			window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+			return
+		}
 
-    const data = await res.json()
+		const data = await res.json()
 
-    if (!res.ok) {
-      // e.g. a 404 "Invalid option selected" from the backend
-      if (resultContainer) {
-        resultContainer.innerHTML = `<p style="color: #c0392b;">${data.error || 'Something went wrong submitting your answer.'}</p>`
-      }
-      return
-    }
+		if (!res.ok) {
+			// e.g. a 404 "Invalid option selected" from the backend
+			if (resultContainer) {
+				resultContainer.innerHTML = `<p style="color: #c0392b;">${data.error || 'Something went wrong submitting your answer.'}</p>`
+			}
+			return
+		}
 
-    if (resultContainer) {
-      // Green for correct, red for incorrect — purely a display choice,
-      // has no effect on what actually got recorded server-side.
-      const verdictColor = data.is_correct ? '#27ae60' : '#c0392b'
-      const verdictText = data.is_correct
-        ? `✅ Correct! +${data.points_awarded} points`
-        : `❌ Not quite.`
+		if (resultContainer) {
+			// Green for correct, red for incorrect — purely a display choice,
+			// has no effect on what actually got recorded server-side.
+			const verdictColor = data.is_correct
+				? '#27ae60'
+				: '#c0392b'
+			const verdictText = data.is_correct
+				? `✅ Correct! +${data.points_awarded} points`
+				: `❌ Not quite.`
 
-      // correct_option_text will be null only if a question was seeded
-      // without any option marked is_correct — guard against that so we
-      // don't render "Correct answer: null".
-      const correctAnswerHtml = data.correct_option_text
-        ? `<p style="margin-top: 6px; color: #333;">Correct answer: <strong>${data.correct_option_text}</strong></p>`
-        : ''
+			// correct_option_text will be null only if a question was seeded
+			// without any option marked is_correct — guard against that so we
+			// don't render "Correct answer: null".
+			const correctAnswerHtml = data.correct_option_text
+				? `<p style="margin-top: 6px; color: #333;">Correct answer: <strong>${data.correct_option_text}</strong></p>`
+				: ''
 
-      resultContainer.innerHTML = `
+			resultContainer.innerHTML = `
         <p style="color: ${verdictColor}; font-weight: bold;">${verdictText}</p>
         ${correctAnswerHtml}
       `
-    }
-  } catch (err) {
-    // Network failure, backend down, etc. — distinct from the res.ok
-    // check above, which handles the backend responding but with an
-    // error status.
-    if (resultContainer) {
-      resultContainer.innerHTML = `<p style="color: #c0392b;">Failed to submit answer. Ensure you are signed in.</p>`
-    }
-  }
+		}
+	} catch (err) {
+		// Network failure, backend down, etc. — distinct from the res.ok
+		// check above, which handles the backend responding but with an
+		// error status.
+		if (resultContainer) {
+			resultContainer.innerHTML = `<p style="color: #c0392b;">Failed to submit answer. Ensure you are signed in.</p>`
+		}
+	}
 }
 
 /**
@@ -329,31 +403,35 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
  * keeps updating the marker as the player physically moves around campus.
  */
 function setupPlayerGeolocation(map) {
-  let playerMarker = null
+	let playerMarker = null
 
-  function updatePosition(position) {
-    const { latitude, longitude } = position.coords
-    const latLng = [latitude, longitude]
+	function updatePosition(position) {
+		const { latitude, longitude } = position.coords
+		const latLng = [latitude, longitude]
 
-    if (!playerMarker) {
-      // First position fix: create the marker.
-      playerMarker = L.marker(latLng, { icon: playerIcon })
-        .addTo(map)
-        .bindPopup('📍 You are here!')
-    } else {
-      // Subsequent fixes: just move the existing marker instead of
-      // creating a new one each time (which would leave duplicates).
-      playerMarker.setLatLng(latLng)
-    }
-  }
+		if (!playerMarker) {
+			// First position fix: create the marker.
+			playerMarker = L.marker(latLng, { icon: playerIcon })
+				.addTo(map)
+				.bindPopup('📍 You are here!')
+		} else {
+			// Subsequent fixes: just move the existing marker instead of
+			// creating a new one each time (which would leave duplicates).
+			playerMarker.setLatLng(latLng)
+		}
+	}
 
-  if ('geolocation' in navigator) {
-    navigator.geolocation.watchPosition(updatePosition, (err) => console.warn(err.message), {
-      enableHighAccuracy: true, // prefer GPS over coarse wifi/IP-based location
-      maximumAge: 10000,        // accept a cached position up to 10s old
-      timeout: 10000,           // give up waiting for a fix after 10s
-    })
-  }
+	if ('geolocation' in navigator) {
+		navigator.geolocation.watchPosition(
+			updatePosition,
+			(err) => console.warn(err.message),
+			{
+				enableHighAccuracy: true, // prefer GPS over coarse wifi/IP-based location
+				maximumAge: 10000, // accept a cached position up to 10s old
+				timeout: 10000, // give up waiting for a fix after 10s
+			}
+		)
+	}
 }
 
 /**
@@ -364,48 +442,51 @@ function setupPlayerGeolocation(map) {
  * either a login link or the logged-in user's name + logout button.
  */
 async function checkAuthSession() {
-  const container = document.getElementById('auth-nav-container')
-  if (!container) return
+	const container = document.getElementById('auth-nav-container')
+	if (!container) return
 
-  try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      method: 'GET',
-      credentials: 'include',
-    })
+	try {
+		const res = await fetch(`${API_BASE}/auth/me`, {
+			method: 'GET',
+			credentials: 'include',
+		})
 
-    if (res.ok) {
-      const user = await res.json()
-      currentUser = user
-      container.innerHTML = `
+		if (res.ok) {
+			const user = await res.json()
+			currentUser = user
+			container.innerHTML = `
         <div class="user-badge">
           <span>👤 ${user.name}</span>
           <button id="logout-btn" class="logout-btn">Log Out</button>
         </div>
       `
-      document.getElementById('logout-btn').addEventListener('click', handleLogout)
-    } else {
-      // 401 from the backend — no valid session.
-      currentUser = null
-      container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
-    }
-  } catch (err) {
-    // Backend unreachable — treat the same as "not logged in" rather than
-    // crashing the page.
-    currentUser = null
-    container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
-  }
+			document.getElementById('logout-btn').addEventListener(
+				'click',
+				handleLogout
+			)
+		} else {
+			// 401 from the backend — no valid session.
+			currentUser = null
+			container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
+		}
+	} catch (err) {
+		// Backend unreachable — treat the same as "not logged in" rather than
+		// crashing the page.
+		currentUser = null
+		container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
+	}
 }
 
 async function handleLogout() {
-  try {
-    await fetch(`${API_BASE}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    })
-    window.location.reload() // simplest way to reset all UI state back to "logged out"
-  } catch (err) {
-    console.error('Logout error:', err)
-  }
+	try {
+		await fetch(`${API_BASE}/auth/logout`, {
+			method: 'POST',
+			credentials: 'include',
+		})
+		window.location.reload() // simplest way to reset all UI state back to "logged out"
+	} catch (err) {
+		console.error('Logout error:', err)
+	}
 }
 
 /**
@@ -415,34 +496,36 @@ async function handleLogout() {
  * player's live location. Runs once, when the page finishes loading.
  */
 async function initializeApp() {
-  const map = L.map('map', {
-    center: CONFIG.CENTER_COORDINATES,
-    zoom: CONFIG.DEFAULT_ZOOM,
-    minZoom: CONFIG.MIN_ZOOM,
-    maxZoom: CONFIG.MAX_ZOOM,
-    maxNativeZoom: 18,
-  })
+	const map = L.map('map', {
+		center: CONFIG.CENTER_COORDINATES,
+		zoom: CONFIG.DEFAULT_ZOOM,
+		minZoom: CONFIG.MIN_ZOOM,
+		maxZoom: CONFIG.MAX_ZOOM,
+		maxNativeZoom: 18,
+	})
 
-  L.tileLayer(CONFIG.TILE_URL, {
-    attribution: CONFIG.TILE_ATTRIBUTION,
-    maxZoom: 19,
-    maxNativeZoom: 18,
-  }).addTo(map)
+	L.tileLayer(CONFIG.TILE_URL, {
+		attribution: CONFIG.TILE_ATTRIBUTION,
+		maxZoom: 19,
+		maxNativeZoom: 18,
+	}).addTo(map)
 
-  // Must resolve BEFORE placing markers below — buildPopupContent()
-  // renders a different popup depending on hasChallenge, and clicking
-  // "Attempt Challenge" checks currentUser, so auth state has to be known
-  // before a player can possibly interact with a pin.
-  await checkAuthSession()
+	// Must resolve BEFORE placing markers below — buildPopupContent()
+	// renders a different popup depending on hasChallenge, and clicking
+	// "Attempt Challenge" checks currentUser, so auth state has to be known
+	// before a player can possibly interact with a pin.
+	await checkAuthSession()
 
-  const buildingsList = await fetchCampusEvents()
+	const buildingsList = await fetchCampusEvents()
 
-  buildingsList.forEach((building) => {
-    const marker = L.marker(building.coordinates, { icon: buildingIcon }).addTo(map)
-    marker.bindPopup(buildPopupContent(building))
-  })
+	buildingsList.forEach((building) => {
+		const marker = L.marker(building.coordinates, {
+			icon: buildingIcon,
+		}).addTo(map)
+		marker.bindPopup(buildPopupContent(building))
+	})
 
-  setupPlayerGeolocation(map)
+	setupPlayerGeolocation(map)
 }
 
 // Wait for the DOM to be ready before touching any #map / #auth-nav-container
