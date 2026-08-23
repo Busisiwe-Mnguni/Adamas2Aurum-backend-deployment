@@ -7,18 +7,21 @@ A location-based campus trivia and card-battle game.
 ## Tech Stack
 
 ### Frontend
+
 - Plain HTML, CSS, and JavaScript (no framework)
 - [Vite](https://vitejs.dev/) as the dev server and build tool
 - [Leaflet.js](https://leafletjs.com/) + OpenStreetMap tiles for the interactive campus map
 - No API keys required for map rendering
 
 ### Backend
+
 - [Node.js](https://nodejs.org/) with [Express](https://expressjs.com/)
 - [MySQL](https://www.mysql.com/) (hosted on Aiven) via `mysql2/promise`
 - `express-session` for session-based authentication (email + PIN login)
 - CORS configured for local frontend origins (`localhost:5173`, `localhost:8055`)
 
 ### Tooling
+
 - [Jest](https://jestjs.io/) for frontend and backend unit tests
 - [Prettier](https://prettier.io/) for code formatting
 - Task management via Taiga (Kanban)
@@ -53,7 +56,7 @@ See [RUNNING.md](./RUNNING.md) for full local setup instructions, including envi
 
 Quick start:
 
-```bash
+````bash
 git clone <https://sdp.ms.wits.ac.za/404-found-us/Adamas2Aurum.git>
 cd Adamas2Aurum
 npm install
@@ -75,7 +78,7 @@ trivia questions, etc.), run once:
 
 ```bash
 npm run db:seed
-```
+````
 
 > ⚠️ This TRUNCATEs and re-inserts all seed data on the **shared** Aiven
 > database. Don't run it while teammates are actively testing — check in
@@ -84,6 +87,7 @@ npm run db:seed
 > someone else ran `db:seed` (or an older backend re-seeded automatically)
 > and your test account got wiped — just log in with a seeded account
 > again, or re-run `db:seed` yourself if needed.
+
 ```
 
 Frontend runs at `http://localhost:5173`, backend API at `http://localhost:3000`.
@@ -93,3 +97,4 @@ Frontend runs at `http://localhost:5173`, backend API at `http://localhost:3000`
 ## Team
 
 Developed by **404 Found Us**, Software Design Project — University of the Witwatersrand.
+```
