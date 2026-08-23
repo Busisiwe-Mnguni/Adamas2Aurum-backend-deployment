@@ -8,6 +8,7 @@ import event_routes from './routes/events.js'
 import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
 import { execute_sql_script } from './utils/sql_utils.js'
+import card_routes from './routes/cards.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -44,6 +45,7 @@ app.use(express.json())
 app.use('/api/auth', auth_routes)
 app.use('/api/events', event_routes)
 app.use('/api/trivia', trivia_routes)
+app.use('/api/cards', card_routes)
 
 app.get('/api/health', async (req, res) => {
   try {
