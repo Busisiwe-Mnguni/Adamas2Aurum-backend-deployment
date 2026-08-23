@@ -408,6 +408,7 @@ function setupPlayerGeolocation(map) {
 	function updatePosition(position) {
 		const { latitude, longitude } = position.coords
 		const latLng = [latitude, longitude]
+		console.log(latitude, longitude)
 
 		if (!playerMarker) {
 			// First position fix: create the marker.

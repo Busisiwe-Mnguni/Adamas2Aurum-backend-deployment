@@ -146,7 +146,10 @@ function resolve_attack(attacker, target) {
 
 	let damage = attacker_attack
 	if (attacker.category === 'CHARACTER') damage *= 1.5
-	damage = Math.max(1, apply_defence(target, Math.round(damage - defence)))
+	damage = Math.max(
+		1,
+		apply_defence(target, Math.round(damage - defence))
+	)
 
 	target.health = Math.max(0, target.health - damage)
 	return {
@@ -499,14 +502,32 @@ battleWss.on('connection', (ws, request) => {
 					)
 					persist_final_health(state)
 					clear_battle_state(battle_id)
-					if (state.player1_id !== null)
+					if (state.player1_id !== null) {
+						const tmpWss = get_player_connection(state.player1_id)
+						tmpWss.send(
+							JSON.stringify({
+								type: 'match-results',
+								winner,
+								user_id,
+							})
+						)
 						clear_player_connection(
 							state.player1_id
 						)
-					if (state.player2_id !== null)
+					}
+					if (state.player2_id !== null) {
+						const tmpWss = get_player_connection(state.player2_id)
+						tmpWss.send(
+							JSON.stringify({
+								type: 'match-results',
+								winner,
+								user_id,
+							})
+						)
 						clear_player_connection(
 							state.player2_id
 						)
+					}
 				}
 				return
 			}

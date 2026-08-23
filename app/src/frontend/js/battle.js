@@ -28,6 +28,10 @@ const elBattleLog = document.getElementById('battle-log')
 const elBattleActions = document.getElementById('action-buttons')
 
 const elResultView = document.getElementById('view-result')
+const elResultHeading = document.getElementById('result-heading')
+const elResultCollectionButton = document.getElementById('btn-view-collection')
+const elResultDamageInflicted = document.getElementById('damage-inflicted')
+const elResultDamageSuffered = document.getElementById('damage-suffered')
 
 const elListError = document.getElementById('list-error')
 
@@ -444,9 +448,29 @@ function action_log(actor, target, result) {
 			}
 			return `${actor} attacked ${target} and missed`
 		}
+		case 'BUFF': {
+			return `${actor} buffed ${target} for ${result.amount} in "${result.stat}"`
+		}
+		case 'DEBUFF': {
+			const amount = -Math.abs(result.amount)
+			return `${actor} debuffed ${target} for ${amount} in "${result.stat}"`
+		}
+		case 'DEFEND': {
+			return `${actor} went into a defence stance`
+		}
+		case 'DODGE': {
+			return `${actor} prepared to dodge`
+		}
 		default:
 			return `${actor} performed unknown action: ${result.action}`
 	}
+}
+
+function scrollToBottomBattleLog() {
+	elBattleLog.scrollTo({
+		top: elBattleLog.scrollHeight,
+		behavior: 'smooth',
+	})
 }
 
 function refreshBattleLogs(
@@ -491,6 +515,7 @@ function refreshBattleLogs(
 		)
 		elBattleLog.appendChild(li)
 	}
+	scrollToBottomBattleLog()
 }
 
 function refreshBattleView(battle_id, user_id, state) {
@@ -555,6 +580,16 @@ function connectToWebSocket(battle_id) {
 				const data = JSON.parse(event.data)
 				if (data.type === 'pong') return
 				console.log(data)
+				if (data.type === 'match-results') {
+					ws.close()
+					switchToResultView()
+					elResultHeading.textContent =
+						data.winner === data.user_id
+							? 'Victory'
+							: 'Defeat'
+					elResultDamageSuffered.textContent = 0
+					elResultDamageInflicted.textContent = 0
+				}
 				if (
 					data.state !== undefined &&
 					data.user_id !== undefined

@@ -383,7 +383,47 @@
 	box-shadow: 0 0 0 2px var(--battle-accent) inset;
 }
 
-body.awaiting-opponent-target,
+bconst playerIcon = L.divIcon({
+	className: 'custom-player-pin',
+	html: `
+    <div style="position: relative; width: 36px; height: 36px;">
+      <div style="
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background-color: rgba(231, 76, 60, 0.4);
+        animation: pulse-ring 1.8s infinite ease-out;
+      "></div>
+      <div style="
+        background-color: #e74c3c;
+        width: 32px;
+        height: 32px;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #ffffff;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        position: absolute;
+        top: 2px;
+        left: 2px;
+      ">
+        <span style="transform: rotate(45deg); font-size: 16px;">📍</span>
+      </div>
+    </div>
+    <style>
+      @keyframes pulse-ring {
+        0% { transform: scale(0.8); opacity: 0.8; }
+        100% { transform: scale(1.6); opacity: 0; }
+      }
+    </style>
+  `,
+	iconSize: [36, 36],
+	iconAnchor: [18, 36],
+	popupAnchor: [0, -36],
+})ody.awaiting-opponent-target,
 body.awaiting-team-target {
 	cursor: crosshair;
 }
