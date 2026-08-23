@@ -93,6 +93,7 @@ Key variables:
 | `BETTER_AUTH_URL` | `http://localhost:3000` | Same as backend origin |
 | `BETTER_AUTH_SECRET` | _(generate)_ | `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `PORT` | `3000` | Backend + frontend port |
+| `REQUIRE_LOCATION_VERIFICATION` | `false` | 
 
 ### Install & Run
 
