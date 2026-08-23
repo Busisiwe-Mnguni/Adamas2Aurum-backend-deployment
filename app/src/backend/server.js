@@ -26,6 +26,7 @@ import { auth } from './src/auth.js'
 import event_routes from './routes/events.js'
 import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
+import question_routes from './routes/questions.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -74,20 +75,35 @@ app.use(
 )
 
 // ---------------------------------------------------------------------------
-// Better Auth handler — MUST be mounted BEFORE express.json()
-// Catches all requests to /api/auth/* (sign-in, sign-up, session, etc.)
-// Uses Express 5 wildcard syntax: {*path}
+// Auth routing — PIN auth routes (login, register, logout, me) are handled
+// by the auth_routes router below. All other /api/auth/* paths go to
+// Better Auth (sign-up/email, sign-in/email, sign-out, get-session, etc.).
+// Without this gate, Better Auth's wildcard would intercept PIN routes and
+// return an empty body, causing the frontend to fail with
+// "Unexpected end of JSON input".
+// MUST be mounted BEFORE express.json() so Better Auth can parse its own
+// request bodies.
 // ---------------------------------------------------------------------------
-app.all('/api/auth/{*path}', toNodeHandler(auth))
+const PIN_AUTH_PATHS = ['/login', '/register', '/logout', '/me']
+
+app.use('/api/auth', (req, res, next) => {
+  if (PIN_AUTH_PATHS.includes(req.path)) {
+    return next() // skip Better Auth → falls through to auth_routes below
+  }
+  toNodeHandler(auth)(req, res, next)
+})
 
 app.use(express.json())
 
 // ---------------------------------------------------------------------------
-// Existing API routes (unchanged)
+// Existing API routes (PIN auth router handles /login, /register, /me, /logout)
 // ---------------------------------------------------------------------------
 app.use('/api/auth', auth_routes)
 app.use('/api/events', event_routes)
 app.use('/api/trivia', trivia_routes)
+// User Story 6 — question authoring. Mounted at /api so the single
+// router can serve both /api/events/:eventId/questions and /api/questions/:id.
+app.use('/api', question_routes)
 
 app.get('/api/health', async (req, res) => {
   try {
