@@ -270,9 +270,23 @@ function showTriviaModal(eventId, trivia) {
     </button>
   `).join('')
 
+  // User story 8 — if the player has ALREADY earned this event's card,
+  // show a clear banner BEFORE they answer. Don't silently let them redo
+  // the challenge and then quietly withhold the card — that looks like a
+  // bug. They can still replay for practice, but it's visually obvious
+  // no card is coming.
+  const elig = trivia.card_eligibility
+  const earnedCardName = elig?.earned_card?.name
+  const alreadyEarnedBanner = elig?.already_earned
+    ? `<div style="margin: 8px 0 12px; padding: 10px 12px; background: #fff8e1; border: 1px solid #ffd54f; border-left: 4px solid #ffb300; border-radius: 6px; color: #7a5c00; font-size: 0.85rem;">
+         🎓 You've already earned ${earnedCardName ? `the <strong>${earnedCardName}</strong> ` : ''}card for this challenge — replay for practice? No new card will be awarded.
+       </div>`
+    : ''
+
   modal.innerHTML = `
     <div style="background: #fff; padding: 24px; border-radius: 8px; max-width: 400px; width: 90%;">
       <h3>🎯 Campus Challenge</h3>
+      ${alreadyEarnedBanner}
       <p style="margin: 12px 0;"><strong>${trivia.body}</strong></p>
       <div id="trivia-options">${optionsHtml}</div>
       <div id="trivia-result" style="margin-top: 12px;"></div>
@@ -375,8 +389,20 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
         ? `<p style="margin-top: 6px; color: #333;">Correct answer: <strong>${data.correct_option_text}</strong></p>`
         : ''
 
+      // User story 8 — show the card outcome explicitly. A retry after a
+      // win must read as intended behaviour ("you've already earned this
+      // card"), not a silent missing reward.
+      let cardHtml = ''
+      if (data.card_awarded && data.awarded_card) {
+        const rarity = data.awarded_card.rarity ? ` (${data.awarded_card.rarity})` : ''
+        cardHtml = `<p style="margin-top: 6px; color: #7a5c00; font-weight: bold;">🎉 New card earned: ${data.awarded_card.name}${rarity}!</p>`
+      } else if (succeeded && data.already_earned_card) {
+        cardHtml = `<p style="margin-top: 6px; color: #888; font-size: 0.85rem;">You've already earned this card — no new card this time.</p>`
+      }
+
       resultContainer.innerHTML = `
         <p style="color: ${verdictColor}; font-weight: bold;">${verdictText}</p>
+        ${cardHtml}
         ${correctAnswerHtml}
       `
     }
