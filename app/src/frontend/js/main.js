@@ -1,4 +1,10 @@
 /**
+ * Better Auth client functions for the auth drawer.
+ * These wrap the Better Auth browser client (loaded via auth-client.bundle.mjs).
+ */
+import { emailSignIn, emailSignUp, googleSignIn, baSignOut, clearBridgeSession } from './auth-client.js'
+
+/**
  * MAP CONFIGURATION CONSTANTS
  */
 const CONFIG = {
@@ -10,7 +16,7 @@ const CONFIG = {
   TILE_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }
 
-const API_BASE = 'http://localhost:3000/api'
+const API_BASE = '/api'
 
 // Tracks the currently logged-in user (null if not authenticated). This is
 // set once, in checkAuthSession(), and then read anywhere in this file
@@ -174,7 +180,8 @@ function buildPopupContent(buildingData) {
  */
 window.handleChallengeAttempt = async function (eventId) {
   if (!currentUser) {
-    window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+    // Open the auth drawer instead of navigating away from the map
+    openAuthDrawer()
     return
   }
 
@@ -185,8 +192,8 @@ window.handleChallengeAttempt = async function (eventId) {
     if (!res.ok) {
       if (res.status === 401) {
         // Session cookie expired or was invalidated server-side between
-        // page load and clicking this button — bounce to login again.
-        window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+        // page load and clicking this button — open auth drawer.
+        openAuthDrawer()
         return
       }
       alert('No trivia challenges available for this location right now!')
@@ -278,7 +285,7 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
 
     if (res.status === 401) {
       alert('Your session has expired. Please log in again.')
-      window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+      openAuthDrawer()
       return
     }
 
@@ -368,7 +375,7 @@ async function checkAuthSession() {
   if (!container) return
 
   try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
+    const res = await fetch(`${API_BASE}/me`, {
       method: 'GET',
       credentials: 'include',
     })
@@ -386,25 +393,25 @@ async function checkAuthSession() {
     } else {
       // 401 from the backend — no valid session.
       currentUser = null
-      container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
+      container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
     }
   } catch (err) {
     // Backend unreachable — treat the same as "not logged in" rather than
     // crashing the page.
     currentUser = null
-    container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
+    container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
   }
 }
 
 async function handleLogout() {
   try {
-    await fetch(`${API_BASE}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    })
+    // Clear both Better Auth session and express-session bridge
+    await baSignOut()
+    await clearBridgeSession()
     window.location.reload() // simplest way to reset all UI state back to "logged out"
   } catch (err) {
     console.error('Logout error:', err)
+    window.location.reload()
   }
 }
 
@@ -445,6 +452,105 @@ async function initializeApp() {
   setupPlayerGeolocation(map)
 }
 
+// ---------------------------------------------------------------------------
+// AUTH SIDE DRAWER FUNCTIONS
+// These open/close the auth drawer, handle tab switching, and wire up the
+// login/signup forms. All attached to `window` because they're called from
+// inline onclick="" attributes in the drawer HTML (index.html).
+// ---------------------------------------------------------------------------
+
+function showDrawerStatus(message, isError) {
+  const el = document.getElementById('auth-drawer-status')
+  if (!el) return
+  el.textContent = message
+  el.className = `auth-status visible ${isError ? 'error' : 'success'}`
+}
+
+window.openAuthDrawer = function () {
+  document.getElementById('auth-overlay')?.classList.add('open')
+  document.getElementById('auth-drawer')?.classList.add('open')
+}
+
+window.closeAuthDrawer = function () {
+  document.getElementById('auth-overlay')?.classList.remove('open')
+  document.getElementById('auth-drawer')?.classList.remove('open')
+}
+
+window.switchAuthTab = function (tab) {
+  const loginPanel = document.getElementById('login-panel')
+  const signupPanel = document.getElementById('signup-panel')
+  const tabs = document.querySelectorAll('.auth-tab')
+
+  if (tab === 'login') {
+    loginPanel?.classList.add('active')
+    signupPanel?.classList.remove('active')
+    tabs[0]?.classList.add('active')
+    tabs[1]?.classList.remove('active')
+  } else {
+    signupPanel?.classList.add('active')
+    loginPanel?.classList.remove('active')
+    tabs[1]?.classList.add('active')
+    tabs[0]?.classList.remove('active')
+  }
+}
+
+window.handleDrawerGoogleAuth = async function () {
+  showDrawerStatus('Redirecting to Google...', false)
+  const { error } = await googleSignIn()
+  if (error) {
+    showDrawerStatus('Google auth failed: ' + error.message, true)
+  }
+}
+
+function setupAuthDrawerHandlers() {
+  // Login form
+  const loginForm = document.getElementById('drawer-login-form')
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const email = document.getElementById('drawer-login-email').value.trim()
+      const password = document.getElementById('drawer-login-password').value
+
+      showDrawerStatus('Signing in...', false)
+      const { data, error } = await emailSignIn(email, password)
+
+      if (error) {
+        showDrawerStatus('Login failed: ' + error.message, true)
+      } else {
+        showDrawerStatus('Signed in!', false)
+        closeAuthDrawer()
+        // Reload to update auth state and bridge session
+        window.location.reload()
+      }
+    })
+  }
+
+  // Signup form
+  const signupForm = document.getElementById('drawer-signup-form')
+  if (signupForm) {
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const name = document.getElementById('drawer-signup-name').value.trim()
+      const email = document.getElementById('drawer-signup-email').value.trim()
+      const password = document.getElementById('drawer-signup-password').value
+
+      showDrawerStatus('Creating account...', false)
+      const { data, error } = await emailSignUp(name, email, password)
+
+      if (error) {
+        showDrawerStatus('Sign up failed: ' + error.message, true)
+      } else {
+        showDrawerStatus('Account created!', false)
+        closeAuthDrawer()
+        window.location.reload()
+      }
+    })
+  }
+}
+
 // Wait for the DOM to be ready before touching any #map / #auth-nav-container
 // elements — otherwise document.getElementById calls above would return null.
-document.addEventListener('DOMContentLoaded', initializeApp)
+document.addEventListener('DOMContentLoaded', () => {
+  setupAuthDrawerHandlers()
+  initializeApp()
+})

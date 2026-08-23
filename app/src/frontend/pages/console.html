@@ -498,6 +498,48 @@
 							</div>
 						</form>
 					</div>
+					<!-- User Story 6 — Questions panel. Additive: does not modify the event form above. -->
+					<div class="form-card" id="questions-panel" hidden style="margin-top:1.5rem">
+						<div class="page-header" style="margin-bottom:1rem">
+							<h2 class="page-title" style="font-size:1.3rem">Questions</h2>
+							<p class="page-subtitle" id="question-count">No questions yet.</p>
+						</div>
+						<div id="question-loading" class="state-msg">Loading questions…</div>
+						<ul id="question-list" class="event-list"></ul>
+						<div id="question-empty" class="state-msg hidden">No questions attached to this event yet.</div>
+						<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border)" />
+						<form id="question-form" novalidate>
+							<input type="hidden" id="q-edit-id" />
+							<div class="field">
+								<label for="q-text">Question text <span class="req">*</span></label>
+								<textarea id="q-text" rows="2" placeholder="e.g. In what year was gold discovered on the Witwatersrand?"></textarea>
+							</div>
+							<div class="field-row">
+								<div class="field">
+									<label for="q-type">Type <span class="req">*</span></label>
+									<select id="q-type">
+										<option value="MULTIPLE_CHOICE">Multiple choice</option>
+										<option value="TRUE_FALSE">True / False</option>
+										<option value="FILL_BLANK">Fill in the blank</option>
+									</select>
+								</div>
+								<div class="field">
+									<label for="q-correct">Correct answer <span class="req">*</span></label>
+									<input id="q-correct" type="text" list="q-option-list" placeholder="For true/false use 'true' or 'false'" />
+									<datalist id="q-option-list"></datalist>
+								</div>
+							</div>
+							<div class="field hidden" id="q-options-field">
+								<label>Options <span class="req">*</span></label>
+								<div id="q-options-container"></div>
+								<button type="button" class="btn btn-ghost btn-sm" id="q-add-option" style="margin-top:0.5rem">+ Add option</button>
+							</div>
+							<div class="form-actions">
+								<button type="button" class="btn btn-ghost" id="q-cancel">Cancel</button>
+								<button type="submit" class="btn btn-primary" id="q-submit">Save Question</button>
+							</div>
+						</form>
+					</div>
 				</div>
 			</div>
 		</main>
@@ -524,6 +566,18 @@
 					>
 						Delete
 					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- User Story 6 — question delete confirmation modal (mirrors the event delete modal above). -->
+		<div id="q-modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+			<div class="modal">
+				<h2 class="modal-title">Delete this question?</h2>
+				<p id="q-modal-body" class="modal-body"></p>
+				<div class="modal-actions">
+					<button class="btn btn-ghost" id="q-modal-cancel">Keep it</button>
+					<button class="btn btn-danger" id="q-modal-confirm">Delete</button>
 				</div>
 			</div>
 		</div>
