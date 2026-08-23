@@ -5,7 +5,8 @@
 		"express": "^5.2.1",
 		"express-mysql-session": "^3.0.3",
 		"express-session": "^1.19.0",
-		"mysql2": "^3.23.3"
+		"mysql2": "^3.23.3",
+		"ws": "^8.21.3"
 	},
 	"main": "server.js",
 	"name": "a2a-backend",
@@ -14,8 +15,7 @@
 		"db:up": "docker compose up -d",
 		"dev": "node --watch server.js",
 		"start": "node server.js",
-		
-  		"db:seed": "node seed.js"
+		"db:seed": "node seed.js"
 	},
 	"type": "module",
 	"version": "1.0.0"

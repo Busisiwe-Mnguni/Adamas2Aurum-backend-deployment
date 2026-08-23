@@ -2,7 +2,13 @@ import express from 'express'
 
 import pool from '../utils/db.js'
 import { error, success } from '../utils/response.js'
-import { validUserCards, getActiveBattle, TURN_TIMEOUT_MS } from '../utils/battle.js'
+import {
+	valid_user_cards,
+	get_active_battle,
+	abandon_battle,
+	TURN_TIMEOUT_MS,
+} from '../utils/battle.js'
+import {find_player_battle} from '../websocket/battle_socket.js'
 
 const router = express.Router()
 
@@ -13,7 +19,7 @@ router.use((req, res, next) => {
 	next()
 })
 
-function requireAuth(req, res, next) {
+function require_auth(req, res, next) {
 	if (!req.user?.user_id) {
 		return res
 			.status(401)
@@ -22,7 +28,46 @@ function requireAuth(req, res, next) {
 	next()
 }
 
-async function startNPCBattle(req, res) {
+async function build_npc_deck(battle_id) {
+	const [cards] = await pool.query(
+		'SELECT card_id, stat_legacy FROM cards ORDER BY RAND() LIMIT 5'
+	)
+
+	if (cards.length < 5) {
+		throw new Error(
+			'Not enough cards in the pool to build an NPC deck'
+		)
+	}
+
+	const values = []
+	const placeholders = cards
+		.map((card, idx) => {
+			values.push(
+				battle_id,
+				card.card_id,
+				card.stat_legacy,
+				0,
+				idx
+			)
+			return '(?, NULL, ?, ?, ?, ?)'
+		})
+		.join(',')
+
+	const [result] = await pool.query(
+		`INSERT INTO battle_decks
+		 (battle_id, user_id, card_id, health, ability_cooldown, slot_position) VALUES
+		 ${placeholders}`,
+		values
+	)
+
+	if (result.affectedRows !== 5) {
+		throw new Error('Failed to build NPC deck')
+	}
+
+	return result
+}
+
+async function start_n_p_c_battle(req, res) {
 	try {
 		const [result] = await pool.query(
 			`INSERT INTO battles (
@@ -42,18 +87,22 @@ async function startNPCBattle(req, res) {
 		)
 		if (result.affectedRows == 0)
 			return error(res, 500, 'Failed to start battle')
-		success(res, result.affectedRows)
+
+		const battle_id = result.insertId
+		await build_npc_deck(battle_id)
+
+		success(res, { battle_id })
 	} catch (err) {
 		console.error(err)
 		error(res, 500, 'Failed to start battle')
 	}
 }
 
-router.get('/start-battle', requireAuth, async (req, res, next) => {
+router.get('/start-battle', require_auth, async (req, res, next) => {
 	try {
-		if ((await getActiveBattle(req.user)) != null)
+		if ((await get_active_battle(req.user.user_id)) != null)
 			return error(res, 500, 'Already in a battle')
-		if (req.query.npc) return startNPCBattle(req, res)
+		if (req.query.npc) return start_n_p_c_battle(req, res)
 		else return error(res, 500, 'Unfinished route')
 	} catch (err) {
 		console.error(err)
@@ -61,12 +110,27 @@ router.get('/start-battle', requireAuth, async (req, res, next) => {
 	}
 })
 
-router.post('/build-battle-deck', requireAuth, async (req, res, next) => {
+router.get('/find-battle', require_auth, async (req, res, next) => {
 	try {
-		const battle_id = await getActiveBattle(req.user)
+		const db_battle_id = await get_active_battle(req.user.user_id)
+		if (db_battle_id === null)
+			return success(res, { battle_id: null })
+		const battle_id = find_player_battle(req.user.user_id)
+		if (battle_id === null)
+			await abandon_battle(db_battle_id)
+		return success(res, { battle_id })
+	} catch (err) {
+		console.error(err)
+		error(res, 500, err.message)
+	}
+})
+
+router.post('/build-battle-deck', require_auth, async (req, res, next) => {
+	try {
+		const battle_id = await get_active_battle(req.user.user_id)
 		if (battle_id == null) return error(res, 500, 'Not in a battle')
 		var deck = req.body
-		if (!(await validUserCards(req.user, deck)) || deck.length != 5)
+		if (!(await valid_user_cards(req.user, deck)) || deck.length != 5)
 			error(
 				res,
 				500,
@@ -80,14 +144,16 @@ router.post('/build-battle-deck', requireAuth, async (req, res, next) => {
 					battle_id,
 					req.user.user_id,
 					card.card_id,
+					card.stat_legacy,
+					0,
 					idx
 				)
-				return '(?,?,?,?)'
+				return '(?,?,?,?,?,?)'
 			})
 			.join(',')
 		const [result] = await pool.query(
 			`INSERT INTO battle_decks
-			(battle_id, user_id, card_id, slot_position) VALUES
+			(battle_id, user_id, card_id, health, ability_cooldown, slot_position) VALUES
 			${placeholders}
 			`,
 			values

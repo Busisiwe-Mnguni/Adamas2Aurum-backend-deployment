@@ -191,7 +191,7 @@
 						</span>
 					</div>
 				</div>
-	
+
 				<div class="border-line"></div>
 
 				<div id="deck-loading" class="state-msg">
@@ -210,110 +210,60 @@
 			</div>
 
 			<div id="view-battle" class="hidden">
-				<div class="battle-scoreboard">
-					<div class="battle-side">
-						<span class="battle-side-label">
-							You
-						</span>
-						<span
-							class="battle-side-score"
-							id="player-score"
-						>
-							0
-						</span>
-					</div>
-					<div class="battle-round-marker">
-						<span id="round-label">
-							Round 1 of 5
-						</span>
-					</div>
-					<div class="battle-side">
-						<span class="battle-side-label">
-							CPU
-						</span>
-						<span
-							class="battle-side-score"
-							id="enemy-score"
-						>
-							0
-						</span>
-					</div>
+				<div class="battle-status-bar">
+					<span
+						class="battle-turn-indicator"
+						id="turn-indicator"
+					>
+						Your turn
+					</span>
+					<span
+						class="battle-turn-number"
+						id="turn-number"
+					>
+						Turn 1
+					</span>
 				</div>
 
-				<div class="battle-arena">
-					<div
-						class="battle-card-slot"
-						id="player-card-slot"
-					>
-						<div
-							class="battle-card"
-							id="player-card"
-						>
-							<p class="state-msg">
-								Waiting…
-							</p>
-						</div>
-					</div>
+				<section
+					class="battle-board"
+					aria-label="Opponent board"
+				>
+					<h2 class="battle-board-label">Opponent</h2>
+					<ul
+						class="battle-card-row"
+						id="opponent-cards"
+					></ul>
+				</section>
 
-					<div class="battle-vs">VS</div>
+				<ul class="battle-log" id="battle-log"></ul>
 
-					<div
-						class="battle-card-slot"
-						id="enemy-card-slot"
-					>
-						<div
-							class="battle-card battle-card-hidden"
-							id="enemy-card"
-						>
-							<p class="state-msg">
-								?
-							</p>
-						</div>
-					</div>
-				</div>
+				<section
+					class="battle-board"
+					aria-label="Your board"
+				>
+					<h2 class="battle-board-label">You</h2>
+					<ul
+						class="battle-card-row"
+						id="player-cards"
+					></ul>
+				</section>
 
 				<div
-					id="attribute-picker"
-					class="attribute-picker"
+					class="battle-action-panel"
+					id="action-panel"
 				>
-					<p class="attribute-picker-label">
-						Pick an attribute to compare
+					<p
+						class="battle-action-hint"
+						id="action-hint"
+					>
+						Select one of your cards, then
+						an action.
 					</p>
 					<div
-						class="attribute-options"
-						id="attribute-options"
-					>
-						<button
-							class="btn btn-attribute"
-							data-attr="stat_attack"
-						>
-							Attack
-						</button>
-						<button
-							class="btn btn-attribute"
-							data-attr="stat_location"
-						>
-							Location
-						</button>
-						<button
-							class="btn btn-attribute"
-							data-attr="stat_influence"
-						>
-							Influence
-						</button>
-						<button
-							class="btn btn-attribute"
-							data-attr="stat_legacy"
-						>
-							Legacy
-						</button>
-						<button
-							class="btn btn-attribute"
-							data-attr="stat_era"
-						>
-							Era
-						</button>
-					</div>
+						class="battle-action-buttons"
+						id="action-buttons"
+					></div>
 				</div>
 
 				<div
@@ -323,9 +273,9 @@
 					<p id="round-result-text"></p>
 					<button
 						class="btn btn-primary"
-						id="btn-next-round"
+						id="btn-continue"
 					>
-						Next Round
+						Continue
 					</button>
 				</div>
 			</div>

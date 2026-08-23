@@ -257,8 +257,10 @@ CREATE TABLE IF NOT EXISTS battles (
 CREATE TABLE IF NOT EXISTS battle_decks (
     deck_id       INT     AUTO_INCREMENT PRIMARY KEY,
     battle_id     INT     NOT NULL,
-    user_id       INT     NOT NULL,
+    user_id       INT,
     card_id       INT     NOT NULL,
+    health       INT     NOT NULL DEFAULT 100,
+    ability_cooldown       INT     NOT NULL DEFAULT 0,
     slot_position TINYINT NOT NULL,
 
     CONSTRAINT fk_bd_battle FOREIGN KEY (battle_id) REFERENCES battles (battle_id),
@@ -271,8 +273,9 @@ CREATE TABLE IF NOT EXISTS battle_turns (
     turn_id        INT      AUTO_INCREMENT PRIMARY KEY,
     battle_id      INT      NOT NULL,
     turn_number    INT      NOT NULL,
-    acting_user_id INT      NOT NULL,
+    acting_user_id INT,
     card_played_id INT      NOT NULL,
+    card_targeted_id INT      NOT NULL,
     action         ENUM('ATTACK','BUFF','DEBUFF','DEFEND','DODGE') NOT NULL,
     damage_dealt   INT      NOT NULL DEFAULT 0,
     effect_desc    TEXT,

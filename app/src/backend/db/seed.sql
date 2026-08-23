@@ -135,9 +135,9 @@ INSERT INTO battle_decks (deck_id, battle_id, user_id, card_id, slot_position) V
 (2, 1, 2, 2, 1);
 
 -- 16. BATTLE TURNS
-INSERT INTO battle_turns (turn_id, battle_id, turn_number, acting_user_id, card_played_id, action, damage_dealt, effect_desc) VALUES
-(1, 1, 1, 1, 1, 'ATTACK', 45, 'Barney Barnato strikes with Market Cornering.'),
-(2, 1, 2, 2, 2, 'DEFEND', 0, 'Mine Shaft braces for impact.');
+INSERT INTO battle_turns (turn_id, battle_id, turn_number, acting_user_id, card_played_id, card_targeted_id, action, damage_dealt, effect_desc) VALUES
+(1, 1, 1, 1, 1, 2, 'ATTACK', 45, 'attacked'),
+(2, 1, 2, 2, 2, 2, 'DEFEND', 0, 'braced for impact');
 
 -- 17. TRADES
 INSERT INTO trades (trade_id, initiator_id, receiver_id, initiator_card_id, receiver_card_id, status, resolved_at) VALUES

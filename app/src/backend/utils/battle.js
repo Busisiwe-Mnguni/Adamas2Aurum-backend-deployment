@@ -2,13 +2,15 @@ import pool from './db.js'
 
 export const TURN_TIMEOUT_MS = 10 * 1000
 
-export async function validUserCards(user, deck) {
+export async function valid_user_cards(user, deck) {
 	if (!Array.isArray(deck) || deck.length != 5) return false
 	var values = []
-	const placeholders = deck.map(x => {
-		values.push(x.card_id)
-		return '?'
-	}).join(',')
+	const placeholders = deck
+		.map((x) => {
+			values.push(x.card_id)
+			return '?'
+		})
+		.join(',')
 	values.push(user.user_id)
 
 	try {
@@ -25,18 +27,30 @@ export async function validUserCards(user, deck) {
 	}
 }
 
-export async function getActiveBattle(user) {
+export async function get_active_battle(user_id) {
 	try {
 		const [rows, fields] = await pool.query(
 			`SELECT battle_id FROM battles WHERE ? IN (battles.player1_id, battles.player2_id) AND battles.status = 'ACTIVE'`,
-			[user.user_id]
+			[user_id]
 		)
 
-		if (rows.length == 0)
-			return null
+		if (rows.length == 0) return null
 		else return rows[0].battle_id
 	} catch {
 		return false
 	}
+}
 
+export async function abandon_battle(battle_id) {
+	try {
+		const [rows, fields] = await pool.query(
+			`UPDATE battles SET status = 'ABANDONED', winner_id = ?, ended_at = NOW() WHERE battle_id = ?`,
+			[null, battle_id]
+		)
+
+		if (rows.length == 0) return null
+		else return rows[0].affectedRows
+	} catch {
+		return false
+	}
 }
