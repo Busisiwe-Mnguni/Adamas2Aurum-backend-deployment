@@ -3,6 +3,7 @@
  * These wrap the Better Auth browser client (loaded via auth-client.bundle.mjs).
  */
 import { emailSignIn, emailSignUp, googleSignIn, baSignOut, clearBridgeSession } from './auth-client.js'
+import { get_player_location } from './geolocation.js'
 
 /**
  * MAP CONFIGURATION CONSTANTS
@@ -21,8 +22,8 @@ const API_BASE = '/api'
 // Tracks the currently logged-in user (null if not authenticated). This is
 // set once, in checkAuthSession(), and then read anywhere in this file
 // that needs to know "is someone logged in right now" — e.g.
-// handleChallengeAttempt() below uses it to decide whether to redirect
-// to the login page instead of opening a challenge.
+// handleChallengeAttempt() below uses it to decide whether to open the
+// auth drawer instead of opening a challenge.
 let currentUser = null
 
 /**
@@ -172,11 +173,15 @@ function buildPopupContent(buildingData) {
  * can only reach globally-scoped functions, not ones defined with a plain
  * `function` keyword inside a module.
  *
- * This is the auth gate: if nobody's logged in, redirect to the login
- * page instead of letting them see or answer a question at all. The
- * ?redirect= query param remembers where they were, so auth.js can send
- * them back here after they log in instead of dumping them at the map
- * root.
+ * This is the auth gate: if nobody's logged in, open the auth drawer
+ * instead of letting them see or answer a question at all.
+ *
+ * LOCATION CHECK (new): before fetching the question, this now calls
+ * get_player_location() (from geolocation.js) to get the player's current
+ * GPS coordinates, then sends them as ?lat=..&lng=.. query params. The
+ * backend (routes/trivia.js) uses these to check the player is actually
+ * within the event's radius_meters before releasing the question —
+ * satisfying user story 7's "when I open a challenge I'm at" wording.
  */
 window.handleChallengeAttempt = async function (eventId) {
   if (!currentUser) {
@@ -185,17 +190,44 @@ window.handleChallengeAttempt = async function (eventId) {
     return
   }
 
+  // Ask the browser for the player's current position. This will prompt
+  // for location permission the first time — if the player denies it, or
+  // their device doesn't support geolocation, get_player_location()
+  // rejects and we stop here with a clear message rather than silently
+  // failing or letting them through unverified.
+  let coords
   try {
-    const res = await fetch(`${API_BASE}/trivia/event/${eventId}`, {
+    coords = await get_player_location() // returns [latitude, longitude]
+  } catch (err) {
+    alert(`Couldn't get your location: ${err.message}. Location access is required to attempt a challenge.`)
+    return
+  }
+  const [lat, lng] = coords
+
+  try {
+    const res = await fetch(`${API_BASE}/trivia/event/${eventId}?lat=${lat}&lng=${lng}`, {
       credentials: 'include', // sends the session cookie along, so the backend's requireAuth check can identify who's asking
     })
+
+    if (res.status === 401) {
+      // Session cookie expired or was invalidated server-side between
+      // page load and clicking this button — open auth drawer.
+      openAuthDrawer()
+      return
+    }
+
+    if (res.status === 403) {
+      // Location check failed server-side — player is outside the
+      // event's radius. Show them how far off they are.
+      const data = await res.json()
+      alert(
+        `You're too far from this location to attempt the challenge. ` +
+        `You're about ${data.distance_meters}m away (need to be within ${data.radius_meters}m).`
+      )
+      return
+    }
+
     if (!res.ok) {
-      if (res.status === 401) {
-        // Session cookie expired or was invalidated server-side between
-        // page load and clicking this button — open auth drawer.
-        openAuthDrawer()
-        return
-      }
       alert('No trivia challenges available for this location right now!')
       return
     }
@@ -255,9 +287,17 @@ function showTriviaModal(eventId, trivia) {
  * does NOT decide whether the answer is correct — it just sends the pick
  * to the server and displays whatever the server decides.
  *
+ * LOCATION CHECK (new): fetches the player's location FRESH at submit
+ * time (not reused from when the question was opened) — if someone opened
+ * a challenge while standing at the location, then wandered off before
+ * answering, this catches that too. The backend uses claimed_lat/
+ * claimed_lng to compute the real distance and store it in
+ * location_check_log, and only awards points if the location check
+ * passes (see routes/trivia.js STEP 5).
+ *
  * User story 7: reveals the correct answer afterward, whether the player
  * got it right or wrong, using correct_option_text from the server's
- * response (see routes/trivia.js for how that's computed).
+ * response.
  */
 window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
   const optionsContainer = document.getElementById('trivia-options')
@@ -270,6 +310,21 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
     optionsContainer.querySelectorAll('button').forEach((btn) => (btn.disabled = true))
   }
 
+  // Get a fresh location fix for this submission specifically.
+  let lat = null
+  let lng = null
+  try {
+    ;[lat, lng] = await get_player_location()
+  } catch (err) {
+    // Don't block the submission entirely if location fails here — the
+    // backend will still grade correctness, it just won't be able to
+    // verify location (and so won't award points). Surface this clearly
+    // rather than silently losing the points.
+    if (resultContainer) {
+      resultContainer.innerHTML = `<p style="color: #c0392b;">Couldn't confirm your location (${err.message}) — your answer will be graded but points may not be awarded.</p>`
+    }
+  }
+
   try {
     const res = await fetch(`${API_BASE}/trivia/submit`, {
       method: 'POST',
@@ -279,7 +334,9 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
         event_id: eventId,
         question_id: questionId,
         selected_option_id: optionId,
-        answer_time_ms: 1500 // TODO: currently hardcoded; a real implementation would time from when the modal opened
+        answer_time_ms: 1500, // TODO: currently hardcoded; a real implementation would time from when the modal opened
+        claimed_lat: lat,
+        claimed_lng: lng,
       })
     })
 
@@ -300,12 +357,16 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
     }
 
     if (resultContainer) {
-      // Green for correct, red for incorrect — purely a display choice,
-      // has no effect on what actually got recorded server-side.
-      const verdictColor = data.is_correct ? '#27ae60' : '#c0392b'
-      const verdictText = data.is_correct
+      // Green for correct-and-verified, red for anything else (wrong
+      // answer, OR correct but too far away — location_verified === false
+      // means no points either way, so both cases read as "not a win").
+      const succeeded = data.is_correct && data.location_verified
+      const verdictColor = succeeded ? '#27ae60' : '#c0392b'
+      const verdictText = succeeded
         ? `✅ Correct! +${data.points_awarded} points`
-        : `❌ Not quite.`
+        : data.location_verified === false
+          ? `📍 Too far away — this attempt didn't count.`
+          : `❌ Not quite.`
 
       // correct_option_text will be null only if a question was seeded
       // without any option marked is_correct — guard against that so we
@@ -334,6 +395,10 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
  * Uses the browser's Geolocation API to show the player's live position
  * on the map with a pulsing red marker. watchPosition (not getCurrentPosition)
  * keeps updating the marker as the player physically moves around campus.
+ *
+ * Note: this is separate from get_player_location() in geolocation.js,
+ * which is used above for one-off position fixes (challenge open/submit).
+ * This one continuously tracks position for the visual marker only.
  */
 function setupPlayerGeolocation(map) {
   let playerMarker = null

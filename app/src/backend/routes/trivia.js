@@ -1,17 +1,40 @@
 import express from 'express'
 import pool from '../utils/db.js'
+import { distance_meters } from '../utils/geo.js'
 
 const router = express.Router()
 
 // Blocks access to a route unless the player has an active login session.
-// req.session.user is set by the /auth/login route when someone logs in
-// successfully (see routes/auth.js) — express-session keeps that tied to
-// a cookie in the browser, so this check runs on every protected request.
+// req.session.user is populated either by the PIN-based /auth/login route,
+// or by the Better Auth bridge middleware in server.js — both end up
+// setting the same { user_id, name, email } shape, so this check works
+// the same regardless of which auth method the player used.
 function requireAuth(req, res, next) {
   if (!req.session?.user?.user_id) {
     return res.status(401).json({ error: 'Unauthorised — please log in' })
   }
   next()
+}
+
+// Whether opening/answering a challenge requires the player to actually be
+// within the event's radius_meters. Defaults to true (the real intended
+// behaviour). Set REQUIRE_LOCATION_VERIFICATION=false in .env for local
+// testing on machines without real GPS (e.g. a desktop/VM relying on
+// inaccurate WiFi-based positioning) — see the geolocation accuracy
+// discussion from earlier: desktop positioning can be off by hundreds of
+// meters, which would otherwise block every attempt during dev.
+const LOCATION_VERIFICATION_ENABLED = process.env.REQUIRE_LOCATION_VERIFICATION !== 'false'
+
+/**
+ * Looks up an event's location + radius from the DB. Shared by both routes
+ * below so the "how far is the player" logic only lives in one place.
+ */
+async function getEventLocation(eventId) {
+  const [rows] = await pool.query(
+    `SELECT latitude, longitude, radius_meters, point_reward FROM events WHERE event_id = ?`,
+    [eventId]
+  )
+  return rows[0] || null
 }
 
 /**
@@ -20,23 +43,61 @@ function requireAuth(req, res, next) {
  * Called when a player clicks "Attempt Challenge" on a map pin. Picks one
  * random question tied to that event, then fetches its answer options.
  *
- * IMPORTANT: this only sends back option_id and body (the text shown on
- * each button) — it deliberately does NOT include the is_correct column.
- * If it did, a player could open their browser's Network tab and read the
- * answer straight off the API response before even attempting the
- * question. Keeping correctness server-side-only is what makes the whole
- * quiz trustworthy.
+ * LOCATION CHECK (new): the frontend now sends the player's current
+ * coordinates as ?lat=..&lng=.. query params (see geolocation.js's
+ * get_player_location(), wired up in main.js's handleChallengeAttempt).
+ * If the player is further from the event than its radius_meters allows,
+ * this route refuses to hand out the question at all — satisfying user
+ * story 7's "when I open a challenge I'm at" wording literally, rather
+ * than only checking distance after the fact at submit time.
+ *
+ * IMPORTANT: this still only sends back option_id and body (the text shown
+ * on each button) — it deliberately does NOT include the is_correct
+ * column. If it did, a player could open their browser's Network tab and
+ * read the answer straight off the API response before even attempting
+ * the question. Keeping correctness server-side-only is what makes the
+ * whole quiz trustworthy.
  */
 router.get('/event/:eventId', requireAuth, async (req, res) => {
   try {
     const { eventId } = req.params
+    const { lat, lng } = req.query
+
+    if (LOCATION_VERIFICATION_ENABLED) {
+      const event = await getEventLocation(eventId)
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found.' })
+      }
+
+      if (lat === undefined || lng === undefined) {
+        // The frontend should always send these — this only fires if
+        // geolocation failed client-side and the caller didn't handle
+        // that, or if the endpoint is hit directly (e.g. via curl).
+        return res.status(400).json({ error: 'Location is required to attempt this challenge.' })
+      }
+
+      const distance = distance_meters(
+        parseFloat(lat),
+        parseFloat(lng),
+        parseFloat(event.latitude),
+        parseFloat(event.longitude)
+      )
+
+      if (distance > event.radius_meters) {
+        return res.status(403).json({
+          error: 'You are too far from this location to attempt the challenge.',
+          distance_meters: Math.round(distance),
+          radius_meters: event.radius_meters,
+        })
+      }
+    }
 
     // ORDER BY RAND() LIMIT 1 = pick one random question for this event,
     // so the same location doesn't always ask the same question.
     const [questions] = await pool.query(
-      `SELECT question_id, format, body, time_limit_s, difficulty 
-       FROM trivia_questions 
-       WHERE event_id = ? 
+      `SELECT question_id, format, body, time_limit_s, difficulty
+       FROM trivia_questions
+       WHERE event_id = ?
        ORDER BY RAND() LIMIT 1`,
       [eventId]
     )
@@ -75,6 +136,17 @@ router.get('/event/:eventId', requireAuth, async (req, res) => {
  * server does the actual grading, since the client can never be trusted
  * to correctly self-report whether it got the answer right.
  *
+ * LOCATION CHECK (new): the frontend now also sends claimed_lat/claimed_lng
+ * in the request body, captured fresh at submit time (not reused from when
+ * the question was first opened) — this means a player who walked away
+ * from the location between opening the question and answering it gets
+ * caught here too, not just at the GET step above.
+ *
+ * The real distance is now computed and stored in location_check_log
+ * (previously this hardcoded 0, 0, 0, 'VERIFIED' unconditionally — see the
+ * old comment that used to be here). Points are only awarded if BOTH the
+ * answer was correct AND the location check passed.
+ *
  * User story 7: "As a player, when I open a challenge I'm at, I'm shown a
  * question and my answer is checked by the server — and I see the correct
  * answer afterward regardless of whether I got it right." The
@@ -82,7 +154,7 @@ router.get('/event/:eventId', requireAuth, async (req, res) => {
  * of that story.
  */
 router.post('/submit', requireAuth, async (req, res) => {
-  const { event_id, question_id, selected_option_id, answer_time_ms } = req.body
+  const { event_id, question_id, selected_option_id, answer_time_ms, claimed_lat, claimed_lng } = req.body
   const user_id = req.session.user.user_id  // comes from the session cookie, not the request body — a player can't spoof this to submit as someone else
 
   if (!question_id || !selected_option_id) {
@@ -120,27 +192,59 @@ router.post('/submit', requireAuth, async (req, res) => {
     )
     const correctOption = correctOptionRows[0] || null // null-safe in case a question was seeded without a correct option marked
 
-    // STEP 3: Work out how many points this is worth, from the event's
-    // configured point_reward. Wrong answers always award 0 regardless
-    // of the event's reward value.
-    const [events] = await pool.query(
-      `SELECT point_reward FROM events WHERE event_id = ?`,
-      [event_id]
-    )
-    const pointsAwarded = isCorrect ? (events[0]?.point_reward || 10) : 0
+    // STEP 3: Look up the event (for point_reward AND now for location
+    // verification too — reusing the same shared helper as the GET route
+    // above, so both endpoints agree on what "close enough" means).
+    const event = await getEventLocation(event_id)
 
-    // STEP 4: Log a location check row. NOTE: this currently hardcodes
-    // claimed_lat/lng/distance to 0 and marks it 'VERIFIED' unconditionally
-    // — the actual geofencing/anti-cheat check (comparing the player's
-    // real GPS position to the event's location) isn't implemented yet.
-    // This is a known gap, not something this user-story change touches.
+    // STEP 4: Actually verify location, if enabled. distance stays null
+    // and status stays 'VERIFIED' when verification is turned off (dev/
+    // testing mode) — matching the previous stub behaviour exactly, so
+    // nothing breaks for teammates who haven't set the env flag.
+    let distance = null
+    let locationStatus = 'VERIFIED'
+
+    if (LOCATION_VERIFICATION_ENABLED) {
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found.' })
+      }
+      if (claimed_lat === undefined || claimed_lng === undefined) {
+        return res.status(400).json({ error: 'Location is required to submit an answer.' })
+      }
+
+      distance = distance_meters(
+        parseFloat(claimed_lat),
+        parseFloat(claimed_lng),
+        parseFloat(event.latitude),
+        parseFloat(event.longitude)
+      )
+      locationStatus = distance <= event.radius_meters ? 'VERIFIED' : 'REJECTED'
+    }
+
+    const locationVerified = locationStatus === 'VERIFIED'
+
+    // STEP 5: Points require BOTH a correct answer AND a verified
+    // location — someone who somehow answers correctly from outside the
+    // radius (e.g. GET was allowed under a stale location, then they
+    // walked away before submitting) still shouldn't be rewarded.
+    const pointsAwarded = isCorrect && locationVerified ? (event?.point_reward || 10) : 0
+
+    // STEP 6: Log the location check with REAL values now, instead of the
+    // old hardcoded 0, 0, 0, 'VERIFIED'.
     const [locCheck] = await pool.query(
-      `INSERT INTO location_check_log (user_id, event_id, claimed_lat, claimed_lng, distance_meters, status) 
-       VALUES (?, ?, 0, 0, 0, 'VERIFIED')`,
-      [user_id, event_id]
+      `INSERT INTO location_check_log (user_id, event_id, claimed_lat, claimed_lng, distance_meters, status)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        user_id,
+        event_id,
+        claimed_lat ?? 0,
+        claimed_lng ?? 0,
+        distance !== null ? Math.round(distance) : 0,
+        locationStatus,
+      ]
     )
 
-    // STEP 5: Record the attempt itself — this is what user story 8
+    // STEP 7: Record the attempt itself — this is what user story 8
     // ("first correct answer gets the card, retries don't") will later
     // query against to check "has this user already answered this event
     // correctly before?"
@@ -150,9 +254,9 @@ router.post('/submit', requireAuth, async (req, res) => {
       [user_id, event_id, question_id, locCheck.insertId, isCorrect, answer_time_ms || 0, pointsAwarded]
     )
 
-    // STEP 6: Only touch the points ledger if the answer was actually
-    // correct AND worth something — avoids a redundant 0-point UPDATE.
-    if (isCorrect && pointsAwarded > 0) {
+    // STEP 8: Only touch the points ledger if points were actually
+    // awarded — avoids a redundant 0-point UPDATE.
+    if (pointsAwarded > 0) {
       await pool.query(`UPDATE users SET points = points + ? WHERE user_id = ?`, [pointsAwarded, user_id])
       await pool.query(
         `INSERT INTO point_transactions (user_id, delta, reason, reference_id) VALUES (?, ?, 'TRIVIA_WIN', ?)`,
@@ -160,16 +264,26 @@ router.post('/submit', requireAuth, async (req, res) => {
       )
     }
 
-    // STEP 7: Send everything the frontend needs to render the result —
-    // including the correct answer's text, always, whether or not the
-    // player's own pick was right.
+    // STEP 9: Build the message shown in the frontend, accounting for the
+    // new "correct but too far away" case, which didn't exist before.
+    let message
+    if (!locationVerified) {
+      message = 'You were too far from this location for that attempt to count.'
+    } else if (isCorrect) {
+      message = `Correct! You earned ${pointsAwarded} points.`
+    } else {
+      message = 'Incorrect answer. Try again later!'
+    }
+
     res.json({
       success: true,
       is_correct: isCorrect,
+      location_verified: locationVerified,
+      distance_meters: distance !== null ? Math.round(distance) : null,
       points_awarded: pointsAwarded,
       correct_option_id: correctOption?.option_id ?? null,   // optional chaining + nullish coalescing: safely handles the case where correctOption is null
       correct_option_text: correctOption?.body ?? null,      // this is the string the frontend displays as "Correct answer: ___"
-      message: isCorrect ? `Correct! You earned ${pointsAwarded} points.` : 'Incorrect answer. Try again later!',
+      message,
     })
   } catch (err) {
     res.status(500).json({ error: err.message })
