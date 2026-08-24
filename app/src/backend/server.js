@@ -26,6 +26,10 @@ import trivia_routes from './routes/trivia.js'
 import card_routes from './routes/cards.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+import { auth } from './src/auth.js'
 import question_routes from './routes/questions.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
@@ -73,6 +77,25 @@ app.use(
     },
   })
 )
+
+// ---------------------------------------------------------------------------
+// Auth routing — PIN auth routes (login, register, logout, me) are handled
+// by the auth_routes router below. All other /api/auth/* paths go to
+// Better Auth (sign-up/email, sign-in/email, sign-out, get-session, etc.).
+// Without this gate, Better Auth's wildcard would intercept PIN routes and
+// return an empty body, causing the frontend to fail with
+// "Unexpected end of JSON input".
+// MUST be mounted BEFORE express.json() so Better Auth can parse its own
+// request bodies.
+// ---------------------------------------------------------------------------
+const PIN_AUTH_PATHS = ['/login', '/register', '/logout', '/me']
+
+app.use('/api/auth', (req, res, next) => {
+  if (PIN_AUTH_PATHS.includes(req.path)) {
+    return next() // skip Better Auth → falls through to auth_routes below
+  }
+  toNodeHandler(auth)(req, res, next)
+})
 
 app.use(express.json())
 
@@ -289,6 +312,7 @@ async function view_database() {
 
 try {
   await initialize_database()
+
   if (process.env.SEED_DB === 'true') {
     await seed_database()
   }

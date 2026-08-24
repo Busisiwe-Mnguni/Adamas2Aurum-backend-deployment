@@ -51,6 +51,7 @@ Adamas2Aurum/
 │           └── utils/       # db, response, sql_utils
 ├── docs/
 └── RUNNING.md              # local setup instructions
+├── .env
 └── package.json
 ```
 
@@ -134,6 +135,31 @@ npm run start:frontend
 Seeding is **not automatic** — `npm run ` only creates tables if they don't
 exist yet (safe, non-destructive). To populate test data (users, events,
 trivia questions, etc.), run once:
+npm run dev
+```
+
+### How It Works
+
+1. **Schema auto-creates** on startup — `server.js` calls
+   `initialize_database()` which runs `schema.sql` with
+   `CREATE TABLE IF NOT EXISTS` for every table (events, users,
+   admin_roles, questions, trivia_questions, trivia_options, …).
+   This is safe and non-destructive — existing data is never touched.
+2. **Better Auth** auto-creates its own tables (`user`, `session`,
+   `account`, `verification`) on the first auth request.
+3. **Bridge middleware** runs on every request: if a Better Auth
+   session exists, it looks up (or creates) a matching row in the
+   `users` table and populates `req.session.user` so that existing
+   routes can read `req.session.user.user_id` without modification.
+4. **Auth flow**: sign up / sign in via `POST /api/auth/sign-up/email`
+   and `POST /api/auth/sign-in/email` (Better Auth), or use the legacy
+   PIN-based `POST /api/auth/login` (see Auth Architecture below).
+5. **Roles**: the `admin_roles` table stores roles per user
+   (`EVENT_AUTHOR`, `SUPER_ADMIN`). Author-only routes check this table
+   via the `requireEventAuthor` middleware.
+
+### Seeding the database
+
 npm run dev
 ```
 

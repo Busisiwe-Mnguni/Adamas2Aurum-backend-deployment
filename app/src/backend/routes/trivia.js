@@ -42,6 +42,27 @@ async function getEventLocation(eventId) {
   return rows[0] || null
 }
 
+// Whether opening/answering a challenge requires the player to actually be
+// within the event's radius_meters. Defaults to true (the real intended
+// behaviour). Set REQUIRE_LOCATION_VERIFICATION=false in .env for local
+// testing on machines without real GPS (e.g. a desktop/VM relying on
+// inaccurate WiFi-based positioning) — see the geolocation accuracy
+// discussion from earlier: desktop positioning can be off by hundreds of
+// meters, which would otherwise block every attempt during dev.
+const LOCATION_VERIFICATION_ENABLED = process.env.REQUIRE_LOCATION_VERIFICATION !== 'false'
+
+/**
+ * Looks up an event's location + radius from the DB. Shared by both routes
+ * below so the "how far is the player" logic only lives in one place.
+ */
+async function getEventLocation(eventId) {
+  const [rows] = await pool.query(
+    `SELECT latitude, longitude, radius_meters, point_reward FROM events WHERE event_id = ?`,
+    [eventId]
+  )
+  return rows[0] || null
+}
+
 /**
  * GET TRIVIA QUESTION FOR AN EVENT
  *
