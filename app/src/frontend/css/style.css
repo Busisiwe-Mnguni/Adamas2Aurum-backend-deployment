@@ -509,3 +509,60 @@ select option {
 		font-size: 1.5rem;
 	}
 }
+
+/* ============================================================
+   User Story 6 — question authoring panel additions.
+   These rules are additive and do not alter existing rules above.
+   ============================================================ */
+select {
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	color: var(--text);
+	font-family: var(--font-body);
+	font-size: 0.9rem;
+	padding: 0.55rem 0.85rem;
+	width: 100%;
+	outline: none;
+	cursor: pointer;
+	transition:
+		border-color var(--transition),
+		box-shadow var(--transition);
+}
+select:focus {
+	border-color: var(--border-focus);
+	box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.q-option-row {
+	display: flex;
+	gap: 0.5rem;
+	margin-bottom: 0.5rem;
+	align-items: center;
+}
+.q-option-row input {
+	flex: 1;
+}
+.q-item {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: 1rem 1.25rem;
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 0.5rem 1rem;
+	align-items: start;
+}
+.q-item-text {
+	font-size: 0.92rem;
+	color: var(--text);
+}
+.q-item-meta {
+	font-size: 0.7rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.q-item-actions {
+	display: flex;
+	gap: 0.4rem;
+}
