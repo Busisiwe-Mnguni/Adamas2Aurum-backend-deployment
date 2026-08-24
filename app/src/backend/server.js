@@ -2,13 +2,15 @@ import 'dotenv/config'
 import express from 'express'
 import session from 'express-session'
 import cors from 'cors'
+import { toNodeHandler, fromNodeHeaders } from 'better-auth/node'
 
 import pool from './utils/db.js'
+import { auth } from './auth-config.js'
 import event_routes from './routes/events.js'
 import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
-import { execute_sql_script } from './utils/sql_utils.js'
 import card_routes from './routes/cards.js'
+import { execute_sql_script } from './utils/sql_utils.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -40,9 +42,70 @@ app.use(
   })
 )
 
+// ── BODY PARSER ──
+// MUST be before any route that reads req.body.
+// Better-auth's toNodeHandler handles its own body parsing internally,
+// so this does not interfere with OAuth/email routes.
 app.use(express.json())
 
+// ── CUSTOM AUTH ROUTES (username + PIN) ──
+// Mounted BEFORE better-auth so our /login, /register, /me, /logout
+// take precedence over the catch-all better-auth handler.
 app.use('/api/auth', auth_routes)
+
+// ── BETTER-AUTH HANDLER (Google OAuth) ──
+// Unmatched paths (e.g. /callback/google) fall through to better-auth.
+app.use('/api/auth', toNodeHandler(auth))
+
+// ── SESSION RESOLUTION MIDDLEWARE ──
+// Populates req.user from EITHER our custom session OR Better Auth's session.
+app.use(async (req, res, next) => {
+  // 1. Custom session (username + PIN)
+  if (req.session?.user?.user_id) {
+    try {
+      const [users] = await pool.query(
+        'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
+        [req.session.user.user_id]
+      )
+      if (users.length) req.user = users[0]
+    } catch (err) {
+      console.warn('Custom session resolve error:', err.message)
+    }
+    return next()
+  }
+
+  // 2. Better Auth session (Google OAuth)
+  try {
+    const bSession = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    })
+    if (bSession?.user) {
+      const [users] = await pool.query(
+        'SELECT user_id, name, email, avatar_url, points FROM users WHERE email = ?',
+        [bSession.user.email]
+      )
+      if (users.length) {
+        req.user = users[0]
+      } else {
+        // First-time Google user — sync into our users table
+        const [result] = await pool.query(
+          `INSERT INTO users (provider_id, email, name, avatar_url, points)
+           VALUES (?, ?, ?, ?, 0)`,
+          [`betterauth:${bSession.user.id}`, bSession.user.email, bSession.user.name, bSession.user.image]
+        )
+        const [newUsers] = await pool.query(
+          'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
+          [result.insertId]
+        )
+        req.user = newUsers[0]
+      }
+    }
+  } catch (err) {
+    // Silently continue for unauthenticated requests
+  }
+  next()
+})
+
 app.use('/api/events', event_routes)
 app.use('/api/trivia', trivia_routes)
 app.use('/api/cards', card_routes)
@@ -57,20 +120,10 @@ app.get('/api/health', async (req, res) => {
 })
 
 async function initialize_database() {
-  // Creates tables if they don't exist yet — safe to run every startup,
-  // since schema.sql uses CREATE TABLE IF NOT EXISTS and doesn't touch data.
   await execute_sql_script(pool, './db/schema.sql')
 }
 
 async function seed_database() {
-  // Destructive: TRUNCATEs and re-inserts all seed data. This must NOT run
-  // automatically on every `npm run dev`, since the DB is shared across the
-  // whole team — one teammate starting their backend would silently wipe
-  // out data another teammate is actively testing against (this is what
-  // caused login to intermittently fail with "Invalid credentials" even
-  // though the seeded PIN was correct).
-  //
-  // Run explicitly instead: `npm run db:seed`
   await execute_sql_script(pool, './db/seed.sql')
 }
 
@@ -82,14 +135,9 @@ async function view_database() {
 
 try {
   await initialize_database()
-
-  // Seeding only runs if explicitly requested via SEED_DB=true, e.g.:
-  //   SEED_DB=true npm run dev
-  // or via the dedicated `npm run db:seed` script (see seed.js).
   if (process.env.SEED_DB === 'true') {
     await seed_database()
   }
-
   if (process.env.LOG_DB_INFO === 'true') {
     await view_database()
   }

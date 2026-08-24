@@ -24,22 +24,19 @@ const f = (id) => document.getElementById(id)
 //  Auth 
 
 btnLogout.addEventListener('click', async () => {
-	await fetch(`${AUTH_API}/logout`, { method: 'POST', credentials: 'include' })
-	elContent.classList.add('hidden')
-	elUserBadge.style.display = 'none'
-	btnLogout.style.display   = 'none'
-	elLoginView.classList.remove('hidden')
-})
+  await fetch(`${AUTH_API}/logout`, { method: 'POST', credentials: 'include' });
+  window.location.href = 'auth.html';
+});
 
 elLoginForm.addEventListener('submit', async (e) => {
 	e.preventDefault()
 	elLoginError.classList.add('hidden')
 
-	const email = f('login-email').value.trim()
+	const username = f('login-username').value.trim()
 	const pin   = f('login-pin').value
 
-	if (!email || !pin) {
-		elLoginError.textContent = 'Email and PIN are required.'
+	if (!username || !pin) {
+		elLoginError.textContent = 'Username and PIN are required.'
 		elLoginError.classList.remove('hidden')
 		return
 	}
@@ -52,10 +49,21 @@ elLoginForm.addEventListener('submit', async (e) => {
 			method: 'POST',
 			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ email, pin }),
+			body: JSON.stringify({ username, pin }),
 		})
 		const data = await res.json()
 		if (!res.ok) throw new Error(data.error || 'Login failed')
+
+		// Redirect admins straight to the console so they never share the player UI
+		const meRes = await fetch(`${AUTH_API}/me`, { credentials: 'include' })
+		const meData = await meRes.json()
+		const isAdmin = (meData.roles || []).some(r => 
+			['SUPER_ADMIN','EVENT_AUTHOR','CARD_AUTHOR'].includes(r)
+		)
+		if (isAdmin) {
+			window.location.href = 'console.html'
+			return
+		}
 
 		elLoginView.classList.add('hidden')
 		f('login-pin').value = ''
@@ -79,6 +87,22 @@ async function checkAccess() {
 		elUserBadge.style.display = ''
 		btnLogout.style.display   = ''
 		elContent.classList.remove('hidden')
+
+		// Inject Console nav link for authors/admins so they can jump back to authoring
+		const isAdmin = (user.roles || []).some(r => 
+			['SUPER_ADMIN','EVENT_AUTHOR','CARD_AUTHOR'].includes(r)
+		)
+		if (isAdmin) {
+			const nav = document.querySelector('.header-nav')
+			if (nav && !nav.querySelector('[href="console.html"]')) {
+				const a = document.createElement('a')
+				a.href = 'console.html'
+				a.className = 'nav-link'
+				a.textContent = 'Console'
+				nav.appendChild(a)
+			}
+		}
+
 		loadCollection()
 	} catch {
 		elLoginView.classList.remove('hidden')
@@ -198,7 +222,7 @@ function buildCollectionCard(card) {
 		</div>
 
 		<div class="cc-body">
-			<div class="cc-category">${card.category} &mdash; <span class="cc-role">${roleLabel}</span></div>
+			<div class="cc-category">${card.category} — <span class="cc-role">${roleLabel}</span></div>
 
 			${card.flavour_text
 				? `<p class="cc-flavour">"${card.flavour_text}"</p>`

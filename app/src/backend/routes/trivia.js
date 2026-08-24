@@ -4,10 +4,14 @@ import pool from '../utils/db.js'
 const router = express.Router()
 
 function requireAuth(req, res, next) {
-  if (!req.session?.user?.user_id) {
-    return res.status(401).json({ error: 'Unauthorised — please log in' })
-  }
-  next()
+	const userId = req.session?.user?.user_id || req.user?.user_id;
+	if (!userId) {
+		return res.status(401).json({ error: 'Unauthorised — please log in' })
+	}
+	if (!req.user) {
+		req.user = req.session.user;
+	}
+	next()
 }
 
 /**

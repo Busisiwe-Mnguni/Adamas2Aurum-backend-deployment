@@ -1,5 +1,4 @@
 import express from 'express'
-
 import pool from '../utils/db.js'
 
 const router = express.Router()
@@ -11,55 +10,59 @@ router.use((req, res, next) => {
 	next()
 })
 
-//  MIDDLEWARE
+// ── MIDDLEWARE ──
 
 function requireAuth(req, res, next) {
-	if (!req.user?.user_id) {
+	const userId = req.session?.user?.user_id || req.user?.user_id;
+	if (!userId) {
 		return res.status(401).json({ error: 'Unauthorised — please log in' })
+	}
+	if (!req.user) {
+		req.user = req.session.user;
 	}
 	next()
 }
 
-function requireCardAuthor(req, res, next) {
-	const allowedRoles = ['SUPER_ADMIN', 'CARD_AUTHOR']
-	const placeholders = allowedRoles.map(() => '?').join(', ')
+/**
+ * FIXED: converted callback-style pool.query -> async/await.
+ * Previously the callback was silently ignored by mysql2/promise,
+ * so next() was never called and every POST/PUT/DELETE hung forever.
+ */
+async function requireCardAuthor(req, res, next) {
+	const allowedRoles = ['SUPER_ADMIN', 'CARD_AUTHOR'];
+	const placeholders = allowedRoles.map(() => '?').join(', ');
 
 	const sql = `
-    SELECT 1 FROM admin_roles
-    WHERE user_id = ?
-      AND role IN (${placeholders})
-    LIMIT 1
-  `
+		SELECT 1 FROM admin_roles
+		WHERE user_id = ?
+			AND role IN (${placeholders})
+		LIMIT 1
+	`;
 
-	pool.query(sql, [req.user.user_id, ...allowedRoles], (err, rows) => {
-		if (err) return res.status(500).json({ error: err.message })
+	try {
+		const [rows] = await pool.query(sql, [req.user.user_id, ...allowedRoles]);
 		if (!rows.length) {
-			return res.status(403).json({
-				error: 'Forbidden — card author role required',
-			})
+			return res.status(403).json({ error: 'Forbidden — card author role required' });
 		}
-		next()
-	})
+		next();
+	} catch (err) {
+		return res.status(500).json({ error: err.message });
+	}
 }
 
-// PLAYER ROUTES
-
-
-//   GET /api/cards
-//   List all cards — used by the admin console card picker and
-//   any "card browser" view. No auth required (cards are public data).
+// ── PLAYER ROUTES ──
 
 router.get('/', async (req, res) => {
 	try {
 		const [rows] = await pool.query(
 			`SELECT
-        card_id, name, flavour_text, image_url,
-        category, rarity,
-        stat_attack, stat_location, stat_influence, stat_legacy, stat_era,
-        ability_name, ability_desc,
-        created_at
-      FROM cards
-      ORDER BY category, rarity, name`
+				card_id, name, flavour_text, image_url,
+				category, rarity,
+				stat_attack, stat_location, stat_influence, stat_legacy, stat_era,
+				ability_name, ability_desc,
+				created_at
+			FROM cards
+			ORDER BY category, rarity, name`
 		)
 		res.json(rows)
 	} catch (err) {
@@ -67,21 +70,17 @@ router.get('/', async (req, res) => {
 	}
 })
 
-
-//   GET /api/cards/:id
-//   Single card detail — used when rendering a card's full stats.
- 
 router.get('/:id', async (req, res) => {
 	try {
 		const [rows] = await pool.query(
 			`SELECT
-        card_id, name, flavour_text, image_url,
-        category, rarity,
-        stat_attack, stat_location, stat_influence, stat_legacy, stat_era,
-        ability_name, ability_desc,
-        created_at
-      FROM cards
-      WHERE card_id = ?`,
+				card_id, name, flavour_text, image_url,
+				category, rarity,
+				stat_attack, stat_location, stat_influence, stat_legacy, stat_era,
+				ability_name, ability_desc,
+				created_at
+			FROM cards
+			WHERE card_id = ?`,
 			[req.params.id]
 		)
 		if (!rows.length) {
@@ -93,26 +92,21 @@ router.get('/:id', async (req, res) => {
 	}
 })
 
-
-//   GET /api/cards/collection/mine
-//   Returns every card the logged-in player owns, joined with full card data.
-//   Includes quantity and when they first obtained the card.
-
 router.get('/collection/mine', requireAuth, async (req, res) => {
 	try {
 		const [rows] = await pool.query(
 			`SELECT
-        uc.user_card_id,
-        uc.quantity,
-        uc.obtained_at,
-        c.card_id, c.name, c.flavour_text, c.image_url,
-        c.category, c.rarity,
-        c.stat_attack, c.stat_location, c.stat_influence, c.stat_legacy, c.stat_era,
-        c.ability_name, c.ability_desc
-      FROM user_cards uc
-      JOIN cards c ON c.card_id = uc.card_id
-      WHERE uc.user_id = ?
-      ORDER BY c.category, c.rarity, c.name`,
+				uc.user_card_id,
+				uc.quantity,
+				uc.obtained_at,
+				c.card_id, c.name, c.flavour_text, c.image_url,
+				c.category, c.rarity,
+				c.stat_attack, c.stat_location, c.stat_influence, c.stat_legacy, c.stat_era,
+				c.ability_name, c.ability_desc
+			FROM user_cards uc
+			JOIN cards c ON c.card_id = uc.card_id
+			WHERE uc.user_id = ?
+			ORDER BY c.category, c.rarity, c.name`,
 			[req.user.user_id]
 		)
 		res.json(rows)
@@ -121,11 +115,7 @@ router.get('/collection/mine', requireAuth, async (req, res) => {
 	}
 })
 
-//  AUTHOR ROUTES CARD_AUTHOR
-
-    // POST /api/cards
-    // Create a new card. All stat fields default to 0 / 100 if omitted,
-    //  matching the schema defaults.
+// ── AUTHOR ROUTES ──
 
 router.post('/', requireAuth, requireCardAuthor, async (req, res) => {
 	const {
@@ -164,13 +154,13 @@ router.post('/', requireAuth, requireCardAuthor, async (req, res) => {
 	}
 
 	const sql = `
-    INSERT INTO cards (
-      name, flavour_text, image_url,
-      category, rarity,
-      stat_attack, stat_location, stat_influence, stat_legacy, stat_era,
-      ability_name, ability_desc
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `
+		INSERT INTO cards (
+			name, flavour_text, image_url,
+			category, rarity,
+			stat_attack, stat_location, stat_influence, stat_legacy, stat_era,
+			ability_name, ability_desc
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
 
 	const values = [
 		name,
@@ -195,9 +185,6 @@ router.post('/', requireAuth, requireCardAuthor, async (req, res) => {
 	}
 })
 
-//   PUT /api/cards/:id
-//   Update every field on an existing card. All fields must be sent 
-//   same pattern as events.js PUT.
 router.put('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 	const {
 		name,
@@ -221,22 +208,22 @@ router.put('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 	}
 
 	const sql = `
-    UPDATE cards
-    SET
-      name           = ?,
-      flavour_text   = ?,
-      image_url      = ?,
-      category       = ?,
-      rarity         = ?,
-      stat_attack    = ?,
-      stat_location  = ?,
-      stat_influence = ?,
-      stat_legacy    = ?,
-      stat_era       = ?,
-      ability_name   = ?,
-      ability_desc   = ?
-    WHERE card_id = ?
-  `
+		UPDATE cards
+		SET
+			name           = ?,
+			flavour_text   = ?,
+			image_url      = ?,
+			category       = ?,
+			rarity         = ?,
+			stat_attack    = ?,
+			stat_location  = ?,
+			stat_influence = ?,
+			stat_legacy    = ?,
+			stat_era       = ?,
+			ability_name   = ?,
+			ability_desc   = ?
+		WHERE card_id = ?
+	`
 
 	const values = [
 		name,
@@ -265,10 +252,6 @@ router.put('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 	}
 })
 
-
-    //  DELETE /api/cards/:id
-    // Hard delete. Will fail with a FK error if the card is still
-    // referenced in event_card_pool or user_cards.
 router.delete('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 	try {
 		const [result] = await pool.query(
@@ -280,7 +263,6 @@ router.delete('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 		}
 		res.json({ message: 'Card deleted' })
 	} catch (err) {
-		// Sviolations clearly so the author knows what to clean up first
 		if (err.code === 'ER_ROW_IS_REFERENCED_2') {
 			return res.status(409).json({
 				error:

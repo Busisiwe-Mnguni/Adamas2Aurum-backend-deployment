@@ -33,6 +33,8 @@
 	"name": "Adamas2Aurum",
 	"private": true,
 	"scripts": {
+		"start:backend": "npm run start --prefix app/src/backend",
+  		"start:frontend": "npm run dev --prefix app/src/frontend",
 		"db:down": "npm run db:down --prefix app/src/backend",
 		"db:up": "npm run db:up --prefix app/src/backend",
 		"dev:backend": "npm run dev --prefix app/src/backend",

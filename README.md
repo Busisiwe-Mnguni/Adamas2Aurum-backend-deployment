@@ -8,7 +8,6 @@ A location-based campus trivia and card-battle game.
 
 ### Frontend
 - Plain HTML, CSS, and JavaScript (no framework)
-- [Vite](https://vitejs.dev/) as the dev server and build tool
 - [Leaflet.js](https://leafletjs.com/) + OpenStreetMap tiles for the interactive campus map
 - No API keys required for map rendering
 
@@ -16,7 +15,7 @@ A location-based campus trivia and card-battle game.
 - [Node.js](https://nodejs.org/) with [Express](https://expressjs.com/)
 - [MySQL](https://www.mysql.com/) (hosted on Aiven) via `mysql2/promise`
 - `express-session` for session-based authentication (email + PIN login)
-- CORS configured for local frontend origins (`localhost:5173`, `localhost:8055`)
+- CORS configured for local frontend origins
 
 ### Tooling
 - [Jest](https://jestjs.io/) for frontend and backend unit tests
@@ -34,14 +33,13 @@ Adamas2Aurum/
 │       ├── frontend/       # Vite + vanilla JS + Leaflet map
 │       │   ├── js/
 │       │   ├── css/
-│       │   ├── pages/      # auth, events, console, map
-│       │   └── vite.config.js
+│       │   ── pages/      # auth, events, console, map
+│       |
 │       └── backend/        # Express API
 │           ├── routes/     # auth, events, trivia
 │           ├── db/         # schema.sql, seed.sql
 │           └── utils/
 ├── docs/
-├── .env.example
 └── RUNNING.md              # local setup instructions
 ```
 
@@ -61,15 +59,19 @@ npm install
 # Backend (new terminal)
 cd app/src/backend
 npm install
-npm run dev
+npm install better-auth
+cd ../../..
+npm run start:backend
 
 # Frontend (new terminal)
 cd app/src/frontend
-npm run dev
+npm install
+cd ../../..
+npm run start:frontend
 
 ### Seeding the database
 
-Seeding is **not automatic** — `npm run dev` only creates tables if they don't
+Seeding is **not automatic** — `npm run ` only creates tables if they don't
 exist yet (safe, non-destructive). To populate test data (users, events,
 trivia questions, etc.), run once:
 
@@ -85,8 +87,6 @@ npm run db:seed
 > and your test account got wiped — just log in with a seeded account
 > again, or re-run `db:seed` yourself if needed.
 ```
-
-Frontend runs at `http://localhost:5173`, backend API at `http://localhost:3000`.
 
 ---
 
