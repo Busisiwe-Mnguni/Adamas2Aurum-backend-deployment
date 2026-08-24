@@ -1,6 +1,7 @@
 import express from 'express'
 import pool from '../utils/db.js'
 import { distance_meters } from '../utils/geo.js'
+import { canAwardCard, awardCardIfEligible } from '../services/card_award.js'
 
 const router = express.Router()
 
@@ -116,12 +117,39 @@ router.get('/event/:eventId', requireAuth, async (req, res) => {
       [question.question_id]
     )
 
+    // User story 8 — tell the frontend up front whether this player
+    // has ALREADY earned this event's card, so it can show a
+    // "replay for practice?" banner instead of silently letting them
+    // redo it for no reward. canAwardCard reads the attempt log (the
+    // source of truth), NOT card ownership — a player could trade or
+    // lose a card later, so ownership is not a reliable "did they ever
+    // win here?" signal.
+    const player_id = req.session.user.user_id
+    const already_earned = !(await canAwardCard(pool, player_id, eventId))
+
+    let earned_card = null
+    if (already_earned) {
+      const [cardRows] = await pool.query(
+        `SELECT c.card_id, c.name, c.image_url, c.rarity
+           FROM event_card_awards eca
+           JOIN cards c ON eca.card_id = c.card_id
+          WHERE eca.user_id = ? AND eca.event_id = ?
+          LIMIT 1`,
+        [player_id, eventId]
+      )
+      earned_card = cardRows[0] || null
+    }
+
     res.json({
       question_id: question.question_id,
       body: question.body,           // the actual question text
       format: question.format,       // e.g. MULTIPLE_CHOICE, TRUE_FALSE
       time_limit_s: question.time_limit_s,
       options: options,              // array of { option_id, body }
+      card_eligibility: {            // user story 8 — once-only card banner
+        already_earned,              // true = this player has won this event before
+        earned_card,                 // { card_id, name, image_url, rarity } | null
+      },
     })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -229,46 +257,84 @@ router.post('/submit', requireAuth, async (req, res) => {
     // walked away before submitting) still shouldn't be rewarded.
     const pointsAwarded = isCorrect && locationVerified ? (event?.point_reward || 10) : 0
 
-    // STEP 6: Log the location check with REAL values now, instead of the
-    // old hardcoded 0, 0, 0, 'VERIFIED'.
-    const [locCheck] = await pool.query(
-      `INSERT INTO location_check_log (user_id, event_id, claimed_lat, claimed_lng, distance_meters, status)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        user_id,
-        event_id,
-        claimed_lat ?? 0,
-        claimed_lng ?? 0,
-        distance !== null ? Math.round(distance) : 0,
-        locationStatus,
-      ]
-    )
+    // STEP 6: ATOMIC AWARD + LOG + POINTS (user story 8).
+    //
+    // The eligibility check, the award-ledger insert (event_card_awards,
+    // whose UNIQUE(user_id, event_id) is the hard backstop against a
+    // double-submit race), the inventory upsert, the attempt record, and
+    // the points ledger all commit together — or none do. The eligibility
+    // check runs BEFORE the attempt is inserted, so a winning
+    // retry-after-win sees the prior win and is correctly told "no new card".
+    const conn = await pool.getConnection()
+    let award = { awarded: false, card: null, card_id: null, reason: 'NOT_A_WIN' }
+    try {
+      await conn.beginTransaction()
 
-    // STEP 7: Record the attempt itself — this is what user story 8
-    // ("first correct answer gets the card, retries don't") will later
-    // query against to check "has this user already answered this event
-    // correctly before?"
-    await pool.query(
-      `INSERT INTO trivia_attempts (user_id, event_id, question_id, location_check_id, is_correct, answer_time_ms, points_awarded)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [user_id, event_id, question_id, locCheck.insertId, isCorrect, answer_time_ms || 0, pointsAwarded]
-    )
-
-    // STEP 8: Only touch the points ledger if points were actually
-    // awarded — avoids a redundant 0-point UPDATE.
-    if (pointsAwarded > 0) {
-      await pool.query(`UPDATE users SET points = points + ? WHERE user_id = ?`, [pointsAwarded, user_id])
-      await pool.query(
-        `INSERT INTO point_transactions (user_id, delta, reason, reference_id) VALUES (?, ?, 'TRIVIA_WIN', ?)`,
-        [user_id, pointsAwarded, event_id]
+      // 6a. Log the location check with REAL values (replaces the old
+      // hardcoded 0, 0, 0, 'VERIFIED').
+      const [locCheck] = await conn.query(
+        `INSERT INTO location_check_log (user_id, event_id, claimed_lat, claimed_lng, distance_meters, status)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          user_id,
+          event_id,
+          claimed_lat ?? 0,
+          claimed_lng ?? 0,
+          distance !== null ? Math.round(distance) : 0,
+          locationStatus,
+        ]
       )
+
+      // 6b. Award the card — once-only. Only a correct, location-verified
+      // answer is even eligible; a wrong or out-of-range attempt is still
+      // logged in 6c but never triggers issuance. awardCardIfEligible does
+      // the canAwardCard check itself, so a retry after a prior win returns
+      // ALREADY_EARNED and touches nothing.
+      award = (isCorrect && locationVerified)
+        ? await awardCardIfEligible(conn, { user_id, event_id })
+        : { awarded: false, card: null, card_id: null, reason: 'NOT_A_WIN' }
+
+      // 6c. Record the attempt itself, carrying the awarded card_id (or
+      // NULL). This row is what canAwardCard later queries to answer
+      // "has this player ever won this event?" — so it MUST be inserted
+      // after, not before, the award check (see the ordering note above).
+      await conn.query(
+        `INSERT INTO trivia_attempts
+           (user_id, event_id, question_id, location_check_id, is_correct, answer_time_ms, card_awarded_id, points_awarded)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [user_id, event_id, question_id, locCheck.insertId, isCorrect, answer_time_ms || 0, award.card_id, pointsAwarded]
+      )
+
+      // 6d. Only touch the points ledger when points were actually
+      // awarded — avoids a redundant 0-point UPDATE. Note: points are
+      // awarded on every correct+verified answer, including retries for
+      // practice; only the CARD is once-only (the story's scope).
+      if (pointsAwarded > 0) {
+        await conn.query(`UPDATE users SET points = points + ? WHERE user_id = ?`, [pointsAwarded, user_id])
+        await conn.query(
+          `INSERT INTO point_transactions (user_id, delta, reason, reference_id) VALUES (?, ?, 'TRIVIA_WIN', ?)`,
+          [user_id, pointsAwarded, event_id]
+        )
+      }
+
+      await conn.commit()
+    } catch (txErr) {
+      await conn.rollback()
+      throw txErr
+    } finally {
+      conn.release()
     }
 
-    // STEP 9: Build the message shown in the frontend, accounting for the
-    // new "correct but too far away" case, which didn't exist before.
+    // STEP 7: Build the message, now accounting for the card outcome
+    // (awarded / already-earned / correct-only / wrong / too-far) so a
+    // retry-after-win reads as intended behaviour, not a silent bug.
     let message
     if (!locationVerified) {
       message = 'You were too far from this location for that attempt to count.'
+    } else if (isCorrect && award.awarded) {
+      message = `Correct! You earned ${pointsAwarded} points and a new card: ${award.card.name}!`
+    } else if (isCorrect && award.reason === 'ALREADY_EARNED') {
+      message = `Correct! You earned ${pointsAwarded} points. You've already earned this card — no new card this time.`
     } else if (isCorrect) {
       message = `Correct! You earned ${pointsAwarded} points.`
     } else {
@@ -281,6 +347,9 @@ router.post('/submit', requireAuth, async (req, res) => {
       location_verified: locationVerified,
       distance_meters: distance !== null ? Math.round(distance) : null,
       points_awarded: pointsAwarded,
+      card_awarded: award.awarded,                 // user story 8 — was a new card issued this attempt?
+      awarded_card: award.card,                    // { card_id, name, image_url, rarity, category } | null
+      already_earned_card: award.reason === 'ALREADY_EARNED', // true on a winning retry-after-win
       correct_option_id: correctOption?.option_id ?? null,   // optional chaining + nullish coalescing: safely handles the case where correctOption is null
       correct_option_text: correctOption?.body ?? null,      // this is the string the frontend displays as "Correct answer: ___"
       message,
