@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS trivia_options (
     CONSTRAINT fk_option_question FOREIGN KEY (question_id) REFERENCES trivia_questions (question_id)
 );
 
+DROP TABLE cards;
 CREATE TABLE IF NOT EXISTS cards (
     card_id         INT          AUTO_INCREMENT PRIMARY KEY,
     name            VARCHAR(255) NOT NULL,
@@ -241,6 +242,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 -- ============================================================
 --  13. BATTLES
 -- ============================================================
+DROP TABLE battles;
 CREATE TABLE IF NOT EXISTS battles (
     battle_id     INT      AUTO_INCREMENT PRIMARY KEY,
     player1_id    INT      NOT NULL,
@@ -256,6 +258,7 @@ CREATE TABLE IF NOT EXISTS battles (
     CONSTRAINT fk_battle_winner FOREIGN KEY (winner_id)  REFERENCES users (user_id)
 );
 
+DROP TABLE battle_decks;
 CREATE TABLE IF NOT EXISTS battle_decks (
     deck_id       INT     AUTO_INCREMENT PRIMARY KEY,
     battle_id     INT     NOT NULL,
@@ -270,6 +273,7 @@ CREATE TABLE IF NOT EXISTS battle_decks (
     CONSTRAINT uq_bd_slot   UNIQUE (battle_id, user_id, slot_position)
 );
 
+DROP TABLE battle_turns;
 CREATE TABLE IF NOT EXISTS battle_turns (
     turn_id        INT      AUTO_INCREMENT PRIMARY KEY,
     battle_id      INT      NOT NULL,

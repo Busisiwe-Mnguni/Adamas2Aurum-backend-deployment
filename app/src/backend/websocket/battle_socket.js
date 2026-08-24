@@ -98,7 +98,7 @@ async function log_turn(
 }
 
 async function persist_final_health(state) {
-	for (const card of [...state.cards.player, ...state.cards.cpu]) {
+	for (const card of [...state.cards.player1, ...state.cards.player2]) {
 		await pool.query(
 			'UPDATE battle_decks SET final_health = ? WHERE deck_id = ?',
 			[card.health, card.deck_id]
