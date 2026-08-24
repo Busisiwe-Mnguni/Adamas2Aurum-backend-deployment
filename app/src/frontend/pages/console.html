@@ -6,8 +6,9 @@
 			name="viewport"
 			content="width=device-width, initial-scale=1.0"
 		/>
-		<title>A2A — Event Console</title>
+		<title>A2A — Author Console</title>
 		<link rel="stylesheet" href="../css/style.css" />
+		<link rel="stylesheet" href="../css/console-tabs.css" />
 	</head>
 	<body>
 		<header class="site-header">
@@ -17,7 +18,7 @@
 					<span class="logo-sep">→</span>
 					<span class="logo-a">A</span>
 					<span class="logo-sub">
-						Event Console
+						Author Console
 					</span>
 				</a>
 				<div class="header-right">
@@ -68,22 +69,13 @@
 									margin-bottom: 1rem;
 								"
 							>
-								<label
-									for="login-email"
-								>
-									Email
-									<span
-										class="req"
-									>
-										*
-									</span>
+								<label for="login-username">Username 
+									<span class="req">*</span>
 								</label>
-								<input
-									id="login-email"
-									type="text"
-									placeholder="admin@wits.ac.za"
-									required
-								/>
+								<input id="login-username"
+										 type="text"
+										 placeholder="admin"
+										  required />
 							</div>
 							<div
 								class="field"
@@ -148,6 +140,17 @@
 			</div>
 
 			<div id="console-content" class="hidden">
+
+				<!-- Tab switcher -->
+				<nav class="console-tabs" id="console-tabs">
+					<button class="tab-btn tab-active" data-tab="events">Events</button>
+					<button class="tab-btn" data-tab="cards">Cards</button>
+				</nav>
+
+				<!-- ═══════════════════════════════════════════
+				     EVENTS TAB
+				════════════════════════════════════════════ -->
+				<div id="tab-events">
 				<div id="view-list">
 					<div
 						class="page-header"
@@ -499,7 +502,129 @@
 						</form>
 					</div>
 				</div>
-			</div>
+				</div> <!-- /tab-events -->
+
+				<!-- ═══════════════════════════════════════════
+				     CARDS TAB
+				════════════════════════════════════════════ -->
+				<div id="tab-cards" class="hidden">
+
+					<!-- List view -->
+					<div id="card-view-list">
+						<div class="page-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+							<div>
+								<h1 class="page-title">Manage Cards</h1>
+								<p class="page-subtitle" id="card-count">Loading…</p>
+							</div>
+							<button class="btn btn-primary" id="btn-card-new">+ New Card</button>
+						</div>
+
+						<div id="card-loading" class="state-msg">Loading cards…</div>
+						<div id="card-empty" class="state-msg hidden">No cards yet — create the first one.</div>
+						<div id="card-list-error" class="state-msg error hidden"></div>
+
+						<ul id="card-list" class="event-list"></ul>
+					</div>
+
+					<!-- Form view -->
+					<div id="card-view-form" class="hidden">
+						<div class="page-header">
+							<h1 class="page-title" id="card-form-heading">New Card</h1>
+						</div>
+
+						<div class="form-card">
+							<form id="card-form" novalidate>
+								<input type="hidden" id="card-edit-id" />
+
+								<div class="form-grid">
+									<!-- Left col -->
+									<div class="form-col">
+										<div class="field">
+											<label for="cf-name">Name <span class="req">*</span></label>
+											<input id="cf-name" type="text" placeholder="e.g. Nelson Mandela" required />
+										</div>
+										<div class="field">
+											<label for="cf-flavour">Flavour text</label>
+											<textarea id="cf-flavour" rows="3" placeholder="A short description shown on the card…"></textarea>
+										</div>
+										<div class="field">
+											<label for="cf-image">Image URL</label>
+											<input id="cf-image" type="text" placeholder="https://…" />
+										</div>
+										<div class="field-row">
+											<div class="field">
+												<label for="cf-category">Category <span class="req">*</span></label>
+												<select id="cf-category" required>
+													<option value="">— pick one —</option>
+													<option value="CHARACTER">Character</option>
+													<option value="LOCATION">Location</option>
+													<option value="INFLUENCE">Influence</option>
+													<option value="HISTORICAL">Historical</option>
+												</select>
+											</div>
+											<div class="field">
+												<label for="cf-rarity">Rarity <span class="req">*</span></label>
+												<select id="cf-rarity" required>
+													<option value="">— pick one —</option>
+													<option value="COMMON">Common</option>
+													<option value="RARE">Rare</option>
+													<option value="LEGENDARY">Legendary</option>
+												</select>
+											</div>
+										</div>
+									</div>
+
+									<!-- Right col — stats -->
+									<div class="form-col">
+										<p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem;">
+											Stats (0–100). Legacy defaults to 100 (health/defence).
+										</p>
+										<div class="field-row">
+											<div class="field">
+												<label for="cf-attack">Attack</label>
+												<input id="cf-attack" type="number" min="0" max="100" placeholder="0" />
+											</div>
+											<div class="field">
+												<label for="cf-location">Location</label>
+												<input id="cf-location" type="number" min="0" max="100" placeholder="0" />
+											</div>
+										</div>
+										<div class="field-row">
+											<div class="field">
+												<label for="cf-influence">Influence</label>
+												<input id="cf-influence" type="number" min="0" max="100" placeholder="0" />
+											</div>
+											<div class="field">
+												<label for="cf-legacy">Legacy (HP)</label>
+												<input id="cf-legacy" type="number" min="0" max="100" placeholder="100" />
+											</div>
+										</div>
+										<div class="field">
+											<label for="cf-era">Era</label>
+											<input id="cf-era" type="number" min="0" max="100" placeholder="0" />
+										</div>
+										<div class="field">
+											<label for="cf-ability-name">Ability name</label>
+											<input id="cf-ability-name" type="text" placeholder="e.g. Iron Will (Sprint 2)" />
+										</div>
+										<div class="field">
+											<label for="cf-ability-desc">Ability description</label>
+											<textarea id="cf-ability-desc" rows="2" placeholder="What the ability does…"></textarea>
+										</div>
+									</div>
+								</div>
+
+								<div class="form-actions">
+									<button type="button" class="btn btn-ghost" id="btn-card-cancel">Cancel</button>
+									<button type="submit" class="btn btn-primary" id="btn-card-submit">Save Card</button>
+								</div>
+							</form>
+						</div>
+					</div>
+
+				</div> <!-- /tab-cards -->
+
+			</div> <!-- /console-content -->
 		</main>
 
 		<div
