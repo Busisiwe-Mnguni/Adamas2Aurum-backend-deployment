@@ -1,10 +1,12 @@
+import { API_BASE } from './constants.js'
+
 document.addEventListener('DOMContentLoaded', () => {
 	const loginForm = document.getElementById('login-form')
 	const signupForm = document.getElementById('signup-form')
 	const loginError = document.getElementById('login-error')
 	const signupError = document.getElementById('signup-error')
 
-	const API_BASE = 'http://localhost:3000/api/auth'
+	const AUTH_API = `${API_BASE}/api/auth`
 
 	// Inform users on the sign-up form
 	if (signupForm) {
@@ -31,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 			try {
 				const response = await fetch(
-					`${API_BASE}/login`,
+					`${AUTH_API}/login`,
 					{
 						method: 'POST',
 						headers: {

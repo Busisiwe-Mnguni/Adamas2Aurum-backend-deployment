@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './env.js'
 import pool from './utils/db.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
@@ -11,8 +11,7 @@ import { execute_sql_script } from './utils/sql_utils.js'
 async function main() {
 	console.log('======\nSeeding DB tables\n======')
 	let ret = await execute_sql_script(pool, './db/seed.sql')
-	if (ret.ok === false)
-		throw new Error(ret.error)
+	if (ret.ok === false) throw new Error(ret.error)
 	console.log('======\nDone.\n======')
 	process.exit(0)
 }

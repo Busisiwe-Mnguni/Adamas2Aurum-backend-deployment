@@ -1,4 +1,19 @@
 /**
+ * Better Auth client functions for the auth drawer.
+ * These wrap the Better Auth browser client (loaded via auth-client.bundle.mjs).
+ */
+
+import { API_BASE } from './constants.js'
+import {
+	emailSignIn,
+	emailSignUp,
+	googleSignIn,
+	baSignOut,
+	clearBridgeSession,
+} from './auth-client.js'
+import { get_player_location } from './geolocation.js'
+
+/**
  * MAP CONFIGURATION CONSTANTS
  */
 const CONFIG = {
@@ -11,13 +26,11 @@ const CONFIG = {
 		'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }
 
-const API_BASE = 'http://localhost:3000/api'
-
 // Tracks the currently logged-in user (null if not authenticated). This is
 // set once, in checkAuthSession(), and then read anywhere in this file
 // that needs to know "is someone logged in right now" — e.g.
-// handleChallengeAttempt() below uses it to decide whether to redirect
-// to the login page instead of opening a challenge.
+// handleChallengeAttempt() below uses it to decide whether to open the
+// auth drawer instead of opening a challenge.
 let currentUser = null
 
 /**
@@ -101,7 +114,7 @@ const playerIcon = L.divIcon({
  */
 async function fetchCampusEvents() {
 	try {
-		const res = await fetch(`${API_BASE}/events`)
+		const res = await fetch(`${API_BASE}/api/events`)
 		if (!res.ok)
 			throw new Error(`HTTP error! status: ${res.status}`)
 
@@ -230,29 +243,66 @@ function buildPopupContent(buildingData) {
  * can only reach globally-scoped functions, not ones defined with a plain
  * `function` keyword inside a module.
  *
- * This is the auth gate: if nobody's logged in, redirect to the login
- * page instead of letting them see or answer a question at all. The
- * ?redirect= query param remembers where they were, so auth.js can send
- * them back here after they log in instead of dumping them at the map
- * root.
+ * This is the auth gate: if nobody's logged in, open the auth drawer
+ * instead of letting them see or answer a question at all.
+ *
+ * LOCATION CHECK (new): before fetching the question, this now calls
+ * get_player_location() (from geolocation.js) to get the player's current
+ * GPS coordinates, then sends them as ?lat=..&lng=.. query params. The
+ * backend (routes/trivia.js) uses these to check the player is actually
+ * within the event's radius_meters before releasing the question —
+ * satisfying user story 7's "when I open a challenge I'm at" wording.
  */
 window.handleChallengeAttempt = async function (eventId) {
 	if (!currentUser) {
-		window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+		// Open the auth drawer instead of navigating away from the map
+		openAuthDrawer()
 		return
 	}
 
+	// Ask the browser for the player's current position. This will prompt
+	// for location permission the first time — if the player denies it, or
+	// their device doesn't support geolocation, get_player_location()
+	// rejects and we stop here with a clear message rather than silently
+	// failing or letting them through unverified.
+	let coords
 	try {
-		const res = await fetch(`${API_BASE}/trivia/event/${eventId}`, {
-			credentials: 'include', // sends the session cookie along, so the backend's requireAuth check can identify who's asking
-		})
-		if (!res.ok) {
-			if (res.status === 401) {
-				// Session cookie expired or was invalidated server-side between
-				// page load and clicking this button — bounce to login again.
-				window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
-				return
+		coords = await get_player_location() // returns [latitude, longitude]
+	} catch (err) {
+		alert(
+			`Couldn't get your location: ${err.message}. Location access is required to attempt a challenge.`
+		)
+		return
+	}
+	const [lat, lng] = coords
+
+	try {
+		const res = await fetch(
+			`${API_BASE}/api/trivia/event/${eventId}?lat=${lat}&lng=${lng}`,
+			{
+				credentials: 'include', // sends the session cookie along, so the backend's requireAuth check can identify who's asking
 			}
+		)
+
+		if (res.status === 401) {
+			// Session cookie expired or was invalidated server-side between
+			// page load and clicking this button — open auth drawer.
+			openAuthDrawer()
+			return
+		}
+
+		if (res.status === 403) {
+			// Location check failed server-side — player is outside the
+			// event's radius. Show them how far off they are.
+			const data = await res.json()
+			alert(
+				`You're too far from this location to attempt the challenge. ` +
+					`You're about ${data.distance_meters}m away (need to be within ${data.radius_meters}m).`
+			)
+			return
+		}
+
+		if (!res.ok) {
 			alert(
 				'No trivia challenges available for this location right now!'
 			)
@@ -301,9 +351,23 @@ function showTriviaModal(eventId, trivia) {
 		)
 		.join('')
 
+	// User story 8 — if the player has ALREADY earned this event's card,
+	// show a clear banner BEFORE they answer. Don't silently let them redo
+	// the challenge and then quietly withhold the card — that looks like a
+	// bug. They can still replay for practice, but it's visually obvious
+	// no card is coming.
+	const elig = trivia.card_eligibility
+	const earnedCardName = elig?.earned_card?.name
+	const alreadyEarnedBanner = elig?.already_earned
+		? `<div style="margin: 8px 0 12px; padding: 10px 12px; background: #fff8e1; border: 1px solid #ffd54f; border-left: 4px solid #ffb300; border-radius: 6px; color: #7a5c00; font-size: 0.85rem;">
+         🎓 You've already earned ${earnedCardName ? `the <strong>${earnedCardName}</strong> ` : ''}card for this challenge — replay for practice? No new card will be awarded.
+       </div>`
+		: ''
+
 	modal.innerHTML = `
     <div style="background: #fff; padding: 24px; border-radius: 8px; max-width: 400px; width: 90%;">
       <h3>🎯 Campus Challenge</h3>
+      ${alreadyEarnedBanner}
       <p style="margin: 12px 0;"><strong>${trivia.body}</strong></p>
       <div id="trivia-options">${optionsHtml}</div>
       <div id="trivia-result" style="margin-top: 12px;"></div>
@@ -318,9 +382,17 @@ function showTriviaModal(eventId, trivia) {
  * does NOT decide whether the answer is correct — it just sends the pick
  * to the server and displays whatever the server decides.
  *
+ * LOCATION CHECK (new): fetches the player's location FRESH at submit
+ * time (not reused from when the question was opened) — if someone opened
+ * a challenge while standing at the location, then wandered off before
+ * answering, this catches that too. The backend uses claimed_lat/
+ * claimed_lng to compute the real distance and store it in
+ * location_check_log, and only awards points if the location check
+ * passes (see routes/trivia.js STEP 5).
+ *
  * User story 7: reveals the correct answer afterward, whether the player
  * got it right or wrong, using correct_option_text from the server's
- * response (see routes/trivia.js for how that's computed).
+ * response.
  */
 window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
 	const optionsContainer = document.getElementById('trivia-options')
@@ -335,8 +407,23 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
 			.forEach((btn) => (btn.disabled = true))
 	}
 
+	// Get a fresh location fix for this submission specifically.
+	let lat = null
+	let lng = null
 	try {
-		const res = await fetch(`${API_BASE}/trivia/submit`, {
+		;[lat, lng] = await get_player_location()
+	} catch (err) {
+		// Don't block the submission entirely if location fails here — the
+		// backend will still grade correctness, it just won't be able to
+		// verify location (and so won't award points). Surface this clearly
+		// rather than silently losing the points.
+		if (resultContainer) {
+			resultContainer.innerHTML = `<p style="color: #c0392b;">Couldn't confirm your location (${err.message}) — your answer will be graded but points may not be awarded.</p>`
+		}
+	}
+
+	try {
+		const res = await fetch(`${API_BASE}/api/trivia/submit`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'include', // same reason as above — the backend needs the session cookie to know who's submitting
@@ -345,12 +432,14 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
 				question_id: questionId,
 				selected_option_id: optionId,
 				answer_time_ms: 1500, // TODO: currently hardcoded; a real implementation would time from when the modal opened
+				claimed_lat: lat,
+				claimed_lng: lng,
 			}),
 		})
 
 		if (res.status === 401) {
 			alert('Your session has expired. Please log in again.')
-			window.location.href = `/pages/auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+			openAuthDrawer()
 			return
 		}
 
@@ -365,14 +454,17 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
 		}
 
 		if (resultContainer) {
-			// Green for correct, red for incorrect — purely a display choice,
-			// has no effect on what actually got recorded server-side.
-			const verdictColor = data.is_correct
-				? '#27ae60'
-				: '#c0392b'
-			const verdictText = data.is_correct
+			// Green for correct-and-verified, red for anything else (wrong
+			// answer, OR correct but too far away — location_verified === false
+			// means no points either way, so both cases read as "not a win").
+			const succeeded =
+				data.is_correct && data.location_verified
+			const verdictColor = succeeded ? '#27ae60' : '#c0392b'
+			const verdictText = succeeded
 				? `✅ Correct! +${data.points_awarded} points`
-				: `❌ Not quite.`
+				: data.location_verified === false
+					? `📍 Too far away — this attempt didn't count.`
+					: `❌ Not quite.`
 
 			// correct_option_text will be null only if a question was seeded
 			// without any option marked is_correct — guard against that so we
@@ -381,8 +473,22 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
 				? `<p style="margin-top: 6px; color: #333;">Correct answer: <strong>${data.correct_option_text}</strong></p>`
 				: ''
 
+			// User story 8 — show the card outcome explicitly. A retry after a
+			// win must read as intended behaviour ("you've already earned this
+			// card"), not a silent missing reward.
+			let cardHtml = ''
+			if (data.card_awarded && data.awarded_card) {
+				const rarity = data.awarded_card.rarity
+					? ` (${data.awarded_card.rarity})`
+					: ''
+				cardHtml = `<p style="margin-top: 6px; color: #7a5c00; font-weight: bold;">🎉 New card earned: ${data.awarded_card.name}${rarity}!</p>`
+			} else if (succeeded && data.already_earned_card) {
+				cardHtml = `<p style="margin-top: 6px; color: #888; font-size: 0.85rem;">You've already earned this card — no new card this time.</p>`
+			}
+
 			resultContainer.innerHTML = `
         <p style="color: ${verdictColor}; font-weight: bold;">${verdictText}</p>
+        ${cardHtml}
         ${correctAnswerHtml}
       `
 		}
@@ -401,6 +507,10 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
  * Uses the browser's Geolocation API to show the player's live position
  * on the map with a pulsing red marker. watchPosition (not getCurrentPosition)
  * keeps updating the marker as the player physically moves around campus.
+ *
+ * Note: this is separate from get_player_location() in geolocation.js,
+ * which is used above for one-off position fixes (challenge open/submit).
+ * This one continuously tracks position for the visual marker only.
  */
 function setupPlayerGeolocation(map) {
 	let playerMarker = null
@@ -408,7 +518,6 @@ function setupPlayerGeolocation(map) {
 	function updatePosition(position) {
 		const { latitude, longitude } = position.coords
 		const latLng = [latitude, longitude]
-		console.log(latitude, longitude)
 
 		if (!playerMarker) {
 			// First position fix: create the marker.
@@ -447,7 +556,7 @@ async function checkAuthSession() {
 	if (!container) return
 
 	try {
-		const res = await fetch(`${API_BASE}/auth/me`, {
+		const res = await fetch(`${API_BASE}/api/me`, {
 			method: 'GET',
 			credentials: 'include',
 		})
@@ -468,25 +577,25 @@ async function checkAuthSession() {
 		} else {
 			// 401 from the backend — no valid session.
 			currentUser = null
-			container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
+			container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
 		}
 	} catch (err) {
 		// Backend unreachable — treat the same as "not logged in" rather than
 		// crashing the page.
 		currentUser = null
-		container.innerHTML = `<a href="/pages/auth.html" class="auth-link">Sign In / Register</a>`
+		container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
 	}
 }
 
 async function handleLogout() {
 	try {
-		await fetch(`${API_BASE}/auth/logout`, {
-			method: 'POST',
-			credentials: 'include',
-		})
+		// Clear both Better Auth session and express-session bridge
+		await baSignOut()
+		await clearBridgeSession()
 		window.location.reload() // simplest way to reset all UI state back to "logged out"
 	} catch (err) {
 		console.error('Logout error:', err)
+		window.location.reload()
 	}
 }
 
@@ -529,6 +638,128 @@ async function initializeApp() {
 	setupPlayerGeolocation(map)
 }
 
+// ---------------------------------------------------------------------------
+// AUTH SIDE DRAWER FUNCTIONS
+// These open/close the auth drawer, handle tab switching, and wire up the
+// login/signup forms. All attached to `window` because they're called from
+// inline onclick="" attributes in the drawer HTML (index.html).
+// ---------------------------------------------------------------------------
+
+function showDrawerStatus(message, isError) {
+	const el = document.getElementById('auth-drawer-status')
+	if (!el) return
+	el.textContent = message
+	el.className = `auth-status visible ${isError ? 'error' : 'success'}`
+}
+
+window.openAuthDrawer = function () {
+	document.getElementById('auth-overlay')?.classList.add('open')
+	document.getElementById('auth-drawer')?.classList.add('open')
+}
+
+window.closeAuthDrawer = function () {
+	document.getElementById('auth-overlay')?.classList.remove('open')
+	document.getElementById('auth-drawer')?.classList.remove('open')
+}
+
+window.switchAuthTab = function (tab) {
+	const loginPanel = document.getElementById('login-panel')
+	const signupPanel = document.getElementById('signup-panel')
+	const tabs = document.querySelectorAll('.auth-tab')
+
+	if (tab === 'login') {
+		loginPanel?.classList.add('active')
+		signupPanel?.classList.remove('active')
+		tabs[0]?.classList.add('active')
+		tabs[1]?.classList.remove('active')
+	} else {
+		signupPanel?.classList.add('active')
+		loginPanel?.classList.remove('active')
+		tabs[1]?.classList.add('active')
+		tabs[0]?.classList.remove('active')
+	}
+}
+
+window.handleDrawerGoogleAuth = async function () {
+	showDrawerStatus('Redirecting to Google...', false)
+	const { error } = await googleSignIn()
+	if (error) {
+		showDrawerStatus('Google auth failed: ' + error.message, true)
+	}
+}
+
+function setupAuthDrawerHandlers() {
+	// Login form
+	const loginForm = document.getElementById('drawer-login-form')
+	if (loginForm) {
+		loginForm.addEventListener('submit', async (e) => {
+			e.preventDefault()
+			const email = document
+				.getElementById('drawer-login-email')
+				.value.trim()
+			const password = document.getElementById(
+				'drawer-login-password'
+			).value
+
+			showDrawerStatus('Signing in...', false)
+			const { data, error } = await emailSignIn(
+				email,
+				password
+			)
+
+			if (error) {
+				showDrawerStatus(
+					'Login failed: ' + error.message,
+					true
+				)
+			} else {
+				showDrawerStatus('Signed in!', false)
+				closeAuthDrawer()
+				// Reload to update auth state and bridge session
+				window.location.reload()
+			}
+		})
+	}
+
+	// Signup form
+	const signupForm = document.getElementById('drawer-signup-form')
+	if (signupForm) {
+		signupForm.addEventListener('submit', async (e) => {
+			e.preventDefault()
+			const name = document
+				.getElementById('drawer-signup-name')
+				.value.trim()
+			const email = document
+				.getElementById('drawer-signup-email')
+				.value.trim()
+			const password = document.getElementById(
+				'drawer-signup-password'
+			).value
+
+			showDrawerStatus('Creating account...', false)
+			const { data, error } = await emailSignUp(
+				name,
+				email,
+				password
+			)
+
+			if (error) {
+				showDrawerStatus(
+					'Sign up failed: ' + error.message,
+					true
+				)
+			} else {
+				showDrawerStatus('Account created!', false)
+				closeAuthDrawer()
+				window.location.reload()
+			}
+		})
+	}
+}
+
 // Wait for the DOM to be ready before touching any #map / #auth-nav-container
 // elements — otherwise document.getElementById calls above would return null.
-document.addEventListener('DOMContentLoaded', initializeApp)
+document.addEventListener('DOMContentLoaded', () => {
+	setupAuthDrawerHandlers()
+	initializeApp()
+})

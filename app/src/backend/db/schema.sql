@@ -377,4 +377,31 @@ CREATE TABLE IF NOT EXISTS leaderboard_entries (
     CONSTRAINT uq_lb        UNIQUE (season_id, user_id)
 );
 
+-- ============================================================
+--  18. QUESTIONS  (User Story 6 — content-author question authoring)
+--
+--  Stores trivia questions attached to an event in three formats:
+--  MULTIPLE_CHOICE, TRUE_FALSE, FILL_BLANK.
+--    - correct_answer holds the right answer (the correct option's
+--      value for MULTIPLE_CHOICE, "true"/"false" for TRUE_FALSE,
+--      and the expected answer text for FILL_BLANK).
+--    - options is a JSON array of strings, used ONLY for
+--      MULTIPLE_CHOICE (NULL for the other formats).
+--  Deleting an event cascades to its questions (ON DELETE CASCADE),
+--  which is the SQL equivalent of the Event -> questions relation.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS questions (
+    id             INT           AUTO_INCREMENT PRIMARY KEY,
+    event_id       INT           NOT NULL,
+    type           ENUM('MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK') NOT NULL,
+    text           TEXT          NOT NULL,
+    correct_answer VARCHAR(500)  NOT NULL,
+    options        JSON          DEFAULT NULL,
+    created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_us6_question_event FOREIGN KEY (event_id)
+        REFERENCES events (event_id) ON DELETE CASCADE
+);
+
 SET FOREIGN_KEY_CHECKS = 1;

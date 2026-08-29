@@ -383,19 +383,22 @@
 	box-shadow: 0 0 0 2px var(--battle-accent) inset;
 }
 
-bconst playerIcon = L.divIcon({
+bconst
+	playerIcon
+	=
+	L.divIcon({
 	className: 'custom-player-pin',
 	html: `
-    <div style="position: relative; width: 36px; height: 36px;">
-      <div style="
+    <div style='position: relative; width: 36px; height: 36px;'>
+      <div style='
         position: absolute;
         width: 100%;
         height: 100%;
         border-radius: 50%;
         background-color: rgba(231, 76, 60, 0.4);
         animation: pulse-ring 1.8s infinite ease-out;
-      "></div>
-      <div style="
+      '></div>
+      <div style='
         background-color: #e74c3c;
         width: 32px;
         height: 32px;
@@ -409,8 +412,8 @@ bconst playerIcon = L.divIcon({
         position: absolute;
         top: 2px;
         left: 2px;
-      ">
-        <span style="transform: rotate(45deg); font-size: 16px;">📍</span>
+      '>
+        <span style='transform: rotate(45deg); font-size: 16px;'>📍</span>
       </div>
     </div>
     <style>

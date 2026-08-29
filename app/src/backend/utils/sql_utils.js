@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 
 export async function execute_sql_script(pool, script_path) {
-	var query,idx
+	var query, idx
 	try {
 		const queries = fs
 			.readFileSync(script_path, 'utf8')
@@ -15,15 +15,15 @@ export async function execute_sql_script(pool, script_path) {
 		)
 		for ([idx, query] of Object.entries(queries)) {
 			console.log(
-			`Executing query ${Number(idx) + 1} of ${queries.length}`
+				`Executing query ${Number(idx) + 1} of ${queries.length}`
 			)
 			await pool.query(query)
 		}
 		console.log(`"${script_path}" successfully executed!`)
-		return {ok: true}
+		return { ok: true }
 	} catch (error) {
 		console.log(query)
 		console.error(`"${script_path}" failed:`, error.message)
-		return {ok: false, error}
+		return { ok: false, error }
 	}
 }

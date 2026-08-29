@@ -4,7 +4,7 @@
 //   amount    signed delta applied to the stat (BUFF positive, DEBUFF negative)
 //   duration  rounds remaining; DEFEND ignores this and is consumed on hit instead
 
-export const TEAM_ACTIONS = ['DEFEND', 'DODGE', 'REVIVE', 'BUFF'];
+export const TEAM_ACTIONS = ['DEFEND', 'DODGE', 'REVIVE', 'BUFF']
 
 export function add_effect(card, effect) {
 	card.effects = card.effects || []

@@ -37,7 +37,7 @@ Adamas2Aurum/
 │       │   └── pages/      # auth, events, console, map
 │       └── backend/        # Express API
 │           ├── routes/     # auth, events, trivia
-│           ├── websocket/  # websockets (battle, and etc.) 
+│           ├── websocket/  # websockets (battle, and etc.)
 │           ├── db/         # schema.sql, seed.sql
 │           └── utils/
 ├── docs/
@@ -46,14 +46,14 @@ Adamas2Aurum/
 ├── .prettierignore
 ├── setup.sh          # automated setup — macOS/Linux
 ├── setup.ps1         # automated setup — Windows
-└── README.md 
+└── README.md
 ```
 
 ---
 
 ## Prerequisites
 
-- Node.js
+- Node.js 18+
 - npm
 - Docker & Docker Compose - only needed for [local DB setup](#local-db-setup)
 
@@ -85,7 +85,7 @@ You'll be prompted whether to set up the local database.
 
 If you'd rather run each step yourself:
 
-1. Install dependencies (project root and backend):
+1. Install dependencies:
 
 ```bash
 $ npm run install-deps
@@ -98,7 +98,7 @@ $ npm run install-deps
 ```bash
 $ npm run dev:backend     # dev mode
 $ npm run start:backend   # production mode
-   ```
+```
 
 > `dev:backend` and `start:backend` delegate to `app/src/backend`, which needs its own matching `dev` and `start` scripts.
 
@@ -109,7 +109,7 @@ $ npm run dev:frontend     # dev mode
 $ npm run start:frontend   # production mode
 ```
 
-Both currently run the same command (`serve app/src/frontend -l 8055`) - this serves the frontend as static files and does not hot-reload on change.
+> **Note**: Both currently run the same command (`serve app/src/frontend -l 8055`) - this serves the frontend as static files and does not hot-reload on change.
 
 ---
 
@@ -150,11 +150,10 @@ $ npm run db:up
 $ npm run db:down
 ```
 
-
 > **Note:** To delete the DB completely, run `docker compose down -v` from `app/src/backend`.
 >
 > On Linux (maybe macOS, too), `db:up` might need to be run with `sudo` depending on your Docker install (`setup.sh` does not do this, so you would have to go to `app/src/backend/package.json` and add sudo to those scripts manually, or add the current `$USER` to the `docker` group so elevation isn't needed).
-> 
+>
 > On Windows, elevation (apparently) isn't required with Docker Desktop.
 
 ### Seeding the database
@@ -165,7 +164,7 @@ trivia questions, etc.), run once:
 
 ```bash
 $ npm run db:seed
-````
+```
 
 > This TRUNCATEs and re-inserts all seed data on the **shared** Aiven
 > database. Don't run it while teammates are actively testing - check in
@@ -174,8 +173,6 @@ $ npm run db:seed
 > someone else ran `db:seed` (or an older backend re-seeded automatically)
 > and your test account got wiped - just log in with a seeded account
 > again, or re-run `db:seed` yourself if needed.
-
-```
 
 ---
 
@@ -188,7 +185,7 @@ $ npm test              # run all tests
 $ npm run test:frontend # frontend only
 $ npm run test:backend  # backend only
 $ npm run test:watch    # watch mode
-```
+````
 
 Test files are matched as `*.test.js` under each project's `rootDir`.
 

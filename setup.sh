@@ -8,6 +8,13 @@ ENV_EXAMPLE="app/src/backend/.env.example"
 ENV_FILE="app/src/backend/.env"
 MODE="start"
 
+for arg in "$@"; do
+	case "$arg" in
+	--dev) MODE="dev" ;;
+	*) warn "Unknown argument: $arg" ;;
+	esac
+done
+
 cleanup() {
     set +e
     trap - INT TERM EXIT
@@ -30,13 +37,6 @@ ask_yes_no() {
 		esac
 	done
 }
-
-for arg in "$@"; do
-	case "$arg" in
-	--dev) MODE="dev" ;;
-	*) warn "Unknown argument: $arg" ;;
-	esac
-done
 
 info "Installing dependencies..."
 npm run install-deps

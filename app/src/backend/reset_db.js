@@ -8,13 +8,13 @@ async function main() {
 	)
 	console.log('======\nDropping DB tables\n======')
 	let ret = await execute_sql_script(pool, './db/drop_tables.sql')
-	if (ret.ok === false)
-		throw new Error(ret.error)
+	if (ret.ok === false) throw new Error(ret.error)
 	console.log('======\nCreating DB tables\n======')
 	ret = await execute_sql_script(pool, './db/schema.sql')
-	if (ret.ok === false)
-		throw new Error(ret.error)
-	console.log('======\nDone.\nNote: The DB is unseeded. Run the seed script to seed it.\n======')
+	if (ret.ok === false) throw new Error(ret.error)
+	console.log(
+		'======\nDone.\nNote: The DB is unseeded. Run the seed script to seed it.\n======'
+	)
 	process.exit(0)
 }
 

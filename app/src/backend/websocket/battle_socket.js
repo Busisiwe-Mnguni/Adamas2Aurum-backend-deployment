@@ -503,8 +503,12 @@ battleWss.on('connection', (ws, request) => {
 					persist_final_health(state)
 					clear_battle_state(battle_id)
 					if (state.player1_id !== null) {
-						const tmpWss = get_player_connection(state.player1_id)
-						tmpWss.send(
+						const tmp_connection =
+							get_player_connection(
+								state.player1_id
+							)
+						const tmp_wss = tmp_connection.ws
+						tmp_wss.send(
 							JSON.stringify({
 								type: 'match-results',
 								winner,
@@ -516,8 +520,12 @@ battleWss.on('connection', (ws, request) => {
 						)
 					}
 					if (state.player2_id !== null) {
-						const tmpWss = get_player_connection(state.player2_id)
-						tmpWss.send(
+						const tmp_connection =
+							get_player_connection(
+								state.player2_id
+							)
+						const tmp_wss = tmp_connection.ws
+						tmp_wss.send(
 							JSON.stringify({
 								type: 'match-results',
 								winner,
