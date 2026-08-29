@@ -77,8 +77,8 @@ const session_middleware = session({
 	saveUninitialized: false,
 	cookie: {
 		httpOnly: true,
-		secure: false, // set true in production with HTTPS
-		maxAge: 1000 * 60 * 60 * 24, // 8 hours
+		secure: true,
+		maxAge: 1000 * 60 * 60 * 24, // 24 hours
 	},
 })
 app.use(session_middleware)
@@ -277,13 +277,12 @@ async function view_database() {
 
 try {
 	await initialize_database()
-	await view_database()
 
-	if (process.env.SEED_DB === 'true') {
-		await seed_database()
-	}
 	if (process.env.CLEAR_DB === 'true') {
 		await clear_database()
+	}
+	if (process.env.SEED_DB === 'true') {
+		await seed_database()
 	}
 
 	if (process.env.LOG_DB === 'true') {

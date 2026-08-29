@@ -1,5 +1,10 @@
 import 'dotenv/config'
 import mysql from 'mysql2/promise'
+import path from 'path'
+import fs from 'fs'
+import url from 'url'
+
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST || 'localhost',
@@ -9,7 +14,17 @@ const pool = mysql.createPool({
 	database: process.env.DB_NAME || 'testdb',
 	ssl:
 		process.env.DB_SSL === 'true'
-			? { rejectUnauthorized: false }
+			? {
+					ca: fs.readFileSync(
+						path.join(
+							__dirname,
+							'..',
+							'certs',
+							'ca.pem'
+						)
+					),
+					rejectUnauthorized: true,
+				}
 			: false,
 	waitForConnections: true,
 	connectionLimit: 10,
