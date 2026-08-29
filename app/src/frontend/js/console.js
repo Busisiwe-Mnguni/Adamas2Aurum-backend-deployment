@@ -1,5 +1,5 @@
 // console.js - UNIFIED CONSOLE MANAGEMENT
-import { api_base, showToast, toDatetimeLocal, buildCardBody } from './utils.js'
+import { EVENTS_API, showToast, toDatetimeLocal, buildCardBody } from './utils.js'
 import { API_BASE } from './constants.js'
 
 const AUTHOR_ROLES = ['SUPER_ADMIN', 'EVENT_AUTHOR', 'CARD_AUTHOR']
@@ -243,7 +243,7 @@ async function loadEvents() {
     elEventCount.textContent = 'Loading…'
 
     try {
-        const res = await fetch(`${api_base}?all=true`, {
+        const res = await fetch(`${EVENTS_API}?all=true`, {
             credentials: 'include',
         })
         if (!res.ok) {
@@ -380,7 +380,7 @@ eventForm.addEventListener('submit', async (e) => {
     btnSubmit.textContent = 'Saving…'
 
     try {
-        const url = id ? `${api_base}/${id}` : api_base
+        const url = id ? `${EVENTS_API}/${id}` : EVENTS_API
         const method = id ? 'PUT' : 'POST'
 
         const res = await fetch(url, {
@@ -427,7 +427,7 @@ async function doEventDelete() {
     closeModal()
 
     try {
-        const res = await fetch(`${api_base}/${id}`, {
+        const res = await fetch(`${EVENTS_API}/${id}`, {
             method: 'DELETE',
             credentials: 'include',
         })
@@ -700,7 +700,7 @@ modalConfirm.addEventListener('click', async () => {
 	closeModal()
 
 	try {
-		const res = await fetch(`${api_base}/${id}`, {
+		const res = await fetch(`${EVENTS_API}/${id}`, {
 			method: 'DELETE',
 			credentials: 'include',
 		})
@@ -1109,3 +1109,4 @@ qModalConfirm.addEventListener('click', async () => {
 		showToast(err.message, 'error')
 	}
 })
+

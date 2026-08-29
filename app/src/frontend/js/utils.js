@@ -1,7 +1,6 @@
 import { API_BASE } from './constants.js'
 
-export const api_base = `${API_BASE}/api/events`
-
+export const EVENTS_API = `${API_BASE}/api/events`
 let _toastTimer
 export function showToast(msg, type = 'success') {
 	const toast = document.getElementById('toast')

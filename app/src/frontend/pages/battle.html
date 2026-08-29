@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0"
+		/>
+		<title>A2A — Battle</title>
+		<link rel="stylesheet" href="../css/style.css" />
+		<link rel="stylesheet" href="../css/battle.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<div class="header-inner">
+				<a class="logo" href="../index.html">
+					<span class="logo-a">A</span>
+					<span class="logo-sep">2</span>
+					<span class="logo-a">A</span>
+					<span class="logo-sub">Home</span>
+				</a>
+				<a class="logo" href="battle.html">
+					<span class="logo-a">A</span>
+					<span class="logo-sep">2</span>
+					<span class="logo-a">A</span>
+					<span class="logo-sub">Battle</span>
+				</a>
+				<div class="header-right">
+					<span
+						class="admin-badge"
+						id="user-badge"
+						style="display: none"
+					></span>
+					<button
+						class="btn btn-ghost btn-sm"
+						id="btn-logout"
+						style="display: none"
+					>
+						Logout
+					</button>
+					<button
+						class="btn btn-ghost btn-sm"
+						id="btn-forfeit"
+						style="display: none"
+					>
+						Forfeit
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<main class="main">
+			<div id="toast" class="toast" aria-live="polite"></div>
+
+			<!-- Login  shown if not authenticated -->
+			<div id="login-view" class="hidden">
+				<div
+					style="
+						max-width: 380px;
+						margin: 4rem auto;
+					"
+				>
+					<div class="form-card">
+						<h2
+							class="page-title"
+							style="
+								margin-bottom: 1.5rem;
+								font-size: 1.4rem;
+							"
+						>
+							Sign in to Console
+						</h2>
+						<form
+							id="login-form"
+							novalidate
+						>
+							<div
+								class="field"
+								style="
+									margin-bottom: 1rem;
+								"
+							>
+								<label
+									for="login-email"
+								>
+									Email
+									<span
+										class="req"
+									>
+										*
+									</span>
+								</label>
+								<input
+									id="login-email"
+									type="text"
+									placeholder="admin@wits.ac.za"
+									required
+								/>
+							</div>
+							<div
+								class="field"
+								style="
+									margin-bottom: 1.5rem;
+								"
+							>
+								<label
+									for="login-pin"
+								>
+									PIN
+									<span
+										class="req"
+									>
+										*
+									</span>
+								</label>
+								<input
+									id="login-pin"
+									type="password"
+									placeholder="1234"
+									required
+								/>
+							</div>
+							<div
+								id="login-error"
+								class="state-msg error hidden"
+								style="
+									padding: 0.5rem
+										0;
+								"
+							></div>
+							<button
+								type="submit"
+								class="btn btn-primary"
+								id="btn-login"
+								style="
+									width: 100%;
+								"
+							>
+								Sign in
+							</button>
+						</form>
+					</div>
+				</div>
+			</div>
+
+			<div
+				id="list-error"
+				class="state-msg error hidden"
+			></div>
+
+			<div id="view-deck-select" class="hidden">
+				<div class="page-header">
+					<div>
+						<h1 class="page-title">
+							Choose Your Deck
+						</h1>
+						<p
+							class="page-subtitle"
+							id="deck-count"
+						>
+							Loading your collection…
+						</p>
+					</div>
+					<button
+						class="btn btn-primary"
+						id="btn-start-battle"
+						disabled
+					>
+						Start Battle
+					</button>
+				</div>
+
+				<div class="deck-slots" id="deck-slots">
+					<div class="deck-slot" data-slot="1">
+						<span class="deck-slot-num">
+							1
+						</span>
+					</div>
+					<div class="deck-slot" data-slot="2">
+						<span class="deck-slot-num">
+							2
+						</span>
+					</div>
+					<div class="deck-slot" data-slot="3">
+						<span class="deck-slot-num">
+							3
+						</span>
+					</div>
+					<div class="deck-slot" data-slot="4">
+						<span class="deck-slot-num">
+							4
+						</span>
+					</div>
+					<div class="deck-slot" data-slot="5">
+						<span class="deck-slot-num">
+							5
+						</span>
+					</div>
+				</div>
+
+				<div class="border-line"></div>
+
+				<div id="deck-loading" class="state-msg">
+					Loading collection…
+				</div>
+				<div id="deck-empty" class="state-msg hidden">
+					You don't own any cards yet — play a
+					trivia event to earn some.
+				</div>
+				<div
+					id="deck-error"
+					class="state-msg error hidden"
+				></div>
+
+				<ul id="collection-grid" class="card-grid"></ul>
+			</div>
+
+			<div id="view-battle" class="hidden">
+				<div class="battle-status-bar">
+					<span
+						class="battle-turn-indicator"
+						id="turn-indicator"
+					>
+						Your turn
+					</span>
+					<span
+						class="battle-turn-number"
+						id="turn-number"
+					>
+						Turn 1
+					</span>
+				</div>
+
+				<section
+					class="battle-board"
+					aria-label="Opponent board"
+				>
+					<h2 class="battle-board-label">
+						Opponent
+					</h2>
+					<ul
+						class="battle-card-row"
+						id="opponent-cards"
+					></ul>
+				</section>
+
+				<ul class="battle-log" id="battle-log"></ul>
+
+				<section
+					class="battle-board"
+					aria-label="Your board"
+				>
+					<h2 class="battle-board-label">You</h2>
+					<ul
+						class="battle-card-row"
+						id="player-cards"
+					></ul>
+				</section>
+
+				<div
+					class="battle-action-panel"
+					id="action-panel"
+				>
+					<p
+						class="battle-action-hint"
+						id="action-hint"
+					>
+						Select one of your cards, then
+						an action.
+					</p>
+					<div
+						class="battle-action-buttons"
+						id="action-buttons"
+					></div>
+				</div>
+
+				<div
+					id="round-result"
+					class="round-result hidden"
+				>
+					<p id="round-result-text"></p>
+					<button
+						class="btn btn-primary"
+						id="btn-continue"
+					>
+						Continue
+					</button>
+				</div>
+			</div>
+
+			<div id="view-result" class="hidden">
+				<div class="match-result-card">
+					<h1
+						class="page-title"
+						id="result-heading"
+					>
+						Victory
+					</h1>
+					<p
+						class="page-subtitle"
+						id="result-subtitle"
+					></p>
+
+					<div class="match-result-stats">
+						<div class="match-stat">
+							<span
+								class="match-stat-value"
+								id="damage-inflicted"
+							></span>
+							<span
+								class="match-stat-label"
+							>
+								Total Damage
+								Inflicted
+							</span>
+						</div>
+						<div class="match-stat">
+							<span
+								class="match-stat-value"
+								id="damage-suffered"
+							></span>
+							<span
+								class="match-stat-label"
+							>
+								Total Damage
+								Suffered
+							</span>
+						</div>
+					</div>
+
+					<ul
+						id="result-round-log"
+						class="round-log"
+					></ul>
+
+					<div class="form-actions">
+						<button
+							class="btn btn-ghost"
+							id="btn-view-collection"
+							onclick="
+								window.location =
+									'./battle.html'
+							"
+						>
+							Back to Collection
+						</button>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<script type="module" src="../js/battle.js"></script>
+	</body>
+</html>

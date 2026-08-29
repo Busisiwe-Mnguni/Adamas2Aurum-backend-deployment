@@ -1,6 +1,5 @@
 {
 	"dependencies": {
-		"express-session": "^1.19.0",
 		"serve": "^14.2.6"
 	},
 	"description": "A location-based campus trivia and card-battle game.",
@@ -33,16 +32,17 @@
 	"name": "Adamas2Aurum",
 	"private": true,
 	"scripts": {
-		"start:backend": "npm run start --prefix app/src/backend",
-  		"start:frontend": "npm run dev --prefix app/src/frontend",
+		"install-deps": "npm install && npm install --prefix app/src/backend",
 		"db:down": "npm run db:down --prefix app/src/backend",
 		"db:up": "npm run db:up --prefix app/src/backend",
+		"db:seed": "npm run db:seed --prefix app/src/backend",
+		"db:reset": "npm run db:reset --prefix app/src/backend",
 		"dev:backend": "npm run dev --prefix app/src/backend",
+		"dev:frontend": "serve app/src/frontend -l 8055",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"start:backend": "npm run start --prefix app/src/backend",
 		"start:frontend": "serve app/src/frontend -l 8055",
-		"dev:frontend": "serve app/src/frontend -l 8055",
 		"test": "node --experimental-vm-modules node_modules/.bin/jest",
 		"test:backend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects backend",
 		"test:frontend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects frontend",
