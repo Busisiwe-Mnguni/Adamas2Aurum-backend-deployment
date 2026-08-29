@@ -58,6 +58,7 @@ Adamas2Aurum/
 - Python 3 - for `setup.py` and `db_connect.py`
 - Docker & Docker Compose - only needed for [local DB setup](#local-db-setup)
 - MySQL client (`mysql`) - only needed if you want to connect via `db_connect.py`
+    - Or alternatively MariaDB client (`mariadb`)
 
 ---
 
@@ -157,7 +158,7 @@ Once the database is running, you can connect to it directly with:
 $ python3 db_connect.py
 ```
 
-This reads connection settings from your `app/src/backend/.env` (falling back to sane defaults if it isn't there) and calls the `mysql` client for you, automatically passing `--ssl-ca=app/src/backend/certs/ca.pem` or `--skip-ssl` depending on `DB_SSL`. Requires the `mysql` client to be installed and on your `PATH`.
+This reads connection settings from your `app/src/backend/.env` (falling back to sane defaults if it isn't there) and calls the `mysql` (or `mariadb`) client for you, automatically passing `--ssl-ca=app/src/backend/certs/ca.pem` or `--skip-ssl` depending on `DB_SSL`. Requires the `mysql` (or `mariadb`) client to be installed and on your `PATH`.
 
 ### Seeding the database
 

@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import shutil
 from pathlib import Path
 
 ENV_FILE = Path("app/src/backend/.env")
@@ -36,8 +37,13 @@ def str_to_bool(value):
     return str(value).strip().lower() in ("true", "1", "yes", "on")
 
 def build_mysql_command(config):
+    mariadb = shutil.which("mariadb")
+    if mariadb is None:
+        program = "mysql" 
+    else:
+        program = "mariadb" 
     cmd = [
-        "mysql",
+        program,
         "-h",
         config["DB_HOST"],
         "-P",
