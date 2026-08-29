@@ -507,7 +507,8 @@ battleWss.on('connection', (ws, request) => {
 							get_player_connection(
 								state.player1_id
 							)
-						const tmp_wss = tmp_connection.ws
+						const tmp_wss =
+							tmp_connection.ws
 						tmp_wss.send(
 							JSON.stringify({
 								type: 'match-results',
@@ -524,7 +525,8 @@ battleWss.on('connection', (ws, request) => {
 							get_player_connection(
 								state.player2_id
 							)
-						const tmp_wss = tmp_connection.ws
+						const tmp_wss =
+							tmp_connection.ws
 						tmp_wss.send(
 							JSON.stringify({
 								type: 'match-results',

@@ -1,4 +1,9 @@
-import { EVENTS_API, showToast, toDatetimeLocal, buildCardBody } from './utils.js'
+import {
+	EVENTS_API,
+	showToast,
+	toDatetimeLocal,
+	buildCardBody,
+} from './utils.js'
 import { API_BASE, API_BASE_WS } from './constants.js'
 
 var ws = null

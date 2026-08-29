@@ -1,7 +1,12 @@
 // FIX: import api_base, showToast and toDatetimeLocal from utils —
 // they were used but never defined in this file, causing crashes on
 // form submit and delete.
-import { EVENT_API, showToast, toDatetimeLocal, buildCardBody } from './utils.js'
+import {
+	EVENT_API,
+	showToast,
+	toDatetimeLocal,
+	buildCardBody,
+} from './utils.js'
 import { API_BASE } from './constants.js'
 
 const AUTHOR_ROLES = ['SUPER_ADMIN', 'EVENT_AUTHOR']

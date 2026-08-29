@@ -79,11 +79,9 @@ router.get('/event/:eventId', requireAuth, async (req, res) => {
 				// The frontend should always send these — this only fires if
 				// geolocation failed client-side and the caller didn't handle
 				// that, or if the endpoint is hit directly (e.g. via curl).
-				return res
-					.status(400)
-					.json({
-						error: 'Location is required to attempt this challenge.',
-					})
+				return res.status(400).json({
+					error: 'Location is required to attempt this challenge.',
+				})
 			}
 
 			const distance = distance_meters(
@@ -114,11 +112,9 @@ router.get('/event/:eventId', requireAuth, async (req, res) => {
 
 		if (!questions.length) {
 			// No trivia_questions rows exist for this event_id in the DB yet.
-			return res
-				.status(404)
-				.json({
-					error: 'No active trivia questions found for this location.',
-				})
+			return res.status(404).json({
+				error: 'No active trivia questions found for this location.',
+			})
 		}
 
 		const question = questions[0]
@@ -211,11 +207,9 @@ router.post('/submit', requireAuth, async (req, res) => {
 	const user_id = req.session.user.user_id // comes from the session cookie, not the request body — a player can't spoof this to submit as someone else
 
 	if (!question_id || !selected_option_id) {
-		return res
-			.status(400)
-			.json({
-				error: 'question_id and selected_option_id are required',
-			})
+		return res.status(400).json({
+			error: 'question_id and selected_option_id are required',
+		})
 	}
 
 	try {
@@ -273,11 +267,9 @@ router.post('/submit', requireAuth, async (req, res) => {
 				claimed_lat === undefined ||
 				claimed_lng === undefined
 			) {
-				return res
-					.status(400)
-					.json({
-						error: 'Location is required to submit an answer.',
-					})
+				return res.status(400).json({
+					error: 'Location is required to submit an answer.',
+				})
 			}
 
 			distance = distance_meters(
