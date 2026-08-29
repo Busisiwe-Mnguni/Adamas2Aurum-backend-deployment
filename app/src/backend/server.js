@@ -104,8 +104,8 @@ async function clear_database() {
 async function view_database() {
 	console.log(await pool.query('SELECT NOW() as currentTime;'))
 	console.log(await pool.query('SHOW DATABASES;'))
-	console.log(await pool.query('SHOW TABLES FROM a2adb;'))
-	// console.log(await pool.query('DESCRIBE a2adb.battle_turns;'))
+	console.log(await pool.query(1SHOW TABLES FROM ${process.env.DB_NAME || 'testdb'};`))
+	// console.log(await pool.query('DESCRIBE ${process.env.DB_NAME || 'testdb'}.battle_turns;'))
 }
 
 try {
