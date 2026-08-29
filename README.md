@@ -44,18 +44,20 @@ Adamas2Aurum/
 ├── package.json
 ├── .prettierrc.yaml
 ├── .prettierignore
-├── setup.sh          # automated setup — macOS/Linux
-├── setup.ps1         # automated setup — Windows
+├── setup.py          # automated setup
+├── db_connect.py     # connects to the DB via the mysql CLI
 └── README.md
 ```
 
 ---
 
 ## Prerequisites
-
+ 
 - Node.js 18+
 - npm
+- Python 3 - for `setup.py` and `db_connect.py`
 - Docker & Docker Compose - only needed for [local DB setup](#local-db-setup)
+- MySQL client (`mysql`) - only needed if you want to connect via `db_connect.py`
 
 ---
 
@@ -63,22 +65,13 @@ Adamas2Aurum/
 
 ### Quick start
 
-The setup script installs dependencies, optionally sets up a MySQL DB using Docker, and starts both the backend and frontend.
-
-macOS/Linux:
-
-```bash
-$ ./setup.sh          # start mode
-$ ./setup.sh --dev    # dev mode
-```
-
-Windows:
-
-```powershell
-> .\setup.ps1          # start mode
-> .\setup.ps1 -Dev     # dev mode
-```
-
+The setup script installs dependencies, optionally sets up a MySQL DB using Docker, and starts both the backend and frontend. It's cross-platform, so the same command works on macOS, Linux, and Windows:
+ 
+````bash
+$ python3 setup.py          # start mode
+$ python3 setup.py --dev    # dev mode
+````
+ 
 You'll be prompted whether to set up the local database.
 
 ### Manual setup
@@ -152,9 +145,20 @@ $ npm run db:down
 
 > **Note:** To delete the DB completely, run `docker compose down -v` from `app/src/backend`.
 >
-> On Linux (maybe macOS, too), `db:up` might need to be run with `sudo` depending on your Docker install (`setup.sh` does not do this, so you would have to go to `app/src/backend/package.json` and add sudo to those scripts manually, or add the current `$USER` to the `docker` group so elevation isn't needed).
+> On Linux (maybe macOS, too), `db:up` might need to be run with `sudo` depending on your Docker install (`setup.py` does not do this, so you would have to go to `app/src/backend/package.json` and add sudo to those scripts manually, or add the current `$USER` to the `docker` group so elevation isn't needed).
 >
 > On Windows, elevation (apparently) isn't required with Docker Desktop.
+ 
+### Connecting via the MySQL CLI
+ 
+Once the database is running, you can connect to it directly with:
+ 
+````bash
+$ python3 db_connect.py
+````
+ 
+This reads connection settings from your `app/src/backend/.env` (falling back to sane defaults if it isn't there) and calls the `mysql` client for you, automatically passing `--ssl-ca=app/src/backend/certs/ca.pem` or `--skip-ssl` depending on `DB_SSL`. Requires the `mysql` client to be installed and on your `PATH`.
+
 
 ### Seeding the database
 

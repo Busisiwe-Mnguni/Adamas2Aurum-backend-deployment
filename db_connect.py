@@ -14,7 +14,6 @@ DEFAULTS = {
     "DB_SSL": "false",
 }
 
-
 def load_env(path=ENV_FILE):
     config = DEFAULTS.copy()
 
@@ -33,10 +32,8 @@ def load_env(path=ENV_FILE):
 
     return config
 
-
 def str_to_bool(value):
     return str(value).strip().lower() in ("true", "1", "yes", "on")
-
 
 def build_mysql_command(config):
     cmd = [
@@ -51,7 +48,7 @@ def build_mysql_command(config):
     ]
 
     if str_to_bool(config["DB_SSL"]):
-        cmd.append("--ssl-ca=./certs/ca.pem")
+        cmd.append("--ssl-ca=app/src/backend/certs/ca.pem")
     else:
         cmd.append("--skip-ssl")
 
@@ -60,14 +57,12 @@ def build_mysql_command(config):
 
     return cmd
 
-
 def log_config(config):
     print("Loaded DB config:")
     for key, value in config.items():
         if key == "DB_PASSWORD":
             value = "****"
         print(f"  {key}={value}")
-
 
 def main():
     config = load_env()
@@ -77,7 +72,6 @@ def main():
     print("Running:", " ".join(cmd))
 
     subprocess.call(cmd)
-
 
 if __name__ == "__main__":
     main()
