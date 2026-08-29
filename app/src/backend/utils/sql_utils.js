@@ -20,8 +20,10 @@ export async function execute_sql_script(pool, script_path) {
 			await pool.query(query)
 		}
 		console.log(`"${script_path}" successfully executed!`)
+		return {ok: true}
 	} catch (error) {
 		console.log(query)
 		console.error(`"${script_path}" failed:`, error.message)
+		return {ok: false, error}
 	}
 }

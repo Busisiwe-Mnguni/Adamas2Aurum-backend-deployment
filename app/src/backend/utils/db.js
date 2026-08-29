@@ -16,9 +16,9 @@ const pool = mysql.createPool({
 	queueLimit: 0,
 })
 
-if (process.env.LOG_DB === 'true') {
-	const originalQuery = pool.query
-	const originalExecute = pool.execute
+if (process.env.LOG_DB === 'true' && process.env.VERBOSE_LOG_DB === 'true') {
+	const originalQuery = pool.query.bind(pool)
+	const originalExecute = pool.execute.bind(pool)
 
 	pool.query = function (...args) {
 		const sql = args[0]
@@ -28,7 +28,7 @@ if (process.env.LOG_DB === 'true') {
 			values ? `with values: ${JSON.stringify(values)}` : ''
 		)
 
-		return originalQuery.apply(this, args)
+		return originalQuery(...args)
 	}
 
 	pool.execute = function (...args) {
@@ -39,7 +39,7 @@ if (process.env.LOG_DB === 'true') {
 			values ? `with values: ${JSON.stringify(values)}` : ''
 		)
 
-		return originalExecute.apply(this, args)
+		return originalExecute(...args)
 	}
 }
 
