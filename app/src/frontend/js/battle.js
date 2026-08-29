@@ -8,7 +8,6 @@ import { API_BASE, API_BASE_WS } from './constants.js'
 
 var ws = null
 
-const AUTHOR_ROLES = ['SUPER_ADMIN', 'EVENT_AUTHOR']
 const AUTH_API = `${API_BASE}/api/auth`
 
 const elLoginView = document.getElementById('login-view')
@@ -112,6 +111,7 @@ async function doLogout() {
 	elLoginView.classList.remove('hidden')
 
 	elListError.classList.add('hidden')
+	window.location.reload()
 }
 
 btnLogout.addEventListener('click', doLogout)
