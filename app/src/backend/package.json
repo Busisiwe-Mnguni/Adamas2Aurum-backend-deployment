@@ -15,7 +15,8 @@
 		"db:up": "docker compose up -d",
 		"dev": "node --watch server.js",
 		"start": "node server.js",
-		"db:seed": "node seed.js"
+		"db:seed": "node seed.js",
+		"db:reset": "node reset_db.js"
 	},
 	"type": "module",
 	"version": "1.0.0"

@@ -97,6 +97,10 @@ async function seed_database() {
 	await execute_sql_script(pool, './db/seed.sql')
 }
 
+async function clear_database() {
+	await execute_sql_script(pool, './db/clear_db.sql')
+}
+
 async function view_database() {
 	console.log(await pool.query('SELECT NOW() as currentTime;'))
 	console.log(await pool.query('SHOW DATABASES;'))
@@ -108,14 +112,14 @@ try {
 	await initialize_database()
 	await view_database()
 
-	// Seeding only runs if explicitly requested via SEED_DB=true, e.g.:
-	//   SEED_DB=true npm run dev
-	// or via the dedicated `npm run db:seed` script (see seed.js).
 	if (process.env.SEED_DB === 'true') {
 		await seed_database()
 	}
+	if (process.env.CLEAR_DB === 'true') {
+		await clear_database()
+	}
 
-	if (process.env.LOG_DB_INFO === 'true') {
+	if (process.env.LOG_DB === 'true') {
 		await view_database()
 	}
 } catch (err) {

@@ -65,6 +65,9 @@ if ask_yes_no "Would you like to set up a local MySQL DB using Docker?"; then
 	info "Starting the database"
 	npm run db:up
 
+	info "Resetting the database"
+	npm run db:reset
+
 	info "Seeding the database"
 	npm run db:seed
 	cat << 'EOF'

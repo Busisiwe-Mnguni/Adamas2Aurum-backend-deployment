@@ -98,6 +98,12 @@ if (Read-YesNo "Would you like to set up a local MySQL DB using Docker?") {
     Info "Starting the database..."
     Invoke-Checked "npm.cmd" @("run", "db:up")
 
+    Info "Resetting the database"
+    Invoke-Checked "npm.cmd" @("run", "db:reset")
+
+    Info "Seeding the database"
+    Invoke-Checked "npm.cmd" @("run", "db:seed")
+
     @"
 
 Database is up.
