@@ -19,18 +19,20 @@ import session from 'express-session'
 import mySQLSession from 'express-mysql-session'
 import cors from 'cors'
 import { createServer } from 'http'
+
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { toNodeHandler, fromNodeHeaders } from 'better-auth/node'
 
-import pool from './utils/db.js'
-import { auth } from './src/auth.js'
 import event_routes from './routes/events.js'
 import card_routes from './routes/cards.js'
 import battle_routes from './routes/battle.js'
 import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
 import question_routes from './routes/questions.js'
+
+import pool from './utils/db.js'
+import { auth } from './src/auth.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 import { setup_websocket_router } from './websocket/socket_router.js'
 
@@ -87,16 +89,8 @@ app.use((req, res, next) => {
 	next()
 })
 
-// ---------------------------------------------------------------------------
-// Auth routing — PIN auth routes (login, register, logout, me) are handled
-// by the auth_routes router below. All other /api/auth/* paths go to
-// Better Auth (sign-up/email, sign-in/email, sign-out, get-session, etc.).
-// Without this gate, Better Auth's wildcard would intercept PIN routes and
-// return an empty body, causing the frontend to fail with
-// "Unexpected end of JSON input".
-// MUST be mounted BEFORE express.json() so Better Auth can parse its own
-// request bodies.
-// ---------------------------------------------------------------------------
+app.use(express.json())
+
 const PIN_AUTH_PATHS = ['/login', '/register', '/logout', '/me']
 
 app.use('/api/auth', (req, res, next) => {
@@ -106,14 +100,62 @@ app.use('/api/auth', (req, res, next) => {
 	toNodeHandler(auth)(req, res, next)
 })
 
-// ---------------------------------------------------------------------------
-// Existing API routes (PIN auth router handles /login, /register, /me, /logout)
-// ---------------------------------------------------------------------------
 app.use('/api/auth', auth_routes)
+
+// ── SESSION RESOLUTION MIDDLEWARE ──
+// Populates req.user from EITHER our custom session OR Better Auth's session.
+app.use(async (req, res, next) => {
+  // 1. Custom session (username + PIN)
+  if (req.session?.user?.user_id) {
+    try {
+      const [users] = await pool.query(
+        'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
+        [req.session.user.user_id]
+      )
+      if (users.length) req.user = users[0]
+    } catch (err) {
+      console.warn('Custom session resolve error:', err.message)
+    }
+    return next()
+  }
+
+  // 2. Better Auth session (Google OAuth)
+  try {
+    const bSession = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    })
+    if (bSession?.user) {
+      const [users] = await pool.query(
+        'SELECT user_id, name, email, avatar_url, points FROM users WHERE email = ?',
+        [bSession.user.email]
+      )
+      if (users.length) {
+        req.user = users[0]
+      } else {
+        // First-time Google user — sync into our users table
+        const [result] = await pool.query(
+          `INSERT INTO users (provider_id, email, name, avatar_url, points)
+           VALUES (?, ?, ?, ?, 0)`,
+          [`betterauth:${bSession.user.id}`, bSession.user.email, bSession.user.name, bSession.user.image]
+        )
+        const [newUsers] = await pool.query(
+          'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
+          [result.insertId]
+        )
+        req.user = newUsers[0]
+      }
+    }
+  } catch (err) {
+    // Silently continue for unauthenticated requests
+  }
+  next()
+})
+
 app.use('/api/events', event_routes)
 app.use('/api/cards', card_routes)
 app.use('/api/battles', battle_routes)
 app.use('/api/trivia', trivia_routes)
+app.use('/api/cards', card_routes)
 // User Story 6 — question authoring. Mounted at /api so the single
 // router can serve both /api/events/:eventId/questions and /api/questions/:id.
 app.use('/api', question_routes)
@@ -284,7 +326,6 @@ try {
 	if (process.env.SEED_DB === 'true') {
 		await seed_database()
 	}
-
 	if (process.env.LOG_DB === 'true') {
 		await view_database()
 	}

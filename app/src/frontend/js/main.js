@@ -590,9 +590,9 @@ async function checkAuthSession() {
 async function handleLogout() {
 	try {
 		// Clear both Better Auth session and express-session bridge
-		await baSignOut()
 		await clearBridgeSession()
-		window.location.reload() // simplest way to reset all UI state back to "logged out"
+		await baSignOut()
+		window.location.reload()
 	} catch (err) {
 		console.error('Logout error:', err)
 		window.location.reload()

@@ -3,15 +3,33 @@
  * Uses the Better Auth client bundled from src/client-entry.js.
  * Adapted from feat/user-story-1-auth for use in the dev map drawer.
  */
+import {API_BASE} from './constants.js'
 
+const AUTH_API = `${API_BASE}/api/auth`
 const authClient = window.authClient
 
 export async function emailSignIn(email, password) {
-	return authClient.signIn.email({ email, password })
+	const res = await fetch(`${AUTH_API}/login`, {
+		method: 'POST',
+		credentials: 'include',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ email, password }),
+	})
+	const data = await res.json()
+	if (!res.ok) throw new Error(data.error || 'Login failed')
+	return data.user
 }
 
 export async function emailSignUp(name, email, password) {
-	return authClient.signUp.email({ name, email, password })
+	const res = await fetch(`${AUTH_API}/register`, {
+		method: 'POST',
+		credentials: 'include',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name, email, password }),
+	})
+	const data = await res.json()
+	if (!res.ok) throw new Error(data.error || 'Login failed')
+	return data.user
 }
 
 export async function googleSignIn() {
@@ -29,7 +47,7 @@ export async function baSignOut() {
 
 /** Clear the express-session bridge cookie too. */
 export async function clearBridgeSession() {
-	await fetch('/api/auth-bridge/logout', {
+	await fetch(`${AUTH_API}/logout`, {
 		method: 'POST',
 		credentials: 'include',
 	})
