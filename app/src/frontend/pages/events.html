@@ -2,187 +2,233 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1.0"
-		/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>A2A — Campus Events</title>
+
+		<link
+			rel="stylesheet"
+			href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+			integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+			crossorigin=""
+		/>
 		<link rel="stylesheet" href="../css/style.css" />
+
+		<style>
+			html, body { height: 100%; margin: 0; overflow: hidden; }
+
+			.map-wrap {
+				position: fixed;
+				top: 60px;
+				bottom: 0;
+				left: 0;
+				right: 0;
+			}
+
+			#map { width: 100%; height: 100%; }
+
+			/* ── Sidebar ───────────────────────────────────── */
+			.map-sidebar {
+				position: absolute;
+				top: 1rem;
+				left: 1rem;
+				width: 280px;
+				max-height: calc(100% - 2rem);
+				overflow-y: auto;
+				z-index: 1000;
+				display: flex;
+				flex-direction: column;
+				gap: 0.5rem;
+			}
+
+			.sidebar-header {
+				background: var(--accent);
+				color: #fff;
+				border-radius: var(--radius);
+				padding: 0.65rem 0.9rem;
+				font-size: 0.78rem;
+				font-weight: 700;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+			}
+
+			.sidebar-event {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				padding: 0.75rem 0.9rem;
+				cursor: pointer;
+				transition: border-color var(--transition), box-shadow var(--transition);
+			}
+
+			.sidebar-event:hover {
+				border-color: var(--accent);
+				box-shadow: 0 2px 8px var(--accent-glow);
+			}
+
+			.sidebar-event.active {
+				border-color: var(--accent);
+				background: var(--accent-glow);
+			}
+
+			.sidebar-event-title {
+				font-size: 0.875rem;
+				font-weight: 600;
+				color: var(--text);
+				margin-bottom: 0.3rem;
+			}
+
+			.sidebar-event-meta {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.3rem;
+			}
+
+			/* ── Popups ────────────────────────────────────── */
+			.leaflet-popup-content-wrapper {
+				border-radius: var(--radius) !important;
+				box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
+				border: 1px solid var(--border) !important;
+			}
+
+			.leaflet-popup-content {
+				margin: 14px 16px !important;
+				font-family: var(--font-body) !important;
+			}
+
+			.popup-title {
+				font-family: var(--font-display);
+				font-size: 0.95rem;
+				font-weight: 700;
+				color: var(--text);
+				margin-bottom: 0.35rem;
+			}
+
+			.popup-desc {
+				font-size: 0.82rem;
+				color: var(--text-dim);
+				margin-bottom: 0.6rem;
+				line-height: 1.4;
+			}
+
+			.popup-meta {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.3rem;
+				margin-bottom: 0.6rem;
+			}
+
+			.popup-challenge-btn {
+				display: block;
+				width: 100%;
+				background: var(--accent);
+				color: #fff;
+				border: none;
+				border-radius: var(--radius);
+				padding: 0.5rem 0.75rem;
+				font-size: 0.82rem;
+				font-weight: 600;
+				cursor: pointer;
+				margin-top: 0.5rem;
+				font-family: var(--font-body);
+				transition: background var(--transition);
+			}
+
+			.popup-challenge-btn:hover { background: var(--accent-light); }
+
+			.popup-out-of-range {
+				font-size: 0.78rem;
+				color: var(--text-muted);
+				margin-top: 0.4rem;
+				text-align: center;
+			}
+
+			/* ── Loading overlay ───────────────────────────── */
+			.map-overlay {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				padding: 0.85rem 1.5rem;
+				z-index: 2000;
+				font-size: 0.875rem;
+				color: var(--text-muted);
+				box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+			}
+
+			/* ── Pulse animation for player dot ────────────── */
+			@keyframes pulse-ring {
+				0%   { transform: scale(0.8); opacity: 0.7; }
+				100% { transform: scale(2.2); opacity: 0; }
+			}
+
+			/* ── Nav links ─────────────────────────────────── */
+			.header-nav {
+				display: flex;
+				gap: 0.25rem;
+			}
+
+			.nav-link {
+				padding: 0.3rem 0.75rem;
+				border-radius: var(--radius);
+				font-size: 0.825rem;
+				font-weight: 500;
+				color: rgba(255,255,255,0.75);
+				text-decoration: none;
+				transition: background var(--transition), color var(--transition);
+			}
+
+			.nav-link:hover { background: rgba(255,255,255,0.12); color: #fff; }
+			.nav-link-active { background: rgba(255,255,255,0.18); color: #fff !important; font-weight: 600; }
+		</style>
 	</head>
 	<body>
 		<header class="site-header">
 			<div class="header-inner">
-				<a class="logo" href="/">
+				<a class="logo" href="../index.html">
 					<span class="logo-a">A</span>
 					<span class="logo-sep">→</span>
 					<span class="logo-a">A</span>
-					<span class="logo-sub">
-						Adamas to Aurum
-					</span>
+					<span class="logo-sub">Adamas to Aurum</span>
 				</a>
+
+				<nav class="header-nav">
+					<a href="events.html"     class="nav-link nav-link-active">Events</a>
+					<a href="collection.html" class="nav-link">Collection</a>
+				</nav>
+
 				<div class="header-right">
-					<span
-						class="admin-badge"
-						id="user-badge"
-						style="display: none"
-					></span>
-					<button
-						class="btn btn-ghost btn-sm"
-						id="btn-logout"
-						style="
-							display: none;
-							color: rgba(
-								255,
-								255,
-								255,
-								0.7
-							);
-							border-color: rgba(
-								255,
-								255,
-								255,
-								0.3
-							);
-						"
-					>
+					<span id="user-badge" class="admin-badge" style="display:none;"></span>
+					<button id="btn-logout" class="btn btn-sm"
+						style="display:none;background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);">
 						Logout
 					</button>
+					<a id="btn-signin" href="auth.html" class="btn btn-sm"
+						style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);">
+						Sign In
+					</a>
 				</div>
 			</div>
 		</header>
 
-		<main class="main">
-			<div id="toast" class="toast" aria-live="polite"></div>
+		<div class="map-wrap">
+			<div id="map"></div>
 
-			<!-- Login form shown if not authenticated -->
-			<div id="login-view" class="hidden">
-				<div
-					style="
-						max-width: 380px;
-						margin: 3rem auto;
-					"
-				>
-					<div class="form-card">
-						<h2
-							class="page-title"
-							style="
-								margin-bottom: 0.5rem;
-								font-size: 1.4rem;
-							"
-						>
-							Sign in to view Events
-						</h2>
-						<p
-							class="page-subtitle"
-							style="
-								margin-bottom: 1.5rem;
-							"
-						>
-							Log in to see active
-							campus events and
-							challenges.
-						</p>
-						<form
-							id="login-form"
-							novalidate
-						>
-							<div
-								class="field"
-								style="
-									margin-bottom: 1rem;
-								"
-							>
-								<label
-									for="login-email"
-								>
-									Email
-									<span
-										class="req"
-									>
-										*
-									</span>
-								</label>
-								<input
-									id="login-email"
-									type="text"
-									placeholder="your@email.com"
-									required
-								/>
-							</div>
-							<div
-								class="field"
-								style="
-									margin-bottom: 1.5rem;
-								"
-							>
-								<label
-									for="login-pin"
-								>
-									PIN
-									<span
-										class="req"
-									>
-										*
-									</span>
-								</label>
-								<input
-									id="login-pin"
-									type="password"
-									placeholder="1234"
-									required
-								/>
-							</div>
-							<div
-								id="login-error"
-								class="state-msg error hidden"
-								style="
-									padding: 0.5rem
-										0;
-								"
-							></div>
-							<button
-								type="submit"
-								class="btn btn-primary"
-								id="btn-login"
-								style="
-									width: 100%;
-								"
-							>
-								Sign in
-							</button>
-						</form>
-					</div>
-				</div>
+			<div class="map-sidebar" id="map-sidebar">
+				<div class="sidebar-header">📍 Campus Events</div>
 			</div>
 
-			<!-- Eventshidden until authenticated -->
-			<div id="events-content">
-				<div class="page-header">
-					<h1 class="page-title">
-						Campus Events
-					</h1>
-					<p class="page-subtitle">
-						Head to a location on campus to
-						participate and earn cards.
-					</p>
-				</div>
+			<div id="map-loading" class="map-overlay">Loading events…</div>
+			<div id="map-error"   class="map-overlay hidden"></div>
+		</div>
 
-				<div id="loading" class="state-msg">
-					Loading events…
-				</div>
-				<div id="empty" class="state-msg hidden">
-					No active events right now — check back
-					later.
-				</div>
-				<div
-					id="error"
-					class="state-msg error hidden"
-				></div>
-
-				<ul id="event-list" class="event-list"></ul>
-			</div>
-		</main>
-
+		<script
+			src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+			integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+			crossorigin=""
+		></script>
 		<script type="module" src="../js/events.js"></script>
 	</body>
 </html>

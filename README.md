@@ -8,17 +8,14 @@ A location-based campus trivia and card-battle game.
 
 ### Frontend
 - Plain HTML, CSS, and JavaScript (no framework)
-- [Vite](https://vitejs.dev/) as the dev server and build tool
 - [Leaflet.js](https://leafletjs.com/) + OpenStreetMap tiles for the interactive campus map
 - No API keys required for map rendering
 
 ### Backend
-- [Node.js](https://nodejs.org/) with [Express](https://expressjs.com/) 5
-- [MySQL](https://www.mysql.com/) 8.4 via `mysql2/promise` (local or Aiven-hosted)
-- [Better Auth](https://www.better-auth.com/) for email/password + Google OAuth
-- `express-session` for session-based auth; a bridge middleware maps Better Auth
-  sessions to `req.session.user` so existing routes (events, trivia, questions)
-  keep working without modification
+- [Node.js](https://nodejs.org/) with [Express](https://expressjs.com/)
+- [MySQL](https://www.mysql.com/) (hosted on Aiven) via `mysql2/promise`
+- `express-session` for session-based authentication (email + PIN login)
+- CORS configured for local frontend origins
 - The backend **also serves the frontend** statically from port 3000, so
   everything runs same-origin — no separate Vite dev server needed unless you
   want HMR during frontend development
@@ -36,19 +33,21 @@ A location-based campus trivia and card-battle game.
 Adamas2Aurum/
 ├── app/
 │   └── src/
+│       ├── frontend/       # Vite + vanilla JS + Leaflet map
+│       │   ├── js/
+│       │   ├── css/
+│       │   ── pages/      # auth, events, console, map
 │       ├── frontend/       # Vanilla JS + Leaflet map (served by backend on :3000)
 │       │   ├── js/          # main, console, events, auth, geolocation, utils
 │       │   ├── css/         # style.css, map.css
 │       │   ├── pages/       # auth, events, console, map
-│       │   └── vite.config.js
 │       └── backend/        # Express API
 │           ├── routes/      # auth, events, trivia, questions
 │           ├── db/          # schema.sql, seed.sql
 │           ├── src/         # auth.js (Better Auth config)
 │           └── utils/       # db, response, sql_utils
 ├── docs/
-├── .env
-├── .env.example
+└── RUNNING.md              # local setup instructions
 └── package.json
 ```
 
@@ -117,7 +116,24 @@ Vite dev server unless you want HMR during frontend development:
 # Optional — separate Vite dev server with HMR (runs on :5173)
 cd app/src/frontend
 npm install
+npm install better-auth
+cd ../../..
+npm run start:backend
+
+# Frontend (new terminal)
+cd app/src/frontend
+npm install
+cd ../../..
+npm run start:frontend
+
+### Seeding the database
+
+Seeding is **not automatic** — `npm run ` only creates tables if they don't
+exist yet (safe, non-destructive). To populate test data (users, events,
+trivia questions, etc.), run once:
 npm run dev
+
+
 ```
 
 ### How It Works

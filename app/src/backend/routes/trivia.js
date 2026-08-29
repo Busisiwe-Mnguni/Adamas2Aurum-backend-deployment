@@ -11,10 +11,14 @@ const router = express.Router()
 // setting the same { user_id, name, email } shape, so this check works
 // the same regardless of which auth method the player used.
 function requireAuth(req, res, next) {
-  if (!req.session?.user?.user_id) {
-    return res.status(401).json({ error: 'Unauthorised — please log in' })
-  }
-  next()
+	const userId = req.session?.user?.user_id || req.user?.user_id;
+	if (!userId) {
+		return res.status(401).json({ error: 'Unauthorised — please log in' })
+	}
+	if (!req.user) {
+		req.user = req.session.user;
+	}
+	next()
 }
 
 // Whether opening/answering a challenge requires the player to actually be
