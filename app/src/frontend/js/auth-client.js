@@ -6,43 +6,63 @@
 import {API_BASE} from './constants.js'
 
 const AUTH_API = `${API_BASE}/api/auth`
-const authClient = window.authClient
 
 export async function emailSignIn(email, password) {
-	const res = await fetch(`${AUTH_API}/login`, {
-		method: 'POST',
-		credentials: 'include',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ email, password }),
-	})
-	const data = await res.json()
-	if (!res.ok) throw new Error(data.error || 'Login failed')
-	return data.user
+	try {
+		const res = await fetch(`${AUTH_API}/login`, {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ email, password }),
+		})
+		const data = await res.json()
+		if (!res.ok) throw new Error(data.error || 'Login failed')
+		return { data: data.user, error: null }
+	} catch (error) {
+		return { data: null, error }
+	}
 }
 
 export async function emailSignUp(name, email, password) {
-	const res = await fetch(`${AUTH_API}/register`, {
-		method: 'POST',
-		credentials: 'include',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ name, email, password }),
-	})
-	const data = await res.json()
-	if (!res.ok) throw new Error(data.error || 'Login failed')
-	return data.user
+	try {
+		const res = await fetch(`${AUTH_API}/register`, {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name, email, password }),
+		})
+		const data = await res.json()
+		if (!res.ok) throw new Error(data.error || 'Registration failed')
+		return { data: data.user, error: null }
+	} catch (error) {
+		return { data: null, error }
+	}
 }
 
 export async function googleSignIn() {
-	return authClient.signIn.social({
-		provider: 'google',
-		callbackURL: '/',
-		newUserCallbackURL: '/',
-		errorCallbackURL: '/',
-	})
+	try {
+		const authClient = window.authClient
+		if (!authClient) {
+			throw new Error('Auth client not loaded — bundle missing or not yet executed')
+		}
+		return await authClient.signIn.social({
+			provider: 'google',
+			callbackURL: '/',
+			newUserCallbackURL: '/',
+			errorCallbackURL: '/',
+		})
+	} catch (error) {
+		return { error }
+	}
 }
 
 export async function baSignOut() {
-	return authClient.signOut()
+	try {
+		const authClient = window.authClient
+		if (authClient) return authClient.signOut()
+	} catch {
+		// ignore
+	}
 }
 
 /** Clear the express-session bridge cookie too. */

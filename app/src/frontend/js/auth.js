@@ -65,18 +65,18 @@ document.getElementById('btn-google-signup')?.addEventListener('click', () => {
   window.location.href = googleAuthURL
 })
 
-// ── Username + PIN Sign In ───────────────────────────────────
+// ── Email + PIN Sign In ───────────────────────────────────
 const loginForm = document.getElementById('login-form')
 if (loginForm) {
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault()
     hideError('login-error')
 
-    const username = document.getElementById('login-username').value.trim()
+    const email = document.getElementById('login-email').value.trim()
     const pin = document.getElementById('login-pin').value
 
-    if (!username || !pin) {
-      showError('login-error', 'Username and PIN are required.')
+    if (!email || !pin) {
+      showError('login-error', 'Email and PIN are required.')
       return
     }
 
@@ -87,7 +87,7 @@ if (loginForm) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, pin }),
+        body: JSON.stringify({ email, pin }),
       })
       const data = await res.json()
 
@@ -103,7 +103,7 @@ if (loginForm) {
   })
 }
 
-// ── Username + PIN Sign Up ─────────────────────────────────
+// ── Email + PIN Sign Up ─────────────────────────────────
 const registerForm = document.getElementById('register-form')
 if (registerForm) {
   registerForm.addEventListener('submit', async (e) => {
@@ -111,11 +111,11 @@ if (registerForm) {
     hideError('register-error')
 
     const name = document.getElementById('reg-name').value.trim()
-    const username = document.getElementById('reg-username').value.trim()
+    const email = document.getElementById('reg-email').value.trim()
     const pin = document.getElementById('reg-pin').value
     const confirm = document.getElementById('reg-confirm').value
 
-    if (!name || !username || !pin || !confirm) {
+    if (!name || !email || !pin || !confirm) {
       showError('register-error', 'All fields are required.')
       return
     }
@@ -131,7 +131,7 @@ if (registerForm) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, username, pin }),
+        body: JSON.stringify({ name, email, pin }),
       })
       const data = await res.json()
 

@@ -223,7 +223,7 @@ app.use(async (req, res, next) => {
 		}
 	} catch (err) {
 		// Bridge failure must never block the request — treat as unauthenticated
-		console.error('Bridge middleware error:', err.message)
+		console.error(`[Bridge] Error on ${req.method} ${req.originalUrl}:`, err.message)
 	}
 	next()
 })
@@ -331,6 +331,15 @@ try {
 	}
 } catch (err) {
 	console.error('error: ', err.message)
+}
+
+// Warn at startup if Better Auth required env vars are missing
+if (!process.env.BETTER_AUTH_SECRET) {
+	console.warn(
+		'[Auth] WARNING: BETTER_AUTH_SECRET is not set. ' +
+		'Better Auth features (Google OAuth, Better Auth sessions) will fail. ' +
+		'Set it in app/src/backend/.env'
+	)
 }
 
 const server = createServer(app)
