@@ -102,10 +102,66 @@ app.use('/api/auth', (req, res, next) => {
 
 app.use('/api/auth', auth_routes)
 
+// ---------------------------------------------------------------------------
+// Bridge middleware — runs BEFORE all routes so that every request that
+// carries a Better Auth session cookie gets req.session.user populated.
+// This allows existing routes (events, trivia, /api/me) that read
+// req.session.user.user_id to work for Google OAuth users without modification.
+// ---------------------------------------------------------------------------
+app.use(async (req, res, next) => {
+	// Skip if express-session already has a valid user (PIN login path)
+	if (req.session?.user?.user_id) return next()
+
+	try {
+		const baSession = await auth.api.getSession({
+			headers: fromNodeHeaders(req.headers),
+		})
+
+		if (baSession?.user) {
+			const baUser = baSession.user
+			const providerId = `better-auth:${baUser.id}`
+
+			// Look up or create a row in the team's users table
+			let [rows] = await pool.query(
+				'SELECT user_id, name, email FROM users WHERE provider_id = ?',
+				[providerId]
+			)
+
+			if (!rows.length) {
+				const [result] = await pool.query(
+					'INSERT INTO users (provider_id, email, name, points) VALUES (?, ?, ?, 0)',
+					[
+						providerId,
+						baUser.email,
+						baUser.name || baUser.email.split('@')[0],
+					]
+				)
+				rows = [
+					{
+						user_id: result.insertId,
+						name: baUser.name || baUser.email.split('@')[0],
+						email: baUser.email,
+					},
+				]
+			}
+
+			req.session.user = {
+				user_id: rows[0].user_id,
+				name: rows[0].name,
+				email: rows[0].email,
+			}
+		}
+	} catch (err) {
+		// Bridge failure must never block the request — treat as unauthenticated
+		console.error(`[Bridge] Error on ${req.method} ${req.originalUrl}:`, err.message)
+	}
+	next()
+})
+
 // ── SESSION RESOLUTION MIDDLEWARE ──
 // Populates req.user from EITHER our custom session OR Better Auth's session.
 app.use(async (req, res, next) => {
-  // 1. Custom session (username + PIN)
+  // 1. Custom session (username + PIN) or bridge-populated Google session
   if (req.session?.user?.user_id) {
     try {
       const [users] = await pool.query(
@@ -119,7 +175,7 @@ app.use(async (req, res, next) => {
     return next()
   }
 
-  // 2. Better Auth session (Google OAuth)
+  // 2. Fallback: read Better Auth session directly into req.user (no express-session write)
   try {
     const bSession = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
@@ -131,18 +187,6 @@ app.use(async (req, res, next) => {
       )
       if (users.length) {
         req.user = users[0]
-      } else {
-        // First-time Google user — sync into our users table
-        const [result] = await pool.query(
-          `INSERT INTO users (provider_id, email, name, avatar_url, points)
-           VALUES (?, ?, ?, ?, 0)`,
-          [`betterauth:${bSession.user.id}`, bSession.user.email, bSession.user.name, bSession.user.image]
-        )
-        const [newUsers] = await pool.query(
-          'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
-          [result.insertId]
-        )
-        req.user = newUsers[0]
       }
     }
   } catch (err) {
@@ -170,65 +214,6 @@ app.get('/api/health', async (req, res) => {
 })
 
 // ---------------------------------------------------------------------------
-// Bridge middleware — on every request, check for a Better Auth session and
-// populate req.session.user so that existing routes (trivia, events) that
-// read req.session.user.user_id keep working without modification.
-// ---------------------------------------------------------------------------
-app.use(async (req, res, next) => {
-	try {
-		const baSession = await auth.api.getSession({
-			headers: fromNodeHeaders(req.headers),
-		})
-
-		if (baSession?.user) {
-			const baUser = baSession.user
-			const providerId = `better-auth:${baUser.id}`
-
-			// Look up or create a row in the team's users table
-			let [rows] = await pool.query(
-				'SELECT user_id, name, email FROM users WHERE provider_id = ?',
-				[providerId]
-			)
-
-			if (!rows.length) {
-				const [result] = await pool.query(
-					'INSERT INTO users (provider_id, email, name, points) VALUES (?, ?, ?, 0)',
-					[
-						providerId,
-						baUser.email,
-						baUser.name ||
-							baUser.email.split(
-								'@'
-							)[0],
-					]
-				)
-				rows = [
-					{
-						user_id: result.insertId,
-						name:
-							baUser.name ||
-							baUser.email.split(
-								'@'
-							)[0],
-						email: baUser.email,
-					},
-				]
-			}
-
-			req.session.user = {
-				user_id: rows[0].user_id,
-				name: rows[0].name,
-				email: rows[0].email,
-			}
-		}
-	} catch (err) {
-		// Bridge failure must never block the request — treat as unauthenticated
-		console.error(`[Bridge] Error on ${req.method} ${req.originalUrl}:`, err.message)
-	}
-	next()
-})
-
-// ---------------------------------------------------------------------------
 // Bridge logout — destroys the express-session cookie
 // ---------------------------------------------------------------------------
 app.post('/api/auth-bridge/logout', (req, res) => {
@@ -239,13 +224,24 @@ app.post('/api/auth-bridge/logout', (req, res) => {
 })
 
 // ---------------------------------------------------------------------------
-// Get current authenticated user (used by frontend checkAuthSession)
+// Get current authenticated user (used by frontend checkAuthSession).
+// Accepts either express-session (PIN login) or req.user (Google OAuth).
 // ---------------------------------------------------------------------------
 app.get('/api/me', async (req, res) => {
-	if (!req.session?.user?.user_id) {
+	const user = req.session?.user?.user_id ? req.session.user : req.user
+	if (!user?.user_id) {
 		return res.status(401).json({ error: 'Not authenticated' })
 	}
-	res.json(req.session.user)
+	// Fetch roles for the user
+	try {
+		const [rows] = await pool.query(
+			'SELECT role FROM admin_roles WHERE user_id = ?',
+			[user.user_id]
+		)
+		res.json({ ...user, roles: rows.map((r) => r.role) })
+	} catch (err) {
+		res.json({ ...user, roles: [] })
+	}
 })
 
 // ---------------------------------------------------------------------------
