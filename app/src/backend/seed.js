@@ -9,13 +9,14 @@ import { execute_sql_script } from './utils/sql_utils.js'
 // chat before running against the shared Aiven instance.
 
 async function main() {
-  console.log('Seeding database — this will TRUNCATE existing seed tables...')
-  await execute_sql_script(pool, './db/seed.sql')
-  console.log('Done.')
-  process.exit(0)
+	console.log('======\nSeeding DB tables\n======')
+	let ret = await execute_sql_script(pool, './db/seed.sql')
+	if (ret.ok === false) throw new Error(ret.error)
+	console.log('======\nDone.\n======')
+	process.exit(0)
 }
 
 main().catch((err) => {
-  console.error('Seeding failed:', err.message)
-  process.exit(1)
+	console.error('Seeding failed:', err.message)
+	process.exit(1)
 })

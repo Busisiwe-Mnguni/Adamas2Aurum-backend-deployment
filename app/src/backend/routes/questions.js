@@ -87,7 +87,11 @@ function validateQuestion({ type, text, correctAnswer, options }) {
 		if (!Array.isArray(options) || options.length === 0) {
 			return 'options must be a non-empty array for MULTIPLE_CHOICE'
 		}
-		if (!options.some((opt) => String(opt) === String(correctAnswer))) {
+		if (
+			!options.some(
+				(opt) => String(opt) === String(correctAnswer)
+			)
+		) {
 			return 'correctAnswer must be one of the provided options'
 		}
 	}
@@ -151,7 +155,9 @@ router.post(
 				[req.params.eventId]
 			)
 			if (!events.length) {
-				return res.status(404).json({ error: 'Event not found' })
+				return res
+					.status(404)
+					.json({ error: 'Event not found' })
 			}
 
 			// Normalise: TRUE_FALSE stores a lowercase "true"/"false";
@@ -163,7 +169,8 @@ router.post(
 					: String(correctAnswer)
 
 			const optionsValue =
-				type === 'MULTIPLE_CHOICE' && Array.isArray(options)
+				type === 'MULTIPLE_CHOICE' &&
+				Array.isArray(options)
 					? JSON.stringify(options)
 					: null
 
@@ -192,56 +199,72 @@ router.post(
 /**
  * PUT /questions/:id — edit a question (author-only), same validation rules.
  */
-router.put('/questions/:id', requireAuth, requireEventAuthor, async (req, res) => {
-	const { type, text, correctAnswer, options } = req.body
+router.put(
+	'/questions/:id',
+	requireAuth,
+	requireEventAuthor,
+	async (req, res) => {
+		const { type, text, correctAnswer, options } = req.body
 
-	const validationError = validateQuestion({
-		type,
-		text,
-		correctAnswer,
-		options,
-	})
-	if (validationError) {
-		return res.status(400).json({ error: validationError })
-	}
-
-	try {
-		const [existing] = await pool.query(
-			'SELECT id FROM questions WHERE id = ?',
-			[req.params.id]
-		)
-		if (!existing.length) {
-			return res.status(404).json({ error: 'Question not found' })
+		const validationError = validateQuestion({
+			type,
+			text,
+			correctAnswer,
+			options,
+		})
+		if (validationError) {
+			return res.status(400).json({ error: validationError })
 		}
 
-		const normalizedAnswer =
-			type === 'TRUE_FALSE'
-				? String(correctAnswer).toLowerCase()
-				: String(correctAnswer)
+		try {
+			const [existing] = await pool.query(
+				'SELECT id FROM questions WHERE id = ?',
+				[req.params.id]
+			)
+			if (!existing.length) {
+				return res
+					.status(404)
+					.json({ error: 'Question not found' })
+			}
 
-		const optionsValue =
-			type === 'MULTIPLE_CHOICE' && Array.isArray(options)
-				? JSON.stringify(options)
-				: null
+			const normalizedAnswer =
+				type === 'TRUE_FALSE'
+					? String(correctAnswer).toLowerCase()
+					: String(correctAnswer)
 
-		const [result] = await pool.query(
-			`UPDATE questions
+			const optionsValue =
+				type === 'MULTIPLE_CHOICE' &&
+				Array.isArray(options)
+					? JSON.stringify(options)
+					: null
+
+			const [result] = await pool.query(
+				`UPDATE questions
 		     SET type           = ?,
 		         text           = ?,
 		         correct_answer = ?,
 		         options        = ?
 		     WHERE id = ?`,
-			[type, text, normalizedAnswer, optionsValue, req.params.id]
-		)
+				[
+					type,
+					text,
+					normalizedAnswer,
+					optionsValue,
+					req.params.id,
+				]
+			)
 
-		if (!result.affectedRows) {
-			return res.status(404).json({ error: 'Question not found' })
+			if (!result.affectedRows) {
+				return res
+					.status(404)
+					.json({ error: 'Question not found' })
+			}
+			res.json({ message: 'Question updated' })
+		} catch (err) {
+			res.status(500).json({ error: err.message })
 		}
-		res.json({ message: 'Question updated' })
-	} catch (err) {
-		res.status(500).json({ error: err.message })
 	}
-})
+)
 
 /**
  * DELETE /questions/:id — remove a question (author-only). The FK cascade

@@ -2,22 +2,29 @@
  * Better Auth client functions for the auth drawer.
  * These wrap the Better Auth browser client (loaded via auth-client.bundle.mjs).
  */
-import { emailSignIn, emailSignUp, googleSignIn, baSignOut, clearBridgeSession } from './auth-client.js'
+
+import { API_BASE } from './constants.js'
+import {
+	emailSignIn,
+	emailSignUp,
+	googleSignIn,
+	baSignOut,
+	clearBridgeSession,
+} from './auth-client.js'
 import { get_player_location } from './geolocation.js'
 
 /**
  * MAP CONFIGURATION CONSTANTS
  */
 const CONFIG = {
-  CENTER_COORDINATES: [-26.1905, 28.0285], // roughly Wits East Campus — where the map centers on load
-  DEFAULT_ZOOM: 16.5,
-  MIN_ZOOM: 2,
-  MAX_ZOOM: 18,
-  TILE_URL: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', // free OSM map tiles, no API key needed
-  TILE_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+	CENTER_COORDINATES: [-26.1905, 28.0285], // roughly Wits East Campus — where the map centers on load
+	DEFAULT_ZOOM: 16.5,
+	MIN_ZOOM: 2,
+	MAX_ZOOM: 18,
+	TILE_URL: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', // free OSM map tiles, no API key needed
+	TILE_ATTRIBUTION:
+		'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }
-
-const API_BASE = '/api'
 
 // Tracks the currently logged-in user (null if not authenticated). This is
 // set once, in checkAuthSession(), and then read anywhere in this file
@@ -33,8 +40,8 @@ let currentUser = null
  * look visually distinct on the map.
  */
 const buildingIcon = L.divIcon({
-  className: 'custom-building-pin',
-  html: `
+	className: 'custom-building-pin',
+	html: `
     <div style="
       background-color: #0c2461;
       width: 32px;
@@ -50,14 +57,14 @@ const buildingIcon = L.divIcon({
       <span style="transform: rotate(45deg); font-size: 16px;">🏛️</span>
     </div>
   `,
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],   // bottom-center of the icon points at the actual coordinate
-  popupAnchor: [0, -32],  // popup opens above the pin, not on top of it
+	iconSize: [32, 32],
+	iconAnchor: [16, 32], // bottom-center of the icon points at the actual coordinate
+	popupAnchor: [0, -32], // popup opens above the pin, not on top of it
 })
 
 const playerIcon = L.divIcon({
-  className: 'custom-player-pin',
-  html: `
+	className: 'custom-player-pin',
+	html: `
     <div style="position: relative; width: 36px; height: 36px;">
       <div style="
         position: absolute;
@@ -92,9 +99,9 @@ const playerIcon = L.divIcon({
       }
     </style>
   `,
-  iconSize: [36, 36],
-  iconAnchor: [18, 36],
-  popupAnchor: [0, -36],
+	iconSize: [36, 36],
+	iconAnchor: [18, 36],
+	popupAnchor: [0, -36],
 })
 
 /**
@@ -106,39 +113,102 @@ const playerIcon = L.divIcon({
  * a blank screen during development.
  */
 async function fetchCampusEvents() {
-  try {
-    const res = await fetch(`${API_BASE}/events`)
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
+	try {
+		const res = await fetch(`${API_BASE}/api/events`)
+		if (!res.ok)
+			throw new Error(`HTTP error! status: ${res.status}`)
 
-    const dbEvents = await res.json()
+		const dbEvents = await res.json()
 
-    if (Array.isArray(dbEvents) && dbEvents.length > 0) {
-      // Reshape the DB's column names into what the rest of this file
-      // expects (e.g. latitude/longitude → a single coordinates array
-      // Leaflet can use directly).
-      return dbEvents.map((event) => ({
-        id: event.event_id,
-        name: event.title,
-        campus: event.campus || 'Wits Campus',
-        category: event.category || 'General',
-        description: event.description || '',
-        coordinates: [parseFloat(event.latitude), parseFloat(event.longitude)],
-        hasChallenge: event.point_reward > 0 || event.hasChallenge,
-      }))
-    }
-  } catch (err) {
-    console.warn('Backend API connection failed, falling back to static locations:', err)
-  }
+		if (Array.isArray(dbEvents) && dbEvents.length > 0) {
+			// Reshape the DB's column names into what the rest of this file
+			// expects (e.g. latitude/longitude → a single coordinates array
+			// Leaflet can use directly).
+			return dbEvents.map((event) => ({
+				id: event.event_id,
+				name: event.title,
+				campus: event.campus || 'Wits Campus',
+				category: event.category || 'General',
+				description: event.description || '',
+				coordinates: [
+					parseFloat(event.latitude),
+					parseFloat(event.longitude),
+				],
+				hasChallenge:
+					event.point_reward > 0 ||
+					event.hasChallenge,
+			}))
+		}
+	} catch (err) {
+		console.warn(
+			'Backend API connection failed, falling back to static locations:',
+			err
+		)
+	}
 
-  // Fallback data — only used if the fetch above throws or returns empty.
-  return [
-    { id: 1, name: 'Great Hall', campus: 'East Campus', category: 'Landmark', description: '🏛️ Central graduation hall & core architectural landmark.', coordinates: [-26.1925, 28.0305], hasChallenge: true },
-    { id: 2, name: 'Solomon Mahlangu House', campus: 'East Campus', category: 'Administration', description: '🏢 Main administrative concourse and student services.', coordinates: [-26.1932, 28.0305], hasChallenge: false },
-    { id: 3, name: 'Robert Sobukwe Block', campus: 'East Campus', category: 'Academic', description: '🏫 Major lecture halls and central academic facilities.', coordinates: [-26.1928, 28.0301], hasChallenge: false },
-    { id: 4, name: 'William Cullen Library', campus: 'East Campus', category: 'Library', description: '📚 Historic central library overlooking Library Lawns.', coordinates: [-26.1918, 28.0298], hasChallenge: true },
-    { id: 5, name: 'Wartenweiler Library', campus: 'East Campus', category: 'Library', description: '📖 Primary 24-hour undergraduate study library.', coordinates: [-26.1918, 28.0311], hasChallenge: false },
-    { id: 6, name: 'The Matrix', campus: 'East Campus', category: 'Student Hub', description: '🍔 Central student food court, shops, and social hub.', coordinates: [-26.1905, 28.0315], hasChallenge: true },
-  ]
+	// Fallback data — only used if the fetch above throws or returns empty.
+	return [
+		{
+			id: 1,
+			name: 'Great Hall',
+			campus: 'East Campus',
+			category: 'Landmark',
+			description:
+				'🏛️ Central graduation hall & core architectural landmark.',
+			coordinates: [-26.1925, 28.0305],
+			hasChallenge: true,
+		},
+		{
+			id: 2,
+			name: 'Solomon Mahlangu House',
+			campus: 'East Campus',
+			category: 'Administration',
+			description:
+				'🏢 Main administrative concourse and student services.',
+			coordinates: [-26.1932, 28.0305],
+			hasChallenge: false,
+		},
+		{
+			id: 3,
+			name: 'Robert Sobukwe Block',
+			campus: 'East Campus',
+			category: 'Academic',
+			description:
+				'🏫 Major lecture halls and central academic facilities.',
+			coordinates: [-26.1928, 28.0301],
+			hasChallenge: false,
+		},
+		{
+			id: 4,
+			name: 'William Cullen Library',
+			campus: 'East Campus',
+			category: 'Library',
+			description:
+				'📚 Historic central library overlooking Library Lawns.',
+			coordinates: [-26.1918, 28.0298],
+			hasChallenge: true,
+		},
+		{
+			id: 5,
+			name: 'Wartenweiler Library',
+			campus: 'East Campus',
+			category: 'Library',
+			description:
+				'📖 Primary 24-hour undergraduate study library.',
+			coordinates: [-26.1918, 28.0311],
+			hasChallenge: false,
+		},
+		{
+			id: 6,
+			name: 'The Matrix',
+			campus: 'East Campus',
+			category: 'Student Hub',
+			description:
+				'🍔 Central student food court, shops, and social hub.',
+			coordinates: [-26.1905, 28.0315],
+			hasChallenge: true,
+		},
+	]
 }
 
 /**
@@ -149,11 +219,11 @@ async function fetchCampusEvents() {
  * "no challenge here" message instead.
  */
 function buildPopupContent(buildingData) {
-  const challengeButtonHtml = buildingData.hasChallenge
-    ? `<button class="challenge-btn" onclick="handleChallengeAttempt('${buildingData.id}')">⚡ Attempt Challenge</button>`
-    : `<p style="margin-top: 8px; font-size: 0.85rem; color: #666;">No active challenge here.</p>`
+	const challengeButtonHtml = buildingData.hasChallenge
+		? `<button class="challenge-btn" onclick="handleChallengeAttempt('${buildingData.id}')">⚡ Attempt Challenge</button>`
+		: `<p style="margin-top: 8px; font-size: 0.85rem; color: #666;">No active challenge here.</p>`
 
-  return `
+	return `
     <div class="event-popup">
       <h3>${buildingData.name}</h3>
       <p style="margin: 6px 0;">${buildingData.description}</p>
@@ -184,59 +254,66 @@ function buildPopupContent(buildingData) {
  * satisfying user story 7's "when I open a challenge I'm at" wording.
  */
 window.handleChallengeAttempt = async function (eventId) {
-  if (!currentUser) {
-    // Open the auth drawer instead of navigating away from the map
-    openAuthDrawer()
-    return
-  }
+	if (!currentUser) {
+		// Open the auth drawer instead of navigating away from the map
+		openAuthDrawer()
+		return
+	}
 
-  // Ask the browser for the player's current position. This will prompt
-  // for location permission the first time — if the player denies it, or
-  // their device doesn't support geolocation, get_player_location()
-  // rejects and we stop here with a clear message rather than silently
-  // failing or letting them through unverified.
-  let coords
-  try {
-    coords = await get_player_location() // returns [latitude, longitude]
-  } catch (err) {
-    alert(`Couldn't get your location: ${err.message}. Location access is required to attempt a challenge.`)
-    return
-  }
-  const [lat, lng] = coords
+	// Ask the browser for the player's current position. This will prompt
+	// for location permission the first time — if the player denies it, or
+	// their device doesn't support geolocation, get_player_location()
+	// rejects and we stop here with a clear message rather than silently
+	// failing or letting them through unverified.
+	let coords
+	try {
+		coords = await get_player_location() // returns [latitude, longitude]
+	} catch (err) {
+		alert(
+			`Couldn't get your location: ${err.message}. Location access is required to attempt a challenge.`
+		)
+		return
+	}
+	const [lat, lng] = coords
 
-  try {
-    const res = await fetch(`${API_BASE}/trivia/event/${eventId}?lat=${lat}&lng=${lng}`, {
-      credentials: 'include', // sends the session cookie along, so the backend's requireAuth check can identify who's asking
-    })
+	try {
+		const res = await fetch(
+			`${API_BASE}/api/trivia/event/${eventId}?lat=${lat}&lng=${lng}`,
+			{
+				credentials: 'include', // sends the session cookie along, so the backend's requireAuth check can identify who's asking
+			}
+		)
 
-    if (res.status === 401) {
-      // Session cookie expired or was invalidated server-side between
-      // page load and clicking this button — open auth drawer.
-      openAuthDrawer()
-      return
-    }
+		if (res.status === 401) {
+			// Session cookie expired or was invalidated server-side between
+			// page load and clicking this button — open auth drawer.
+			openAuthDrawer()
+			return
+		}
 
-    if (res.status === 403) {
-      // Location check failed server-side — player is outside the
-      // event's radius. Show them how far off they are.
-      const data = await res.json()
-      alert(
-        `You're too far from this location to attempt the challenge. ` +
-        `You're about ${data.distance_meters}m away (need to be within ${data.radius_meters}m).`
-      )
-      return
-    }
+		if (res.status === 403) {
+			// Location check failed server-side — player is outside the
+			// event's radius. Show them how far off they are.
+			const data = await res.json()
+			alert(
+				`You're too far from this location to attempt the challenge. ` +
+					`You're about ${data.distance_meters}m away (need to be within ${data.radius_meters}m).`
+			)
+			return
+		}
 
-    if (!res.ok) {
-      alert('No trivia challenges available for this location right now!')
-      return
-    }
+		if (!res.ok) {
+			alert(
+				'No trivia challenges available for this location right now!'
+			)
+			return
+		}
 
-    const trivia = await res.json()
-    showTriviaModal(eventId, trivia)
-  } catch (err) {
-    alert('Error connecting to challenge server.')
-  }
+		const trivia = await res.json()
+		showTriviaModal(eventId, trivia)
+	} catch (err) {
+		alert('Error connecting to challenge server.')
+	}
 }
 
 /**
@@ -246,44 +323,48 @@ window.handleChallengeAttempt = async function (eventId) {
  * player picks an answer.
  */
 function showTriviaModal(eventId, trivia) {
-  let modal = document.getElementById('trivia-modal')
-  if (!modal) {
-    // Reuse the same modal element across multiple challenge attempts
-    // instead of creating a new one every time.
-    modal = document.createElement('div')
-    modal.id = 'trivia-modal'
-    modal.style.cssText = `
+	let modal = document.getElementById('trivia-modal')
+	if (!modal) {
+		// Reuse the same modal element across multiple challenge attempts
+		// instead of creating a new one every time.
+		modal = document.createElement('div')
+		modal.id = 'trivia-modal'
+		modal.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
       z-index: 10000;
     `
-    document.body.appendChild(modal)
-  }
+		document.body.appendChild(modal)
+	}
 
-  // Each button's onclick bakes in the eventId, question_id, and this
-  // specific option's option_id — that's all submitTriviaAnswer() needs
-  // to tell the server which question and which choice was picked.
-  const optionsHtml = trivia.options.map(opt => `
+	// Each button's onclick bakes in the eventId, question_id, and this
+	// specific option's option_id — that's all submitTriviaAnswer() needs
+	// to tell the server which question and which choice was picked.
+	const optionsHtml = trivia.options
+		.map(
+			(opt) => `
     <button style="display: block; width: 100%; margin: 8px 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer;"
             onclick="submitTriviaAnswer(${eventId}, ${trivia.question_id}, ${opt.option_id})">
       ${opt.body}
     </button>
-  `).join('')
+  `
+		)
+		.join('')
 
-  // User story 8 — if the player has ALREADY earned this event's card,
-  // show a clear banner BEFORE they answer. Don't silently let them redo
-  // the challenge and then quietly withhold the card — that looks like a
-  // bug. They can still replay for practice, but it's visually obvious
-  // no card is coming.
-  const elig = trivia.card_eligibility
-  const earnedCardName = elig?.earned_card?.name
-  const alreadyEarnedBanner = elig?.already_earned
-    ? `<div style="margin: 8px 0 12px; padding: 10px 12px; background: #fff8e1; border: 1px solid #ffd54f; border-left: 4px solid #ffb300; border-radius: 6px; color: #7a5c00; font-size: 0.85rem;">
+	// User story 8 — if the player has ALREADY earned this event's card,
+	// show a clear banner BEFORE they answer. Don't silently let them redo
+	// the challenge and then quietly withhold the card — that looks like a
+	// bug. They can still replay for practice, but it's visually obvious
+	// no card is coming.
+	const elig = trivia.card_eligibility
+	const earnedCardName = elig?.earned_card?.name
+	const alreadyEarnedBanner = elig?.already_earned
+		? `<div style="margin: 8px 0 12px; padding: 10px 12px; background: #fff8e1; border: 1px solid #ffd54f; border-left: 4px solid #ffb300; border-radius: 6px; color: #7a5c00; font-size: 0.85rem;">
          🎓 You've already earned ${earnedCardName ? `the <strong>${earnedCardName}</strong> ` : ''}card for this challenge — replay for practice? No new card will be awarded.
        </div>`
-    : ''
+		: ''
 
-  modal.innerHTML = `
+	modal.innerHTML = `
     <div style="background: #fff; padding: 24px; border-radius: 8px; max-width: 400px; width: 90%;">
       <h3>🎯 Campus Challenge</h3>
       ${alreadyEarnedBanner}
@@ -314,106 +395,111 @@ function showTriviaModal(eventId, trivia) {
  * response.
  */
 window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
-  const optionsContainer = document.getElementById('trivia-options')
-  const resultContainer = document.getElementById('trivia-result')
+	const optionsContainer = document.getElementById('trivia-options')
+	const resultContainer = document.getElementById('trivia-result')
 
-  // Disable all answer buttons immediately so the player can't click a
-  // second option while the first request is still in flight (which
-  // would otherwise let them submit multiple answers to one question).
-  if (optionsContainer) {
-    optionsContainer.querySelectorAll('button').forEach((btn) => (btn.disabled = true))
-  }
+	// Disable all answer buttons immediately so the player can't click a
+	// second option while the first request is still in flight (which
+	// would otherwise let them submit multiple answers to one question).
+	if (optionsContainer) {
+		optionsContainer
+			.querySelectorAll('button')
+			.forEach((btn) => (btn.disabled = true))
+	}
 
-  // Get a fresh location fix for this submission specifically.
-  let lat = null
-  let lng = null
-  try {
-    ;[lat, lng] = await get_player_location()
-  } catch (err) {
-    // Don't block the submission entirely if location fails here — the
-    // backend will still grade correctness, it just won't be able to
-    // verify location (and so won't award points). Surface this clearly
-    // rather than silently losing the points.
-    if (resultContainer) {
-      resultContainer.innerHTML = `<p style="color: #c0392b;">Couldn't confirm your location (${err.message}) — your answer will be graded but points may not be awarded.</p>`
-    }
-  }
+	// Get a fresh location fix for this submission specifically.
+	let lat = null
+	let lng = null
+	try {
+		;[lat, lng] = await get_player_location()
+	} catch (err) {
+		// Don't block the submission entirely if location fails here — the
+		// backend will still grade correctness, it just won't be able to
+		// verify location (and so won't award points). Surface this clearly
+		// rather than silently losing the points.
+		if (resultContainer) {
+			resultContainer.innerHTML = `<p style="color: #c0392b;">Couldn't confirm your location (${err.message}) — your answer will be graded but points may not be awarded.</p>`
+		}
+	}
 
-  try {
-    const res = await fetch(`${API_BASE}/trivia/submit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // same reason as above — the backend needs the session cookie to know who's submitting
-      body: JSON.stringify({
-        event_id: eventId,
-        question_id: questionId,
-        selected_option_id: optionId,
-        answer_time_ms: 1500, // TODO: currently hardcoded; a real implementation would time from when the modal opened
-        claimed_lat: lat,
-        claimed_lng: lng,
-      })
-    })
+	try {
+		const res = await fetch(`${API_BASE}/api/trivia/submit`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'include', // same reason as above — the backend needs the session cookie to know who's submitting
+			body: JSON.stringify({
+				event_id: eventId,
+				question_id: questionId,
+				selected_option_id: optionId,
+				answer_time_ms: 1500, // TODO: currently hardcoded; a real implementation would time from when the modal opened
+				claimed_lat: lat,
+				claimed_lng: lng,
+			}),
+		})
 
-    if (res.status === 401) {
-      alert('Your session has expired. Please log in again.')
-      openAuthDrawer()
-      return
-    }
+		if (res.status === 401) {
+			alert('Your session has expired. Please log in again.')
+			openAuthDrawer()
+			return
+		}
 
-    const data = await res.json()
+		const data = await res.json()
 
-    if (!res.ok) {
-      // e.g. a 404 "Invalid option selected" from the backend
-      if (resultContainer) {
-        resultContainer.innerHTML = `<p style="color: #c0392b;">${data.error || 'Something went wrong submitting your answer.'}</p>`
-      }
-      return
-    }
+		if (!res.ok) {
+			// e.g. a 404 "Invalid option selected" from the backend
+			if (resultContainer) {
+				resultContainer.innerHTML = `<p style="color: #c0392b;">${data.error || 'Something went wrong submitting your answer.'}</p>`
+			}
+			return
+		}
 
-    if (resultContainer) {
-      // Green for correct-and-verified, red for anything else (wrong
-      // answer, OR correct but too far away — location_verified === false
-      // means no points either way, so both cases read as "not a win").
-      const succeeded = data.is_correct && data.location_verified
-      const verdictColor = succeeded ? '#27ae60' : '#c0392b'
-      const verdictText = succeeded
-        ? `✅ Correct! +${data.points_awarded} points`
-        : data.location_verified === false
-          ? `📍 Too far away — this attempt didn't count.`
-          : `❌ Not quite.`
+		if (resultContainer) {
+			// Green for correct-and-verified, red for anything else (wrong
+			// answer, OR correct but too far away — location_verified === false
+			// means no points either way, so both cases read as "not a win").
+			const succeeded =
+				data.is_correct && data.location_verified
+			const verdictColor = succeeded ? '#27ae60' : '#c0392b'
+			const verdictText = succeeded
+				? `✅ Correct! +${data.points_awarded} points`
+				: data.location_verified === false
+					? `📍 Too far away — this attempt didn't count.`
+					: `❌ Not quite.`
 
-      // correct_option_text will be null only if a question was seeded
-      // without any option marked is_correct — guard against that so we
-      // don't render "Correct answer: null".
-      const correctAnswerHtml = data.correct_option_text
-        ? `<p style="margin-top: 6px; color: #333;">Correct answer: <strong>${data.correct_option_text}</strong></p>`
-        : ''
+			// correct_option_text will be null only if a question was seeded
+			// without any option marked is_correct — guard against that so we
+			// don't render "Correct answer: null".
+			const correctAnswerHtml = data.correct_option_text
+				? `<p style="margin-top: 6px; color: #333;">Correct answer: <strong>${data.correct_option_text}</strong></p>`
+				: ''
 
-      // User story 8 — show the card outcome explicitly. A retry after a
-      // win must read as intended behaviour ("you've already earned this
-      // card"), not a silent missing reward.
-      let cardHtml = ''
-      if (data.card_awarded && data.awarded_card) {
-        const rarity = data.awarded_card.rarity ? ` (${data.awarded_card.rarity})` : ''
-        cardHtml = `<p style="margin-top: 6px; color: #7a5c00; font-weight: bold;">🎉 New card earned: ${data.awarded_card.name}${rarity}!</p>`
-      } else if (succeeded && data.already_earned_card) {
-        cardHtml = `<p style="margin-top: 6px; color: #888; font-size: 0.85rem;">You've already earned this card — no new card this time.</p>`
-      }
+			// User story 8 — show the card outcome explicitly. A retry after a
+			// win must read as intended behaviour ("you've already earned this
+			// card"), not a silent missing reward.
+			let cardHtml = ''
+			if (data.card_awarded && data.awarded_card) {
+				const rarity = data.awarded_card.rarity
+					? ` (${data.awarded_card.rarity})`
+					: ''
+				cardHtml = `<p style="margin-top: 6px; color: #7a5c00; font-weight: bold;">🎉 New card earned: ${data.awarded_card.name}${rarity}!</p>`
+			} else if (succeeded && data.already_earned_card) {
+				cardHtml = `<p style="margin-top: 6px; color: #888; font-size: 0.85rem;">You've already earned this card — no new card this time.</p>`
+			}
 
-      resultContainer.innerHTML = `
+			resultContainer.innerHTML = `
         <p style="color: ${verdictColor}; font-weight: bold;">${verdictText}</p>
         ${cardHtml}
         ${correctAnswerHtml}
       `
-    }
-  } catch (err) {
-    // Network failure, backend down, etc. — distinct from the res.ok
-    // check above, which handles the backend responding but with an
-    // error status.
-    if (resultContainer) {
-      resultContainer.innerHTML = `<p style="color: #c0392b;">Failed to submit answer. Ensure you are signed in.</p>`
-    }
-  }
+		}
+	} catch (err) {
+		// Network failure, backend down, etc. — distinct from the res.ok
+		// check above, which handles the backend responding but with an
+		// error status.
+		if (resultContainer) {
+			resultContainer.innerHTML = `<p style="color: #c0392b;">Failed to submit answer. Ensure you are signed in.</p>`
+		}
+	}
 }
 
 /**
@@ -427,31 +513,35 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
  * This one continuously tracks position for the visual marker only.
  */
 function setupPlayerGeolocation(map) {
-  let playerMarker = null
+	let playerMarker = null
 
-  function updatePosition(position) {
-    const { latitude, longitude } = position.coords
-    const latLng = [latitude, longitude]
+	function updatePosition(position) {
+		const { latitude, longitude } = position.coords
+		const latLng = [latitude, longitude]
 
-    if (!playerMarker) {
-      // First position fix: create the marker.
-      playerMarker = L.marker(latLng, { icon: playerIcon })
-        .addTo(map)
-        .bindPopup('📍 You are here!')
-    } else {
-      // Subsequent fixes: just move the existing marker instead of
-      // creating a new one each time (which would leave duplicates).
-      playerMarker.setLatLng(latLng)
-    }
-  }
+		if (!playerMarker) {
+			// First position fix: create the marker.
+			playerMarker = L.marker(latLng, { icon: playerIcon })
+				.addTo(map)
+				.bindPopup('📍 You are here!')
+		} else {
+			// Subsequent fixes: just move the existing marker instead of
+			// creating a new one each time (which would leave duplicates).
+			playerMarker.setLatLng(latLng)
+		}
+	}
 
-  if ('geolocation' in navigator) {
-    navigator.geolocation.watchPosition(updatePosition, (err) => console.warn(err.message), {
-      enableHighAccuracy: true, // prefer GPS over coarse wifi/IP-based location
-      maximumAge: 10000,        // accept a cached position up to 10s old
-      timeout: 10000,           // give up waiting for a fix after 10s
-    })
-  }
+	if ('geolocation' in navigator) {
+		navigator.geolocation.watchPosition(
+			updatePosition,
+			(err) => console.warn(err.message),
+			{
+				enableHighAccuracy: true, // prefer GPS over coarse wifi/IP-based location
+				maximumAge: 10000, // accept a cached position up to 10s old
+				timeout: 10000, // give up waiting for a fix after 10s
+			}
+		)
+	}
 }
 
 /**
@@ -462,48 +552,51 @@ function setupPlayerGeolocation(map) {
  * either a login link or the logged-in user's name + logout button.
  */
 async function checkAuthSession() {
-  const container = document.getElementById('auth-nav-container')
-  if (!container) return
+	const container = document.getElementById('auth-nav-container')
+	if (!container) return
 
-  try {
-    const res = await fetch(`${API_BASE}/me`, {
-      method: 'GET',
-      credentials: 'include',
-    })
+	try {
+		const res = await fetch(`${API_BASE}/api/me`, {
+			method: 'GET',
+			credentials: 'include',
+		})
 
-    if (res.ok) {
-      const user = await res.json()
-      currentUser = user
-      container.innerHTML = `
+		if (res.ok) {
+			const user = await res.json()
+			currentUser = user
+			container.innerHTML = `
         <div class="user-badge">
           <span>👤 ${user.name}</span>
           <button id="logout-btn" class="logout-btn">Log Out</button>
         </div>
       `
-      document.getElementById('logout-btn').addEventListener('click', handleLogout)
-    } else {
-      // 401 from the backend — no valid session.
-      currentUser = null
-      container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
-    }
-  } catch (err) {
-    // Backend unreachable — treat the same as "not logged in" rather than
-    // crashing the page.
-    currentUser = null
-    container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
-  }
+			document.getElementById('logout-btn').addEventListener(
+				'click',
+				handleLogout
+			)
+		} else {
+			// 401 from the backend — no valid session.
+			currentUser = null
+			container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
+		}
+	} catch (err) {
+		// Backend unreachable — treat the same as "not logged in" rather than
+		// crashing the page.
+		currentUser = null
+		container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
+	}
 }
 
 async function handleLogout() {
-  try {
-    // Clear both Better Auth session and express-session bridge
-    await baSignOut()
-    await clearBridgeSession()
-    window.location.reload() // simplest way to reset all UI state back to "logged out"
-  } catch (err) {
-    console.error('Logout error:', err)
-    window.location.reload()
-  }
+	try {
+		// Clear both Better Auth session and express-session bridge
+		await clearBridgeSession()
+		await baSignOut()
+		window.location.reload()
+	} catch (err) {
+		console.error('Logout error:', err)
+		window.location.reload()
+	}
 }
 
 /**
@@ -513,34 +606,36 @@ async function handleLogout() {
  * player's live location. Runs once, when the page finishes loading.
  */
 async function initializeApp() {
-  const map = L.map('map', {
-    center: CONFIG.CENTER_COORDINATES,
-    zoom: CONFIG.DEFAULT_ZOOM,
-    minZoom: CONFIG.MIN_ZOOM,
-    maxZoom: CONFIG.MAX_ZOOM,
-    maxNativeZoom: 18,
-  })
+	const map = L.map('map', {
+		center: CONFIG.CENTER_COORDINATES,
+		zoom: CONFIG.DEFAULT_ZOOM,
+		minZoom: CONFIG.MIN_ZOOM,
+		maxZoom: CONFIG.MAX_ZOOM,
+		maxNativeZoom: 18,
+	})
 
-  L.tileLayer(CONFIG.TILE_URL, {
-    attribution: CONFIG.TILE_ATTRIBUTION,
-    maxZoom: 19,
-    maxNativeZoom: 18,
-  }).addTo(map)
+	L.tileLayer(CONFIG.TILE_URL, {
+		attribution: CONFIG.TILE_ATTRIBUTION,
+		maxZoom: 19,
+		maxNativeZoom: 18,
+	}).addTo(map)
 
-  // Must resolve BEFORE placing markers below — buildPopupContent()
-  // renders a different popup depending on hasChallenge, and clicking
-  // "Attempt Challenge" checks currentUser, so auth state has to be known
-  // before a player can possibly interact with a pin.
-  await checkAuthSession()
+	// Must resolve BEFORE placing markers below — buildPopupContent()
+	// renders a different popup depending on hasChallenge, and clicking
+	// "Attempt Challenge" checks currentUser, so auth state has to be known
+	// before a player can possibly interact with a pin.
+	await checkAuthSession()
 
-  const buildingsList = await fetchCampusEvents()
+	const buildingsList = await fetchCampusEvents()
 
-  buildingsList.forEach((building) => {
-    const marker = L.marker(building.coordinates, { icon: buildingIcon }).addTo(map)
-    marker.bindPopup(buildPopupContent(building))
-  })
+	buildingsList.forEach((building) => {
+		const marker = L.marker(building.coordinates, {
+			icon: buildingIcon,
+		}).addTo(map)
+		marker.bindPopup(buildPopupContent(building))
+	})
 
-  setupPlayerGeolocation(map)
+	setupPlayerGeolocation(map)
 }
 
 // ---------------------------------------------------------------------------
@@ -551,97 +646,120 @@ async function initializeApp() {
 // ---------------------------------------------------------------------------
 
 function showDrawerStatus(message, isError) {
-  const el = document.getElementById('auth-drawer-status')
-  if (!el) return
-  el.textContent = message
-  el.className = `auth-status visible ${isError ? 'error' : 'success'}`
+	const el = document.getElementById('auth-drawer-status')
+	if (!el) return
+	el.textContent = message
+	el.className = `auth-status visible ${isError ? 'error' : 'success'}`
 }
 
 window.openAuthDrawer = function () {
-  document.getElementById('auth-overlay')?.classList.add('open')
-  document.getElementById('auth-drawer')?.classList.add('open')
+	document.getElementById('auth-overlay')?.classList.add('open')
+	document.getElementById('auth-drawer')?.classList.add('open')
 }
 
 window.closeAuthDrawer = function () {
-  document.getElementById('auth-overlay')?.classList.remove('open')
-  document.getElementById('auth-drawer')?.classList.remove('open')
+	document.getElementById('auth-overlay')?.classList.remove('open')
+	document.getElementById('auth-drawer')?.classList.remove('open')
 }
 
 window.switchAuthTab = function (tab) {
-  const loginPanel = document.getElementById('login-panel')
-  const signupPanel = document.getElementById('signup-panel')
-  const tabs = document.querySelectorAll('.auth-tab')
+	const loginPanel = document.getElementById('login-panel')
+	const signupPanel = document.getElementById('signup-panel')
+	const tabs = document.querySelectorAll('.auth-tab')
 
-  if (tab === 'login') {
-    loginPanel?.classList.add('active')
-    signupPanel?.classList.remove('active')
-    tabs[0]?.classList.add('active')
-    tabs[1]?.classList.remove('active')
-  } else {
-    signupPanel?.classList.add('active')
-    loginPanel?.classList.remove('active')
-    tabs[1]?.classList.add('active')
-    tabs[0]?.classList.remove('active')
-  }
+	if (tab === 'login') {
+		loginPanel?.classList.add('active')
+		signupPanel?.classList.remove('active')
+		tabs[0]?.classList.add('active')
+		tabs[1]?.classList.remove('active')
+	} else {
+		signupPanel?.classList.add('active')
+		loginPanel?.classList.remove('active')
+		tabs[1]?.classList.add('active')
+		tabs[0]?.classList.remove('active')
+	}
 }
 
 window.handleDrawerGoogleAuth = async function () {
-  showDrawerStatus('Redirecting to Google...', false)
-  const { error } = await googleSignIn()
-  if (error) {
-    showDrawerStatus('Google auth failed: ' + error.message, true)
-  }
+	showDrawerStatus('Redirecting to Google...', false)
+	const { error } = await googleSignIn()
+	if (error) {
+		showDrawerStatus('Google auth failed: ' + error.message, true)
+	}
 }
 
 function setupAuthDrawerHandlers() {
-  // Login form
-  const loginForm = document.getElementById('drawer-login-form')
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const email = document.getElementById('drawer-login-email').value.trim()
-      const password = document.getElementById('drawer-login-password').value
+	// Login form
+	const loginForm = document.getElementById('drawer-login-form')
+	if (loginForm) {
+		loginForm.addEventListener('submit', async (e) => {
+			e.preventDefault()
+			const email = document
+				.getElementById('drawer-login-email')
+				.value.trim()
+			const password = document.getElementById(
+				'drawer-login-password'
+			).value
 
-      showDrawerStatus('Signing in...', false)
-      const { data, error } = await emailSignIn(email, password)
+			showDrawerStatus('Signing in...', false)
+			const { data, error } = await emailSignIn(
+				email,
+				password
+			)
 
-      if (error) {
-        showDrawerStatus('Login failed: ' + error.message, true)
-      } else {
-        showDrawerStatus('Signed in!', false)
-        closeAuthDrawer()
-        // Reload to update auth state and bridge session
-        window.location.reload()
-      }
-    })
-  }
+			if (error) {
+				showDrawerStatus(
+					'Login failed: ' + error.message,
+					true
+				)
+			} else {
+				showDrawerStatus('Signed in!', false)
+				closeAuthDrawer()
+				// Reload to update auth state and bridge session
+				window.location.reload()
+			}
+		})
+	}
 
-  // Signup form
-  const signupForm = document.getElementById('drawer-signup-form')
-  if (signupForm) {
-    signupForm.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const name = document.getElementById('drawer-signup-name').value.trim()
-      const email = document.getElementById('drawer-signup-email').value.trim()
-      const password = document.getElementById('drawer-signup-password').value
+	// Signup form
+	const signupForm = document.getElementById('drawer-signup-form')
+	if (signupForm) {
+		signupForm.addEventListener('submit', async (e) => {
+			e.preventDefault()
+			const name = document
+				.getElementById('drawer-signup-name')
+				.value.trim()
+			const email = document
+				.getElementById('drawer-signup-email')
+				.value.trim()
+			const password = document.getElementById(
+				'drawer-signup-password'
+			).value
 
-      showDrawerStatus('Creating account...', false)
-      const { data, error } = await emailSignUp(name, email, password)
+			showDrawerStatus('Creating account...', false)
+			const { data, error } = await emailSignUp(
+				name,
+				email,
+				password
+			)
 
-      if (error) {
-        showDrawerStatus('Sign up failed: ' + error.message, true)
-      } else {
-        showDrawerStatus('Account created!', false)
-        closeAuthDrawer()
-        window.location.reload()
-      }
-    })
-  }
+			if (error) {
+				showDrawerStatus(
+					'Sign up failed: ' + error.message,
+					true
+				)
+			} else {
+				showDrawerStatus('Account created!', false)
+				closeAuthDrawer()
+				window.location.reload()
+			}
+		})
+	}
 }
 
 // Wait for the DOM to be ready before touching any #map / #auth-nav-container
 // elements — otherwise document.getElementById calls above would return null.
 document.addEventListener('DOMContentLoaded', () => {
-  setupAuthDrawerHandlers()
-  initializeApp()
+	setupAuthDrawerHandlers()
+	initializeApp()
 })

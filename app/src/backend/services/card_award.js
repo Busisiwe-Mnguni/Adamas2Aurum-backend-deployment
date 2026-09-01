@@ -42,15 +42,15 @@
  *   transaction-bound connection (the latter inside awardCardIfEligible)
  */
 export async function canAwardCard(conn, user_id, event_id) {
-  const [rows] = await conn.query(
-    `SELECT 1
+	const [rows] = await conn.query(
+		`SELECT 1
        FROM trivia_attempts
       WHERE user_id = ? AND event_id = ? AND is_correct = TRUE
       LIMIT 1`,
-    [user_id, event_id]
-  )
-  // eligible = no prior correct attempt on record
-  return rows.length === 0
+		[user_id, event_id]
+	)
+	// eligible = no prior correct attempt on record
+	return rows.length === 0
 }
 
 /**
@@ -67,8 +67,8 @@ export async function canAwardCard(conn, user_id, event_id) {
  * or null if the event has no awardable card configured.
  */
 export async function getEventCard(conn, event_id) {
-  const [rows] = await conn.query(
-    `SELECT c.card_id, c.name, c.image_url, c.rarity, c.category,
+	const [rows] = await conn.query(
+		`SELECT c.card_id, c.name, c.image_url, c.rarity, c.category,
             ecp.pool_id, ecp.global_copy_limit, ecp.copies_awarded
        FROM event_card_pool ecp
        JOIN cards c ON ecp.card_id = c.card_id
@@ -77,9 +77,9 @@ export async function getEventCard(conn, event_id) {
              OR ecp.copies_awarded < ecp.global_copy_limit)
       ORDER BY ecp.pool_id ASC
       LIMIT 1`,
-    [event_id]
-  )
-  return rows[0] || null
+		[event_id]
+	)
+	return rows[0] || null
 }
 
 /**
@@ -101,62 +101,77 @@ export async function getEventCard(conn, event_id) {
  * }}
  */
 export async function awardCardIfEligible(conn, { user_id, event_id }) {
-  // 1. Eligibility — has the player ever won this event before?
-  const eligible = await canAwardCard(conn, user_id, event_id)
-  if (!eligible) {
-    return { awarded: false, card: null, card_id: null, reason: 'ALREADY_EARNED' }
-  }
+	// 1. Eligibility — has the player ever won this event before?
+	const eligible = await canAwardCard(conn, user_id, event_id)
+	if (!eligible) {
+		return {
+			awarded: false,
+			card: null,
+			card_id: null,
+			reason: 'ALREADY_EARNED',
+		}
+	}
 
-  // 2. Which card does this event award (if any still has copies)?
-  const card = await getEventCard(conn, event_id)
-  if (!card) {
-    return { awarded: false, card: null, card_id: null, reason: 'NO_CARD_CONFIGURED' }
-  }
+	// 2. Which card does this event award (if any still has copies)?
+	const card = await getEventCard(conn, event_id)
+	if (!card) {
+		return {
+			awarded: false,
+			card: null,
+			card_id: null,
+			reason: 'NO_CARD_CONFIGURED',
+		}
+	}
 
-  // 3. Insert the award-ledger row. UNIQUE(user_id, event_id) is the
-  //    hard backstop: if two concurrent requests both passed
-  //    canAwardCard before either wrote, exactly one INSERT succeeds
-  //    and the other throws ER_DUP_ENTRY — caught here so the loser
-  //    simply gets no card instead of crashing the request.
-  try {
-    await conn.query(
-      `INSERT INTO event_card_awards (user_id, event_id, card_id) VALUES (?, ?, ?)`,
-      [user_id, event_id, card.card_id]
-    )
-  } catch (err) {
-    if (err.code === 'ER_DUP_ENTRY') {
-      // Lost the race — another request awarded this player+event first.
-      return { awarded: false, card: null, card_id: null, reason: 'RACE_LOST' }
-    }
-    throw err // a real error — let the caller roll the transaction back
-  }
+	// 3. Insert the award-ledger row. UNIQUE(user_id, event_id) is the
+	//    hard backstop: if two concurrent requests both passed
+	//    canAwardCard before either wrote, exactly one INSERT succeeds
+	//    and the other throws ER_DUP_ENTRY — caught here so the loser
+	//    simply gets no card instead of crashing the request.
+	try {
+		await conn.query(
+			`INSERT INTO event_card_awards (user_id, event_id, card_id) VALUES (?, ?, ?)`,
+			[user_id, event_id, card.card_id]
+		)
+	} catch (err) {
+		if (err.code === 'ER_DUP_ENTRY') {
+			// Lost the race — another request awarded this player+event first.
+			return {
+				awarded: false,
+				card: null,
+				card_id: null,
+				reason: 'RACE_LOST',
+			}
+		}
+		throw err // a real error — let the caller roll the transaction back
+	}
 
-  // 4. Add the card to the player's inventory. ON DUPLICATE KEY UPDATE
-  //    bumps the quantity if they already own a copy from another event
-  //    (or a future duplicate-card mechanic) — the award ledger is what
-  //    enforces "once per event", not the inventory row.
-  await conn.query(
-    `INSERT INTO user_cards (user_id, card_id, quantity) VALUES (?, ?, 1)
+	// 4. Add the card to the player's inventory. ON DUPLICATE KEY UPDATE
+	//    bumps the quantity if they already own a copy from another event
+	//    (or a future duplicate-card mechanic) — the award ledger is what
+	//    enforces "once per event", not the inventory row.
+	await conn.query(
+		`INSERT INTO user_cards (user_id, card_id, quantity) VALUES (?, ?, 1)
      ON DUPLICATE KEY UPDATE quantity = quantity + 1`,
-    [user_id, card.card_id]
-  )
+		[user_id, card.card_id]
+	)
 
-  // 5. Account for the global copy budget, where the pool tracks one.
-  await conn.query(
-    `UPDATE event_card_pool SET copies_awarded = copies_awarded + 1 WHERE pool_id = ?`,
-    [card.pool_id]
-  )
+	// 5. Account for the global copy budget, where the pool tracks one.
+	await conn.query(
+		`UPDATE event_card_pool SET copies_awarded = copies_awarded + 1 WHERE pool_id = ?`,
+		[card.pool_id]
+	)
 
-  return {
-    awarded: true,
-    card: {
-      card_id: card.card_id,
-      name: card.name,
-      image_url: card.image_url,
-      rarity: card.rarity,
-      category: card.category,
-    },
-    card_id: card.card_id,
-    reason: 'AWARDED',
-  }
+	return {
+		awarded: true,
+		card: {
+			card_id: card.card_id,
+			name: card.name,
+			image_url: card.image_url,
+			rarity: card.rarity,
+			category: card.category,
+		},
+		card_id: card.card_id,
+		reason: 'AWARDED',
+	}
 }

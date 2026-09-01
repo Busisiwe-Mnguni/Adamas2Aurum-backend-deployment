@@ -1,3 +1,5 @@
+SET FOREIGN_KEY_CHECKS = 0;
+
 CREATE TABLE IF NOT EXISTS users (
     user_id       INT            AUTO_INCREMENT PRIMARY KEY,
     provider_id   VARCHAR(255)   NOT NULL UNIQUE,
@@ -79,7 +81,7 @@ CREATE TABLE IF NOT EXISTS cards (
     flavour_text    TEXT,
     image_url       VARCHAR(500),
     category        ENUM('CHARACTER','LOCATION','INFLUENCE','HISTORICAL') NOT NULL,
-    rarity          ENUM('COMMON','RARE','LEGENDARY')                     NOT NULL,
+    rarity          ENUM('COMMON','UNCOMMON','RARE','EPIC','LEGENDARY')                     NOT NULL,
     stat_attack     INT          NOT NULL DEFAULT 0,
     stat_location   INT          NOT NULL DEFAULT 0,
     stat_influence  INT          NOT NULL DEFAULT 0,
@@ -257,9 +259,10 @@ CREATE TABLE IF NOT EXISTS battles (
 CREATE TABLE IF NOT EXISTS battle_decks (
     deck_id       INT     AUTO_INCREMENT PRIMARY KEY,
     battle_id     INT     NOT NULL,
-    user_id       INT     NOT NULL,
+    user_id       INT,
     card_id       INT     NOT NULL,
     slot_position TINYINT NOT NULL,
+    final_health       INT     NOT NULL DEFAULT 100,
 
     CONSTRAINT fk_bd_battle FOREIGN KEY (battle_id) REFERENCES battles (battle_id),
     CONSTRAINT fk_bd_user   FOREIGN KEY (user_id)   REFERENCES users   (user_id),
@@ -270,17 +273,20 @@ CREATE TABLE IF NOT EXISTS battle_decks (
 CREATE TABLE IF NOT EXISTS battle_turns (
     turn_id        INT      AUTO_INCREMENT PRIMARY KEY,
     battle_id      INT      NOT NULL,
-    turn_number    INT      NOT NULL,
-    acting_user_id INT      NOT NULL,
-    card_played_id INT      NOT NULL,
-    action         ENUM('ATTACK','BUFF','DEBUFF','DEFEND','DODGE') NOT NULL,
+    turn_number    FLOAT      NOT NULL,
+    acting_user_id INT,
+    deck_slot_played_id INT      NOT NULL,
+    deck_slot_targeted_id INT    NOT NULL,
+    action               ENUM('ATTACK','BUFF','DEBUFF','DEFEND','DODGE','REVIVE') NOT NULL,
     damage_dealt   INT      NOT NULL DEFAULT 0,
-    effect_desc    TEXT,
+    landed	BOOLEAN NULL,
+    effect_data    JSON NULL,
     created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT fk_bt_battle FOREIGN KEY (battle_id)      REFERENCES battles (battle_id),
-    CONSTRAINT fk_bt_user   FOREIGN KEY (acting_user_id) REFERENCES users   (user_id),
-    CONSTRAINT fk_bt_card   FOREIGN KEY (card_played_id) REFERENCES cards   (card_id)
+    CONSTRAINT fk_bt_battle FOREIGN KEY (battle_id)             REFERENCES battles      (battle_id),
+    CONSTRAINT fk_bt_user   FOREIGN KEY (acting_user_id)        REFERENCES users        (user_id),
+    CONSTRAINT fk_bt_card   FOREIGN KEY (deck_slot_played_id)   REFERENCES battle_decks (deck_id),
+    CONSTRAINT fk_bt_target FOREIGN KEY (deck_slot_targeted_id) REFERENCES battle_decks (deck_id)
 );
 
 -- ============================================================
@@ -394,9 +400,8 @@ CREATE TABLE IF NOT EXISTS questions (
     created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-    -- Unique constraint name: 'fk_question_event' is already used by
-    -- the trivia_questions table, so this one is namespaced to avoid
-    -- a "Duplicate foreign key constraint name" error.
     CONSTRAINT fk_us6_question_event FOREIGN KEY (event_id)
         REFERENCES events (event_id) ON DELETE CASCADE
 );
+
+SET FOREIGN_KEY_CHECKS = 1;
