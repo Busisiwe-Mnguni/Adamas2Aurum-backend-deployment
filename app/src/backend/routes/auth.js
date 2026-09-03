@@ -59,7 +59,15 @@ router.post('/login', async (req, res) => {
       email: user.email,
     }
 
-    res.json({ message: 'Logged in', user: req.session.user })
+    const [roleRows] = await pool.query(
+      'SELECT role FROM admin_roles WHERE user_id = ?',
+      [user.user_id]
+    )
+
+    res.json({
+      message: 'Logged in',
+      user: { ...req.session.user, roles: roleRows.map((r) => r.role) },
+    })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -107,7 +115,15 @@ router.post('/register', async (req, res) => {
       email: userEmail,
     }
 
-    res.status(201).json({ message: 'Account created successfully', user: req.session.user })
+    const [roleRows] = await pool.query(
+      'SELECT role FROM admin_roles WHERE user_id = ?',
+      [userId]
+    )
+
+    res.status(201).json({
+      message: 'Account created successfully',
+      user: { ...req.session.user, roles: roleRows.map((r) => r.role) },
+    })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

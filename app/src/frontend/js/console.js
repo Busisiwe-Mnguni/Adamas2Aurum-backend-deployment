@@ -1,16 +1,13 @@
 // console.js - UNIFIED CONSOLE MANAGEMENT
 import { EVENTS_API, showToast, toDatetimeLocal, buildCardBody } from './utils.js'
 import { API_BASE } from './constants.js'
+import { updateAuthNav, isAdmin } from './auth-helpers.js'
 
-const AUTHOR_ROLES = ['SUPER_ADMIN', 'EVENT_AUTHOR', 'CARD_AUTHOR']
 const AUTH_API = `${API_BASE}/api/auth`
 const CARDS_API = `${API_BASE}/api/cards`
 
 // ── DOM REFS ──
 // Auth
-const elLoginView = document.getElementById('login-view')
-const elLoginForm = document.getElementById('login-form')
-const elLoginError = document.getElementById('login-error')
 const elAccessDenied = document.getElementById('access-denied')
 const elConsole = document.getElementById('console-content')
 const elUserBadge = document.getElementById('user-badge')
@@ -71,10 +68,9 @@ let allCards = []
 function hideAllConsoleUI() {
     elConsole.classList.add('hidden')
     elAccessDenied.classList.add('hidden')
-    elUserBadge.style.display = 'none'
-    btnLogout.style.display = 'none'
-    btnLogoutDenied.style.display = 'none'
-    elLoginView.classList.remove('hidden')
+    elUserBadge.classList.add('hidden')
+    btnLogout.classList.add('hidden')
+    btnLogoutDenied.classList.add('hidden')
 
     document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('tab-active'))
     tabEvents.classList.add('hidden')
@@ -128,49 +124,11 @@ async function doLogout() {
   } catch (err) {
     console.warn('Logout error:', err);
   }
-  window.location.href = 'auth.html';
+  window.location.href = '../index.html';
 }
 
 btnLogout.addEventListener('click', doLogout)
 btnLogoutDenied.addEventListener('click', doLogout)
-
-elLoginForm.addEventListener('submit', async (e) => {
-    e.preventDefault()
-    elLoginError.classList.add('hidden')
-
-    const username = f('login-username').value.trim()
-    const pin = f('login-pin').value
-
-    if (!username || !pin) {
-        elLoginError.textContent = 'Username and PIN are required.'
-        elLoginError.classList.remove('hidden')
-        return
-    }
-
-    f('btn-login').disabled = true
-    f('btn-login').textContent = 'Signing in…'
-
-    try {
-        const res = await fetch(`${AUTH_API}/login`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, pin }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Login failed')
-
-        elLoginView.classList.add('hidden')
-        f('login-pin').value = ''
-        await checkAccess()
-    } catch (err) {
-        elLoginError.textContent = err.message
-        elLoginError.classList.remove('hidden')
-    } finally {
-        f('btn-login').disabled = false
-        f('btn-login').textContent = 'Sign in'
-    }
-})
 
 async function checkAccess() {
     try {
@@ -180,20 +138,14 @@ async function checkAccess() {
         if (!res.ok) throw new Error('Not authenticated')
         const user = await res.json()
 
-        const hasRole = (user.roles ?? []).some((r) =>
-            AUTHOR_ROLES.includes(r)
-        )
-        if (!hasRole) {
+        updateAuthNav(user)
+
+        if (!isAdmin(user)) {
             elAccessDenied.classList.remove('hidden')
-            elLoginView.classList.add('hidden')
             return
         }
 
-        elUserBadge.textContent = user.name
-        elUserBadge.style.display = ''
-        btnLogout.style.display = ''
         elConsole.classList.remove('hidden')
-        elLoginView.classList.add('hidden')
 
         // Activate events tab by default
         const eventsTab = document.querySelector('[data-tab="events"]')
@@ -206,9 +158,7 @@ async function checkAccess() {
         loadEvents()
     } catch (err) {
         console.warn('Auth check failed:', err)
-        elLoginView.classList.remove('hidden')
-        elConsole.classList.add('hidden')
-        elAccessDenied.classList.add('hidden')
+        window.location.href = '../index.html'
     }
 }
 
@@ -395,7 +345,7 @@ eventForm.addEventListener('submit', async (e) => {
             if (res.status === 401) {
                 showToast('Session expired. Please login again.', 'error')
                 setTimeout(() => {
-                    window.location.href = 'auth.html?redirect=' + encodeURIComponent(window.location.pathname)
+                    window.location.href = '../index.html'
                 }, 1000)
                 return
             }
@@ -436,7 +386,7 @@ async function doEventDelete() {
             if (res.status === 401) {
                 showToast('Session expired. Please login again.', 'error')
                 setTimeout(() => {
-                    window.location.href = 'auth.html?redirect=' + encodeURIComponent(window.location.pathname)
+                    window.location.href = '../index.html'
                 }, 1000)
                 return
             }
@@ -629,7 +579,7 @@ cardForm.addEventListener('submit', async (e) => {
             if (res.status === 401) {
                 showToast('Session expired. Please login again.', 'error')
                 setTimeout(() => {
-                    window.location.href = 'auth.html?redirect=' + encodeURIComponent(window.location.pathname)
+                    window.location.href = '../index.html'
                 }, 1000)
                 return
             }

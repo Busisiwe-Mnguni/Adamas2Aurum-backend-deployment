@@ -11,6 +11,7 @@ A location-based campus trivia and card-battle game.
 - Plain HTML, CSS, and JavaScript (ESM) (no framework)
 
 ### Backend
+
 - [Node.js](https://nodejs.org/) with [Express](https://expressjs.com/) 5
 - [MySQL](https://www.mysql.com/) 8.4 via `mysql2/promise` (local or Aiven-hosted)
 - [Better Auth](https://www.better-auth.com/) for email/password + Google OAuth
@@ -20,7 +21,6 @@ A location-based campus trivia and card-battle game.
 - The backend **also serves the frontend** statically from port 3000, so
   everything runs same-origin — no separate Vite dev server needed unless you
   want HMR during frontend development
-
 
 ### Tooling
 
@@ -77,7 +77,7 @@ Adamas2Aurum/
 - Python 3 - for `setup.py` and `db_connect.py`
 - Docker & Docker Compose - only needed for [local DB setup](#local-db-setup)
 - MySQL client (`mysql`) - only needed if you want to connect via `db_connect.py`
-    - Or alternatively MariaDB client (`mariadb`)
+     - Or alternatively MariaDB client (`mariadb`)
 
 ---
 
@@ -149,7 +149,6 @@ $ cp app/src/backend/.env.example app/src/backend/.env
 $ npm run db:up
 ```
 
-
 ### How It Works
 
 1. **Schema auto-creates** on startup — `server.js` calls
@@ -174,14 +173,16 @@ $ npm run db:up
 
 npm run dev
 =======
+
 $ npm run db:up
-```
+
+````
 
 - Stop the database:
 
 ```bash
 $ npm run db:down
-```
+````
 
 > **Note:** To delete the DB completely, run `docker compose down -v` from `app/src/backend`.
 >
@@ -219,6 +220,17 @@ $ npm run db:seed
 > someone else ran `db:seed` (or an older backend re-seeded automatically)
 > and your test account got wiped - just log in with a seeded account
 > again, or re-run `db:seed` yourself if needed.
+
+### Test accounts
+
+After seeding, you can log in with any of these accounts using **Username + PIN** in the auth drawer:
+
+| Username / Email     | PIN  | Role           | Landing page after login |
+| -------------------- | ---- | -------------- | ------------------------ |
+| `alice@example.com`  | 1234 | `SUPER_ADMIN`  | Console                  |
+| `admin@wits.ac.za`   | 1234 | `SUPER_ADMIN`  | Console                  |
+| `bob@example.com`    | 1234 | `EVENT_AUTHOR` | Console                  |
+| `player@example.com` | 1234 | (player)       | Events                   |
 
 ---
 

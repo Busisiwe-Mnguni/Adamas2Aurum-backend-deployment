@@ -5,12 +5,13 @@
 
 import { API_BASE } from './constants.js'
 import {
-	emailSignIn,
-	emailSignUp,
+	usernameSignIn,
+	usernameSignUp,
 	googleSignIn,
 	baSignOut,
 	clearBridgeSession,
 } from './auth-client.js'
+import { redirectAfterLogin, updateAuthNav } from './auth-helpers.js'
 import { get_player_location } from './geolocation.js'
 
 /**
@@ -32,6 +33,8 @@ const CONFIG = {
 // handleChallengeAttempt() below uses it to decide whether to open the
 // auth drawer instead of opening a challenge.
 let currentUser = null
+let mapInstance = null
+let mapMarkers = []
 
 /**
  * CUSTOM LEAFLET PIN ICONS
@@ -114,7 +117,9 @@ const playerIcon = L.divIcon({
  */
 async function fetchCampusEvents() {
 	try {
-		const res = await fetch(`${API_BASE}/api/events`)
+		const res = await fetch(`${API_BASE}/api/events`, {
+			cache: 'no-store',
+		})
 		if (!res.ok)
 			throw new Error(`HTTP error! status: ${res.status}`)
 
@@ -552,9 +557,6 @@ function setupPlayerGeolocation(map) {
  * either a login link or the logged-in user's name + logout button.
  */
 async function checkAuthSession() {
-	const container = document.getElementById('auth-nav-container')
-	if (!container) return
-
 	try {
 		const res = await fetch(`${API_BASE}/api/me`, {
 			method: 'GET',
@@ -564,26 +566,22 @@ async function checkAuthSession() {
 		if (res.ok) {
 			const user = await res.json()
 			currentUser = user
-			container.innerHTML = `
-        <div class="user-badge">
-          <span>👤 ${user.name}</span>
-          <button id="logout-btn" class="logout-btn">Log Out</button>
-        </div>
-      `
-			document.getElementById('logout-btn').addEventListener(
-				'click',
-				handleLogout
-			)
+			updateAuthNav(user)
 		} else {
 			// 401 from the backend — no valid session.
 			currentUser = null
-			container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
+			updateAuthNav(null)
 		}
 	} catch (err) {
 		// Backend unreachable — treat the same as "not logged in" rather than
 		// crashing the page.
 		currentUser = null
-		container.innerHTML = `<button onclick="openAuthDrawer()" class="auth-link">Sign In / Register</button>`
+		updateAuthNav(null)
+	}
+
+	const btnLogout = document.getElementById('btn-logout')
+	if (btnLogout) {
+		btnLogout.addEventListener('click', handleLogout)
 	}
 }
 
@@ -592,11 +590,12 @@ async function handleLogout() {
 		// Clear both Better Auth session and express-session bridge
 		await clearBridgeSession()
 		await baSignOut()
-		window.location.reload()
 	} catch (err) {
 		console.error('Logout error:', err)
-		window.location.reload()
 	}
+	// Return to the landing page so the user can log in again from the single
+	// login entry point.
+	window.location.href = '/'
 }
 
 /**
@@ -605,8 +604,26 @@ async function handleLogout() {
  * loads and places all the building pins, and starts tracking the
  * player's live location. Runs once, when the page finishes loading.
  */
+function clearMapMarkers() {
+	mapMarkers.forEach((marker) => marker.remove())
+	mapMarkers = []
+}
+
+async function renderCampusEvents(map) {
+	clearMapMarkers()
+
+	const buildingsList = await fetchCampusEvents()
+	buildingsList.forEach((building) => {
+		const marker = L.marker(building.coordinates, {
+			icon: buildingIcon,
+		}).addTo(map)
+		marker.bindPopup(buildPopupContent(building))
+		mapMarkers.push(marker)
+	})
+}
+
 async function initializeApp() {
-	const map = L.map('map', {
+	mapInstance = L.map('map', {
 		center: CONFIG.CENTER_COORDINATES,
 		zoom: CONFIG.DEFAULT_ZOOM,
 		minZoom: CONFIG.MIN_ZOOM,
@@ -618,7 +635,7 @@ async function initializeApp() {
 		attribution: CONFIG.TILE_ATTRIBUTION,
 		maxZoom: 19,
 		maxNativeZoom: 18,
-	}).addTo(map)
+	}).addTo(mapInstance)
 
 	// Must resolve BEFORE placing markers below — buildPopupContent()
 	// renders a different popup depending on hasChallenge, and clicking
@@ -626,16 +643,16 @@ async function initializeApp() {
 	// before a player can possibly interact with a pin.
 	await checkAuthSession()
 
-	const buildingsList = await fetchCampusEvents()
+	await renderCampusEvents(mapInstance)
 
-	buildingsList.forEach((building) => {
-		const marker = L.marker(building.coordinates, {
-			icon: buildingIcon,
-		}).addTo(map)
-		marker.bindPopup(buildPopupContent(building))
+	// Keep the map in sync with admin console changes without forcing a
+	// manual page reload.
+	setInterval(() => renderCampusEvents(mapInstance), 30000)
+	document.addEventListener('visibilitychange', () => {
+		if (!document.hidden) renderCampusEvents(mapInstance)
 	})
 
-	setupPlayerGeolocation(map)
+	setupPlayerGeolocation(mapInstance)
 }
 
 // ---------------------------------------------------------------------------
@@ -689,23 +706,18 @@ window.handleDrawerGoogleAuth = async function () {
 }
 
 function setupAuthDrawerHandlers() {
-	// Login form
-	const loginForm = document.getElementById('drawer-login-form')
-	if (loginForm) {
-		loginForm.addEventListener('submit', async (e) => {
+	// Username + PIN login form
+	const loginPinForm = document.getElementById('drawer-login-pin-form')
+	if (loginPinForm) {
+		loginPinForm.addEventListener('submit', async (e) => {
 			e.preventDefault()
-			const email = document
-				.getElementById('drawer-login-email')
+			const username = document
+				.getElementById('drawer-login-username')
 				.value.trim()
-			const password = document.getElementById(
-				'drawer-login-password'
-			).value
+			const pin = document.getElementById('drawer-login-pin').value
 
 			showDrawerStatus('Signing in...', false)
-			const { data, error } = await emailSignIn(
-				email,
-				password
-			)
+			const { data, error } = await usernameSignIn(username, pin)
 
 			if (error) {
 				showDrawerStatus(
@@ -715,32 +727,37 @@ function setupAuthDrawerHandlers() {
 			} else {
 				showDrawerStatus('Signed in!', false)
 				closeAuthDrawer()
-				// Reload to update auth state and bridge session
-				window.location.reload()
+				redirectAfterLogin(data)
 			}
 		})
 	}
 
-	// Signup form
-	const signupForm = document.getElementById('drawer-signup-form')
-	if (signupForm) {
-		signupForm.addEventListener('submit', async (e) => {
+	// Username + PIN signup form
+	const signupPinForm = document.getElementById('drawer-signup-pin-form')
+	if (signupPinForm) {
+		signupPinForm.addEventListener('submit', async (e) => {
 			e.preventDefault()
 			const name = document
-				.getElementById('drawer-signup-name')
+				.getElementById('drawer-signup-pin-name')
 				.value.trim()
-			const email = document
-				.getElementById('drawer-signup-email')
+			const username = document
+				.getElementById('drawer-signup-username')
 				.value.trim()
-			const password = document.getElementById(
-				'drawer-signup-password'
+			const pin = document.getElementById('drawer-signup-pin').value
+			const confirm = document.getElementById(
+				'drawer-signup-pin-confirm'
 			).value
 
+			if (pin !== confirm) {
+				showDrawerStatus('PINs do not match.', true)
+				return
+			}
+
 			showDrawerStatus('Creating account...', false)
-			const { data, error } = await emailSignUp(
+			const { data, error } = await usernameSignUp(
 				name,
-				email,
-				password
+				username,
+				pin
 			)
 
 			if (error) {
@@ -751,14 +768,14 @@ function setupAuthDrawerHandlers() {
 			} else {
 				showDrawerStatus('Account created!', false)
 				closeAuthDrawer()
-				window.location.reload()
+				redirectAfterLogin(data)
 			}
 		})
 	}
 }
 
-// Wait for the DOM to be ready before touching any #map / #auth-nav-container
-// elements — otherwise document.getElementById calls above would return null.
+// Wait for the DOM to be ready before touching any #map / header elements —
+// otherwise document.getElementById calls above would return null.
 document.addEventListener('DOMContentLoaded', () => {
 	setupAuthDrawerHandlers()
 	initializeApp()

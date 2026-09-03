@@ -15,6 +15,7 @@
 			integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
 			crossorigin=""
 		/>
+		<link rel="stylesheet" href="/css/style.css" />
 		<script
 			src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 			integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -39,68 +40,10 @@
 				overflow: hidden;
 			}
 
-			header {
-				background-color: #0c2461;
-				color: white;
-				padding: 12px 24px;
-				display: flex;
-				justify-content: space-between;
-				align-items: center;
-				z-index: 1000;
-				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-			}
-
-			.logo-title {
-				display: flex;
-				align-items: center;
-				gap: 10px;
-				font-size: 1.2rem;
-				font-weight: bold;
-			}
-
-			.nav-right {
-				display: flex;
-				align-items: center;
-				gap: 16px;
-			}
-
-			.sub-title {
-				font-size: 0.85rem;
-				opacity: 0.8;
-			}
-
-			.auth-link,
-			.logout-btn {
-				background: #1e3799;
-				color: white;
-				text-decoration: none;
-				padding: 6px 14px;
-				border-radius: 4px;
-				font-weight: bold;
-				font-size: 0.9rem;
-				border: 1px solid rgba(255, 255, 255, 0.3);
-				transition: background 0.2s ease;
-				cursor: pointer;
-			}
-
-			.auth-link:hover,
-			.logout-btn:hover {
-				background: #4a69bd;
-			}
-
-			.user-badge {
-				font-size: 0.9rem;
-				font-weight: bold;
-				color: #f8fafc;
-				display: flex;
-				align-items: center;
-				gap: 8px;
-			}
-
 			#map {
 				flex: 1;
 				width: 100%;
-				height: calc(100vh - 56px);
+				height: calc(100vh - 60px);
 			}
 
 			/* ---- Auth side drawer ---- */
@@ -291,27 +234,56 @@
 		</style>
 	</head>
 	<body>
-		<header>
-			<div class="logo-title">
-				<span>🏛️ Adamas2Auruma</span>
-			</div>
-			<a class="logo" href="./pages/battle.html">
-				<span class="logo-a">A</span>
-				<span class="logo-sep">2</span>
-				<span class="logo-a">A</span>
-				<span class="logo-sub">Battle</span>
-			</a>
-			<div class="nav-right">
-				<span class="sub-title">
-					Interactive Campus Exploration
-				</span>
-				<div id="auth-nav-container">
+		<header class="site-header">
+			<div class="header-inner">
+				<a class="logo" href="/">
+					<span class="logo-a">A</span>
+					<span class="logo-sep">→</span>
+					<span class="logo-a">A</span>
+					<span class="logo-sub">Adamas to Aurum</span>
+				</a>
+
+				<nav class="header-nav" id="header-nav">
 					<a
-						href="/pages/auth.html"
-						class="auth-link"
+						href="./pages/events.html"
+						class="nav-link hidden"
+						id="nav-events"
+					>Events</a>
+					<a
+						href="./pages/collection.html"
+						class="nav-link hidden"
+						id="nav-collection"
+					>Collection</a>
+					<a
+						href="./pages/battle.html"
+						class="nav-link hidden"
+						id="nav-battle"
+					>Battle</a>
+					<a
+						href="./pages/console.html"
+						class="nav-link nav-link-admin hidden"
+						id="nav-console"
+					>Console</a>
+				</nav>
+
+				<div class="header-right">
+					<span
+						id="user-badge"
+						class="admin-badge hidden"
+					></span>
+					<button
+						id="btn-logout"
+						class="btn btn-sm btn-header hidden"
 					>
-						Sign In / Register
-					</a>
+						Logout
+					</button>
+					<button
+						id="btn-signin"
+						onclick="openAuthDrawer()"
+						class="btn btn-sm btn-header"
+					>
+						Sign In
+					</button>
 				</div>
 			</div>
 		</header>
@@ -377,21 +349,21 @@
 					Log in with Google
 				</button>
 				<div class="or-divider"><span>or</span></div>
-				<form id="drawer-login-form">
+				<form id="drawer-login-pin-form">
 					<div class="form-group">
 						<input
-							type="email"
-							id="drawer-login-email"
-							placeholder="Email address"
+							type="text"
+							id="drawer-login-username"
+							placeholder="Username"
 							required
-							autocomplete="email"
+							autocomplete="username"
 						/>
 					</div>
 					<div class="form-group">
 						<input
 							type="password"
-							id="drawer-login-password"
-							placeholder="Password"
+							id="drawer-login-pin"
+							placeholder="PIN"
 							required
 							autocomplete="current-password"
 						/>
@@ -432,11 +404,11 @@
 					Sign up with Google
 				</button>
 				<div class="or-divider"><span>or</span></div>
-				<form id="drawer-signup-form">
+				<form id="drawer-signup-pin-form">
 					<div class="form-group">
 						<input
 							type="text"
-							id="drawer-signup-name"
+							id="drawer-signup-pin-name"
 							placeholder="Display name"
 							required
 							autocomplete="name"
@@ -444,20 +416,28 @@
 					</div>
 					<div class="form-group">
 						<input
-							type="email"
-							id="drawer-signup-email"
-							placeholder="Email address"
+							type="text"
+							id="drawer-signup-username"
+							placeholder="Username"
 							required
-							autocomplete="email"
+							autocomplete="username"
 						/>
 					</div>
 					<div class="form-group">
 						<input
 							type="password"
-							id="drawer-signup-password"
-							placeholder="Password (min 8 chars)"
+							id="drawer-signup-pin"
+							placeholder="PIN"
 							required
-							minlength="8"
+							autocomplete="new-password"
+						/>
+					</div>
+					<div class="form-group">
+						<input
+							type="password"
+							id="drawer-signup-pin-confirm"
+							placeholder="Confirm PIN"
+							required
 							autocomplete="new-password"
 						/>
 					</div>
@@ -473,7 +453,6 @@
 			<div id="auth-drawer-status" class="auth-status"></div>
 		</div>
 
-		<script type="module" src="/js/main.js"></script>
 		<script type="module" src="/js/main.js"></script>
 	</body>
 </html>

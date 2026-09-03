@@ -21,27 +21,46 @@
 						Adamas to Aurum
 					</span>
 				</a>
-				<nav class="header-nav">
-					<a href="events.html" class="nav-link">Events</a>
-					<a href="collection.html" class="nav-link nav-link-active">Collection</a>
+				<nav class="header-nav" id="header-nav">
+					<a
+						href="events.html"
+						class="nav-link hidden"
+						id="nav-events"
+					>Events</a>
+					<a
+						href="collection.html"
+						class="nav-link nav-link-active hidden"
+						id="nav-collection"
+					>Collection</a>
+					<a
+						href="battle.html"
+						class="nav-link hidden"
+						id="nav-battle"
+					>Battle</a>
+					<a
+						href="console.html"
+						class="nav-link nav-link-admin hidden"
+						id="nav-console"
+					>Console</a>
 				</nav>
 				<div class="header-right">
 					<span
-						class="admin-badge"
+						class="admin-badge hidden"
 						id="user-badge"
-						style="display: none"
 					></span>
 					<button
-						class="btn btn-ghost btn-sm"
+						class="btn btn-sm btn-header hidden"
 						id="btn-logout"
-						style="
-							display: none;
-							color: rgba(255,255,255,0.7);
-							border-color: rgba(255,255,255,0.3);
-						"
 					>
 						Logout
 					</button>
+					<a
+						id="btn-signin"
+						href="../index.html"
+						class="btn btn-sm btn-header"
+					>
+						Sign In
+					</a>
 				</div>
 			</div>
 		</header>
@@ -49,62 +68,7 @@
 		<main class="main">
 			<div id="toast" class="toast" aria-live="polite"></div>
 
-			<!-- Login wall — shown if not authenticated -->
-			<div id="login-view" class="hidden">
-				<div style="max-width:380px;margin:3rem auto;">
-					<div class="form-card">
-						<h2
-							class="page-title"
-							style="margin-bottom:0.5rem;font-size:1.4rem;"
-						>
-							Sign in to view your Collection
-						</h2>
-						<p
-							class="page-subtitle"
-							style="margin-bottom:1.5rem;"
-						>
-							Log in to browse the cards you've earned on campus.
-						</p>
-						<form id="login-form" novalidate>
-							<div class="field" style="margin-bottom:1rem;">
-								<label for="login-username">Username <span class="req">*</span>
-								</label>
-								<input id="login-username" 
-									   type="text" 
-									   placeholder="your_username" 
-									   required />
-							</div>
-							<div class="field" style="margin-bottom:1.5rem;">
-								<label for="login-pin">
-									PIN
-									<span class="req">*</span>
-								</label>
-								<input
-									id="login-pin"
-									type="password"
-									placeholder="1234"
-									required
-								/>
-							</div>
-							<div
-								id="login-error"
-								class="state-msg error hidden"
-								style="padding:0.5rem 0;"
-							></div>
-							<button
-								type="submit"
-								class="btn btn-primary"
-								id="btn-login"
-								style="width:100%;"
-							>
-								Sign in
-							</button>
-						</form>
-					</div>
-				</div>
-			</div>
-
-			<!-- Collection — hidden until authenticated -->
+			<!-- Collection — shown once the auth check passes -->
 			<div id="collection-content" class="hidden">
 				<div class="page-header">
 					<div>

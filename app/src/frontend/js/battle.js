@@ -5,14 +5,11 @@ import {
 	buildCardBody,
 } from './utils.js'
 import { API_BASE, API_BASE_WS } from './constants.js'
+import { updateAuthNav } from './auth-helpers.js'
 
 var ws = null
 
 const AUTH_API = `${API_BASE}/api/auth`
-
-const elLoginView = document.getElementById('login-view')
-const elLoginForm = document.getElementById('login-form')
-const elLoginError = document.getElementById('login-error')
 
 const elCardSelectionView = document.getElementById('view-deck-select')
 const elCardCollection = document.getElementById('collection-grid')
@@ -39,7 +36,6 @@ const elResultDamageSuffered = document.getElementById('damage-suffered')
 
 const elListError = document.getElementById('list-error')
 
-const elUserBadge = document.getElementById('user-badge')
 const btnLogout = document.getElementById('btn-logout')
 
 var battleDeckCount = 0
@@ -96,83 +92,25 @@ const battleDeck = [
 	},
 ]
 
-const f = (id) => document.getElementById(id)
-
 async function doLogout() {
 	await fetch(`${AUTH_API}/logout`, {
 		method: 'POST',
 		credentials: 'include',
 	})
-	elCardSelectionView.classList.add('hidden')
-	elBattleView.classList.add('hidden')
-	elResultView.style.display = 'none'
-
-	btnLogout.style.display = 'none'
-	elLoginView.classList.remove('hidden')
-
-	elListError.classList.add('hidden')
-	window.location.reload()
+	window.location.href = '../index.html'
 }
 
 btnLogout.addEventListener('click', doLogout)
 
-elLoginForm.addEventListener('submit', async (e) => {
-	e.preventDefault()
-	elLoginError.classList.add('hidden')
-
-	const email = f('login-email').value.trim()
-	const pin = f('login-pin').value
-
-	if (!email || !pin) {
-		elLoginError.textContent = 'Email and PIN are required.'
-		elLoginError.classList.remove('hidden')
-		return
-	}
-
-	f('btn-login').disabled = true
-	f('btn-login').textContent = 'Signing in…'
-
-	try {
-		const res = await fetch(`${AUTH_API}/login`, {
-			method: 'POST',
-			credentials: 'include',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ email, pin }),
-		})
-		const data = await res.json()
-		if (!res.ok) throw new Error(data.error || 'Login failed')
-
-		elLoginView.classList.add('hidden')
-		f('login-pin').value = ''
-		checkAccess()
-	} catch (err) {
-		elLoginError.textContent = err.message
-		elLoginError.classList.remove('hidden')
-	} finally {
-		f('btn-login').disabled = false
-		f('btn-login').textContent = 'Sign in'
-	}
-})
-
 function switchToResultView() {
 	elCardSelectionView.classList.add('hidden')
-	elLoginView.classList.add('hidden')
 	elListError.classList.add('hidden')
 	elResultView.classList.remove('hidden')
 	elBattleView.classList.add('hidden')
 }
 
-function switchToLoginView() {
-	elCardSelectionView.classList.add('hidden')
-	elLoginView.classList.remove('hidden')
-	elListError.classList.add('hidden')
-	elResultView.classList.add('hidden')
-	elBattleView.classList.add('hidden')
-}
-
 function switchToCardSelectionView() {
 	elCardSelectionView.classList.remove('hidden')
-	elLoginView.classList.add('hidden')
 	elListError.classList.add('hidden')
 	elResultView.classList.add('hidden')
 	elBattleView.classList.add('hidden')
@@ -180,7 +118,6 @@ function switchToCardSelectionView() {
 
 function switchToBattleView(deck) {
 	elCardSelectionView.classList.add('hidden')
-	elLoginView.classList.add('hidden')
 	elListError.classList.add('hidden')
 	elResultView.classList.add('hidden')
 	elBattleView.classList.remove('hidden')
@@ -839,9 +776,7 @@ async function checkAccess() {
 		if (!res1.ok) throw new Error('Not authenticated')
 		const user = await res1.json()
 
-		elUserBadge.textContent = user.name
-		elUserBadge.style.display = ''
-		btnLogout.style.display = ''
+		updateAuthNav(user)
 		elBattleLog.replaceChildren()
 		const res2 = await fetch(
 			`${API_BASE}/api/battles/find-battle`,
@@ -862,7 +797,7 @@ async function checkAccess() {
 		refreshDeck()
 		loadSelectionEvents()
 	} catch {
-		elLoginView.classList.remove('hidden')
+		window.location.href = '../index.html'
 	}
 }
 

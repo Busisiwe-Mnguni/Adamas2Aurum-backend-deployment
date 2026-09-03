@@ -90,8 +90,6 @@ app.use((req, res, next) => {
 	next()
 })
 
-app.use(express.json())
-
 const PIN_AUTH_PATHS = ['/login', '/register', '/logout', '/me']
 
 app.use('/api/auth', (req, res, next) => {
@@ -145,6 +143,9 @@ app.use(async (req, res, next) => {
         )
         req.user = newUsers[0]
       }
+      // Keep the express-session cookie in sync so existing code that reads
+      // req.session.user.user_id continues to work for Google-OAuth users.
+      req.session.user = req.user
     }
   } catch (err) {
     // Silently continue for unauthenticated requests
@@ -156,7 +157,6 @@ app.use('/api/events', event_routes)
 app.use('/api/cards', card_routes)
 app.use('/api/battles', battle_routes)
 app.use('/api/trivia', trivia_routes)
-app.use('/api/cards', card_routes)
 // User Story 6 — question authoring. Mounted at /api so the single
 // router can serve both /api/events/:eventId/questions and /api/questions/:id.
 app.use('/api', question_routes)
@@ -171,82 +171,13 @@ app.get('/api/health', async (req, res) => {
 })
 
 // ---------------------------------------------------------------------------
-// Bridge middleware — on every request, check for a Better Auth session and
-// populate req.session.user so that existing routes (trivia, events) that
-// read req.session.user.user_id keep working without modification.
-// ---------------------------------------------------------------------------
-app.use(async (req, res, next) => {
-	try {
-		const baSession = await auth.api.getSession({
-			headers: fromNodeHeaders(req.headers),
-		})
-
-		if (baSession?.user) {
-			const baUser = baSession.user
-			const providerId = `better-auth:${baUser.id}`
-
-			// Look up or create a row in the team's users table
-			let [rows] = await pool.query(
-				'SELECT user_id, name, email FROM users WHERE provider_id = ?',
-				[providerId]
-			)
-
-			if (!rows.length) {
-				const [result] = await pool.query(
-					'INSERT INTO users (provider_id, email, name, points) VALUES (?, ?, ?, 0)',
-					[
-						providerId,
-						baUser.email,
-						baUser.name ||
-							baUser.email.split(
-								'@'
-							)[0],
-					]
-				)
-				rows = [
-					{
-						user_id: result.insertId,
-						name:
-							baUser.name ||
-							baUser.email.split(
-								'@'
-							)[0],
-						email: baUser.email,
-					},
-				]
-			}
-
-			req.session.user = {
-				user_id: rows[0].user_id,
-				name: rows[0].name,
-				email: rows[0].email,
-			}
-		}
-	} catch (err) {
-		// Bridge failure must never block the request — treat as unauthenticated
-		console.error('Bridge middleware error:', err.message)
-	}
-	next()
-})
-
-// ---------------------------------------------------------------------------
-// Bridge logout — destroys the express-session cookie
-// ---------------------------------------------------------------------------
-app.post('/api/auth-bridge/logout', (req, res) => {
-	req.session.destroy(() => {
-		res.clearCookie('connect.sid')
-		res.json({ message: 'Bridge session cleared' })
-	})
-})
-
-// ---------------------------------------------------------------------------
 // Get current authenticated user (used by frontend checkAuthSession)
 // ---------------------------------------------------------------------------
 app.get('/api/me', async (req, res) => {
-	if (!req.session?.user?.user_id) {
+	if (!req.user?.user_id) {
 		return res.status(401).json({ error: 'Not authenticated' })
 	}
-	res.json(req.session.user)
+	res.json(req.user)
 })
 
 // ---------------------------------------------------------------------------
@@ -269,17 +200,17 @@ app.get('/', (_req, res) => {
 app.get('/pages/auth.html', (_req, res) => {
 	res.sendFile(path.join(pagesDir, 'auth.html'))
 })
+app.get('/pages/collection.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'collection.html'))
+})
 app.get('/pages/console.html', (_req, res) => {
 	res.sendFile(path.join(pagesDir, 'console.html'))
 })
 app.get('/pages/events.html', (_req, res) => {
 	res.sendFile(path.join(pagesDir, 'events.html'))
 })
-app.get('/pages/map.html', (_req, res) => {
-	res.sendFile(path.join(pagesDir, 'map.html'))
-})
 app.get('/pages/battle.html', (_req, res) => {
-	res.sendFile(path.join(pagesDir, 'map.html'))
+	res.sendFile(path.join(pagesDir, 'battle.html'))
 })
 
 // ---------------------------------------------------------------------------

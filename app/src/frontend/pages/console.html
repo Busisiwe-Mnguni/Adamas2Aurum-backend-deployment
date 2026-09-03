@@ -13,115 +13,53 @@
 	<body>
 		<header class="site-header">
 			<div class="header-inner">
-				<a class="logo" href="events.html">
+				<a class="logo" href="console.html">
 					<span class="logo-a">A</span>
 					<span class="logo-sep">→</span>
 					<span class="logo-a">A</span>
-					<span class="logo-sub">
-						Author Console
-					</span>
+					<span class="logo-sub">Adamas to Aurum</span>
 				</a>
+				<nav class="header-nav" id="header-nav">
+					<a
+						href="events.html"
+						class="nav-link hidden"
+						id="nav-events"
+					>Events</a>
+					<a
+						href="collection.html"
+						class="nav-link hidden"
+						id="nav-collection"
+					>Collection</a>
+					<a
+						href="battle.html"
+						class="nav-link hidden"
+						id="nav-battle"
+					>Battle</a>
+				</nav>
 				<div class="header-right">
 					<span
-						class="admin-badge"
+						class="admin-badge hidden"
 						id="user-badge"
-						style="display: none"
 					></span>
 					<button
-						class="btn btn-ghost btn-sm"
+						class="btn btn-sm btn-header hidden"
 						id="btn-logout"
-						style="display: none"
 					>
 						Logout
 					</button>
+					<a
+						id="btn-signin"
+						href="../index.html"
+						class="btn btn-sm btn-header"
+					>
+						Sign In
+					</a>
 				</div>
 			</div>
 		</header>
 
 		<main class="main">
 			<div id="toast" class="toast" aria-live="polite"></div>
-
-			<!-- Login  shown if not authenticated -->
-			<div id="login-view" class="hidden">
-				<div
-					style="
-						max-width: 380px;
-						margin: 4rem auto;
-					"
-				>
-					<div class="form-card">
-						<h2
-							class="page-title"
-							style="
-								margin-bottom: 1.5rem;
-								font-size: 1.4rem;
-							"
-						>
-							Sign in to Console
-						</h2>
-						<form
-							id="login-form"
-							novalidate
-						>
-							<div
-								class="field"
-								style="
-									margin-bottom: 1rem;
-								"
-							>
-								<label for="login-username">Username 
-									<span class="req">*</span>
-								</label>
-								<input id="login-username"
-										 type="text"
-										 placeholder="admin"
-										  required />
-							</div>
-							<div
-								class="field"
-								style="
-									margin-bottom: 1.5rem;
-								"
-							>
-								<label
-									for="login-pin"
-								>
-									PIN
-									<span
-										class="req"
-									>
-										*
-									</span>
-								</label>
-								<input
-									id="login-pin"
-									type="password"
-									placeholder="1234"
-									required
-								/>
-							</div>
-							<div
-								id="login-error"
-								class="state-msg error hidden"
-								style="
-									padding: 0.5rem
-										0;
-								"
-							></div>
-							<button
-								type="submit"
-								class="btn btn-primary"
-								id="btn-login"
-								style="
-									width: 100%;
-								"
-							>
-								Sign in
-							</button>
-						</form>
-					</div>
-				</div>
-			</div>
 
 			<!--logged in but missing role -->
 			<div id="access-denied" class="access-denied hidden">

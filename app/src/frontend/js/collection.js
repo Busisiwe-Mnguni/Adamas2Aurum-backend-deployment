@@ -1,12 +1,10 @@
 import { API_BASE } from './constants.js'
+import { updateAuthNav } from './auth-helpers.js'
 
 const AUTH_API  = `${API_BASE}/api/auth`
 const CARDS_API = `${API_BASE}/api/cards`
 
 //  DOM refs 
-const elLoginView   = document.getElementById('login-view')
-const elLoginForm   = document.getElementById('login-form')
-const elLoginError  = document.getElementById('login-error')
 const elContent     = document.getElementById('collection-content')
 const elLoading     = document.getElementById('loading')
 const elEmpty       = document.getElementById('empty')
@@ -14,68 +12,16 @@ const elError       = document.getElementById('error')
 const elCardList    = document.getElementById('card-list')
 const elSubtitle    = document.getElementById('collection-subtitle')
 const elFilters     = document.getElementById('collection-filters')
-const elUserBadge   = document.getElementById('user-badge')
-const btnLogout     = document.getElementById('btn-logout')
+const btnLogout = document.getElementById('btn-logout')
 const filterCat     = document.getElementById('filter-category')
 const filterRarity  = document.getElementById('filter-rarity')
-
-const f = (id) => document.getElementById(id)
 
 //  Auth 
 
 btnLogout.addEventListener('click', async () => {
   await fetch(`${AUTH_API}/logout`, { method: 'POST', credentials: 'include' });
-  window.location.href = 'auth.html';
+  window.location.href = '../index.html';
 });
-
-elLoginForm.addEventListener('submit', async (e) => {
-	e.preventDefault()
-	elLoginError.classList.add('hidden')
-
-	const username = f('login-username').value.trim()
-	const pin   = f('login-pin').value
-
-	if (!username || !pin) {
-		elLoginError.textContent = 'Username and PIN are required.'
-		elLoginError.classList.remove('hidden')
-		return
-	}
-
-	f('btn-login').disabled    = true
-	f('btn-login').textContent = 'Signing in…'
-
-	try {
-		const res  = await fetch(`${AUTH_API}/login`, {
-			method: 'POST',
-			credentials: 'include',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ username, pin }),
-		})
-		const data = await res.json()
-		if (!res.ok) throw new Error(data.error || 'Login failed')
-
-		// Redirect admins straight to the console so they never share the player UI
-		const meRes = await fetch(`${AUTH_API}/me`, { credentials: 'include' })
-		const meData = await meRes.json()
-		const isAdmin = (meData.roles || []).some(r => 
-			['SUPER_ADMIN','EVENT_AUTHOR','CARD_AUTHOR'].includes(r)
-		)
-		if (isAdmin) {
-			window.location.href = 'console.html'
-			return
-		}
-
-		elLoginView.classList.add('hidden')
-		f('login-pin').value = ''
-		checkAccess()
-	} catch (err) {
-		elLoginError.textContent = err.message
-		elLoginError.classList.remove('hidden')
-	} finally {
-		f('btn-login').disabled    = false
-		f('btn-login').textContent = 'Sign in'
-	}
-})
 
 async function checkAccess() {
 	try {
@@ -83,29 +29,13 @@ async function checkAccess() {
 		if (!res.ok) throw new Error('Not authenticated')
 		const user = await res.json()
 
-		elUserBadge.textContent   = user.name
-		elUserBadge.style.display = ''
-		btnLogout.style.display   = ''
+		updateAuthNav(user)
 		elContent.classList.remove('hidden')
-
-		// Inject Console nav link for authors/admins so they can jump back to authoring
-		const isAdmin = (user.roles || []).some(r => 
-			['SUPER_ADMIN','EVENT_AUTHOR','CARD_AUTHOR'].includes(r)
-		)
-		if (isAdmin) {
-			const nav = document.querySelector('.header-nav')
-			if (nav && !nav.querySelector('[href="console.html"]')) {
-				const a = document.createElement('a')
-				a.href = 'console.html'
-				a.className = 'nav-link'
-				a.textContent = 'Console'
-				nav.appendChild(a)
-			}
-		}
 
 		loadCollection()
 	} catch {
-		elLoginView.classList.remove('hidden')
+		// Single login entry point: send unauthenticated users to the landing page.
+		window.location.href = '../index.html'
 	}
 }
 

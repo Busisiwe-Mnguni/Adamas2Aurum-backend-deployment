@@ -164,24 +164,6 @@
 				100% { transform: scale(2.2); opacity: 0; }
 			}
 
-			/* ── Nav links ─────────────────────────────────── */
-			.header-nav {
-				display: flex;
-				gap: 0.25rem;
-			}
-
-			.nav-link {
-				padding: 0.3rem 0.75rem;
-				border-radius: var(--radius);
-				font-size: 0.825rem;
-				font-weight: 500;
-				color: rgba(255,255,255,0.75);
-				text-decoration: none;
-				transition: background var(--transition), color var(--transition);
-			}
-
-			.nav-link:hover { background: rgba(255,255,255,0.12); color: #fff; }
-			.nav-link-active { background: rgba(255,255,255,0.18); color: #fff !important; font-weight: 600; }
 		</style>
 	</head>
 	<body>
@@ -194,19 +176,35 @@
 					<span class="logo-sub">Adamas to Aurum</span>
 				</a>
 
-				<nav class="header-nav">
-					<a href="events.html"     class="nav-link nav-link-active">Events</a>
-					<a href="collection.html" class="nav-link">Collection</a>
+				<nav class="header-nav" id="header-nav">
+					<a
+						href="events.html"
+						class="nav-link nav-link-active hidden"
+						id="nav-events"
+					>Events</a>
+					<a
+						href="collection.html"
+						class="nav-link hidden"
+						id="nav-collection"
+					>Collection</a>
+					<a
+						href="battle.html"
+						class="nav-link hidden"
+						id="nav-battle"
+					>Battle</a>
+					<a
+						href="console.html"
+						class="nav-link nav-link-admin hidden"
+						id="nav-console"
+					>Console</a>
 				</nav>
 
 				<div class="header-right">
-					<span id="user-badge" class="admin-badge" style="display:none;"></span>
-					<button id="btn-logout" class="btn btn-sm"
-						style="display:none;background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);">
+					<span id="user-badge" class="admin-badge hidden"></span>
+					<button id="btn-logout" class="btn btn-sm btn-header hidden">
 						Logout
 					</button>
-					<a id="btn-signin" href="auth.html" class="btn btn-sm"
-						style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);">
+					<a id="btn-signin" href="../index.html" class="btn btn-sm btn-header">
 						Sign In
 					</a>
 				</div>

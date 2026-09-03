@@ -187,3 +187,12 @@ VALUES (@test_user_id, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978
 
 INSERT IGNORE INTO admin_roles (user_id, role, granted_by)
 VALUES (@admin_user_id, 'SUPER_ADMIN', @admin_user_id);
+
+-- Seed test player user (no admin roles)
+INSERT IGNORE INTO users (provider_id, email, name)
+VALUES ('local:player@example.com', 'player@example.com', 'Test Player');
+
+SET @player_user_id = (SELECT user_id FROM users WHERE email = 'player@example.com');
+
+REPLACE INTO user_credentials (user_id, pin_hash)
+VALUES (@player_user_id, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4');

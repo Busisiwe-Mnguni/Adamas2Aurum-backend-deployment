@@ -1,14 +1,13 @@
 import { API_BASE } from './constants.js'
 import { get_player_location } from './geolocation.js'
 import { distance } from './general.js'
+import { updateAuthNav } from './auth-helpers.js'
 
 const AUTH_API  = `${API_BASE}/api/auth`
 const EVENT_API = `${API_BASE}/api/events`
 
 // ── DOM ──────────────────────────────────────────────────────
-const elUserBadge = document.getElementById('user-badge')
-const btnLogout   = document.getElementById('btn-logout')
-const btnSignin   = document.getElementById('btn-signin')
+const btnLogout = document.getElementById('btn-logout')
 const elLoading   = document.getElementById('map-loading')
 const elError     = document.getElementById('map-error')
 const elSidebar   = document.getElementById('map-sidebar')
@@ -80,37 +79,27 @@ async function checkAuth() {
 		const res = await fetch(`${AUTH_API}/me`, { credentials: 'include' })
 		if (!res.ok) throw new Error()
 		currentUser = await res.json()
-		elUserBadge.textContent   = currentUser.name
-		elUserBadge.style.display = ''
-		btnLogout.style.display   = ''
-		btnSignin.style.display   = 'none'
-
-		// Inject Console nav link for authors/admins so they don't share the player UI
-		const isAdmin = (currentUser.roles || []).some(r => 
-			['SUPER_ADMIN','EVENT_AUTHOR','CARD_AUTHOR'].includes(r)
-		)
-		if (isAdmin) {
-			const nav = document.querySelector('.header-nav')
-			if (nav && !nav.querySelector('[href="console.html"]')) {
-				const a = document.createElement('a')
-				a.href = 'console.html'
-				a.className = 'nav-link'
-				a.textContent = 'Console'
-				nav.appendChild(a)
-			}
-		}
+		updateAuthNav(currentUser)
 	} catch {
 		currentUser = null
+		updateAuthNav(null)
 	}
 }
 
 btnLogout.addEventListener('click', async () => {
-  await fetch(`${AUTH_API}/logout`, { method: 'POST', credentials: 'include' });
-  window.location.href = 'auth.html';
-});
+	await fetch(`${AUTH_API}/logout`, { method: 'POST', credentials: 'include' })
+	window.location.href = '../index.html'
+})
 
 // ── Geolocation ───────────────────────────────────────────────
 let playerMarker = null
+let eventMarkers = []
+
+function clearEventMarkers() {
+	eventMarkers.forEach((marker) => marker.remove())
+	eventMarkers = []
+	elSidebar.innerHTML = ''
+}
 
 function startGeolocation() {
 	if (!('geolocation' in navigator)) return
@@ -133,7 +122,10 @@ function startGeolocation() {
 // ── Load events ───────────────────────────────────────────────
 async function loadEvents() {
 	try {
-		const res = await fetch(EVENT_API)
+		clearEventMarkers()
+		elError.classList.add('hidden')
+
+		const res = await fetch(EVENT_API, { cache: 'no-store' })
 		if (!res.ok) throw new Error(`Server responded with ${res.status}`)
 		const events = await res.json()
 
@@ -162,6 +154,7 @@ async function loadEvents() {
 				.addTo(map)
 				.bindPopup(buildPopup(ev, inRange), { maxWidth: 260 })
 
+			eventMarkers.push(marker)
 			addSidebarEvent(ev, inRange, marker)
 		})
 	} catch (err) {
@@ -225,7 +218,7 @@ function addSidebarEvent(ev, inRange, marker) {
 // ── Challenge + trivia modal ──────────────────────────────────
 window._challenge = async function (eventId) {
 	if (!currentUser) {
-		window.location.href = `auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+		window.location.href = '../index.html'
 		return
 	}
 	try {
@@ -233,7 +226,7 @@ window._challenge = async function (eventId) {
 			credentials: 'include',
 		})
 		if (res.status === 401) {
-			window.location.href = `auth.html?redirect=${encodeURIComponent(window.location.pathname)}`
+			window.location.href = '../index.html'
 			return
 		}
 		if (!res.ok) {
@@ -310,7 +303,7 @@ window._submitAnswer = async function (eventId, questionId, optionId) {
 		})
 		if (res.status === 401) {
 			alert('Session expired — please sign in again.')
-			window.location.href = 'auth.html'
+			window.location.href = '../index.html'
 			return
 		}
 		const data = await res.json()
@@ -325,3 +318,10 @@ window._submitAnswer = async function (eventId, questionId, optionId) {
 await checkAuth()
 startGeolocation()
 await loadEvents()
+
+// Refresh events when the admin creates/updates them without requiring a
+// manual page reload.
+setInterval(loadEvents, 30000)
+document.addEventListener('visibilitychange', () => {
+	if (!document.hidden) loadEvents()
+})
