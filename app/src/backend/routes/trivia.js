@@ -2,6 +2,7 @@ import express from 'express'
 import pool from '../utils/db.js'
 import { distance_meters } from '../utils/geo.js'
 import { canAwardCard, awardCardIfEligible } from '../services/card_award.js'
+import { analyzeMovement } from '../services/movementTrust.js'
 
 const router = express.Router()
 
@@ -254,14 +255,18 @@ router.post('/submit', requireAuth, async (req, res) => {
       locationStatus = distance <= event.radius_meters ? 'VERIFIED' : 'REJECTED'
     }
 
-    const locationVerified = locationStatus === 'VERIFIED'
+       // STEP 5: Check movement trust against the player's last location
+    // check BEFORE deciding points — a spoofed jump shouldn't earn points
+    // even if it lands inside the event radius.
+    const movement = await analyzeMovement(user_id, parseFloat(claimed_lat) || 0, parseFloat(claimed_lng) || 0)
+    const finalStatus = locationStatus === 'VERIFIED' && movement.isSuspicious ? 'SPOOFED' : locationStatus
+    const locationVerified = finalStatus === 'VERIFIED'
 
-    // STEP 5: Points require BOTH a correct answer AND a verified
-    // location — someone who somehow answers correctly from outside the
-    // radius (e.g. GET was allowed under a stale location, then they
-    // walked away before submitting) still shouldn't be rewarded.
+    // Points require a correct answer AND a verified (non-spoofed)
+    // location — someone who answers correctly from outside the radius,
+    // or via an impossible teleport between attempts, still shouldn't be
+    // rewarded.
     const pointsAwarded = isCorrect && locationVerified ? (event?.point_reward || 10) : 0
-
     // STEP 6: ATOMIC AWARD + LOG + POINTS (user story 8).
     //
     // The eligibility check, the award-ledger insert (event_card_awards,
@@ -275,18 +280,21 @@ router.post('/submit', requireAuth, async (req, res) => {
     try {
       await conn.beginTransaction()
 
-      // 6a. Log the location check with REAL values (replaces the old
-      // hardcoded 0, 0, 0, 'VERIFIED').
+            // 6a. Log the location check with REAL values (including the
+      // previously-unused prev_check_id / travel_speed_ms columns), and
+      // finalStatus computed above in STEP 5.
       const [locCheck] = await conn.query(
-        `INSERT INTO location_check_log (user_id, event_id, claimed_lat, claimed_lng, distance_meters, status)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO location_check_log (user_id, event_id, claimed_lat, claimed_lng, distance_meters, status, prev_check_id, travel_speed_ms)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           user_id,
           event_id,
           claimed_lat ?? 0,
           claimed_lng ?? 0,
           distance !== null ? Math.round(distance) : 0,
-          locationStatus,
+          finalStatus,
+          movement.prevCheckId,
+          movement.travelSpeedMps,
         ]
       )
 
@@ -295,7 +303,7 @@ router.post('/submit', requireAuth, async (req, res) => {
       // logged in 6c but never triggers issuance. awardCardIfEligible does
       // the canAwardCard check itself, so a retry after a prior win returns
       // ALREADY_EARNED and touches nothing.
-      award = (isCorrect && locationVerified)
+      award = (isCorrect && finalStatus === 'VERIFIED')
         ? await awardCardIfEligible(conn, { user_id, event_id })
         : { awarded: false, card: null, card_id: null, reason: 'NOT_A_WIN' }
 
