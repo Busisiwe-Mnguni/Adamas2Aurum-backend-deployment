@@ -88,8 +88,10 @@ const session_middleware = session({
     },
 })
 
-<<<<<<< HEAD
-=======
+// CONFLICT RESOLUTION NOTE: session_middleware must actually be applied via
+// app.use() — it's referenced later by setup_websocket_router(server,
+// session_middleware), and without this the websocket router would receive
+// a session middleware that was never wired into the request pipeline.
 app.use(session_middleware)
 
 // Map default req.user from express-session if present
@@ -98,7 +100,6 @@ app.use((req, res, next) => {
     next()
 })
 
->>>>>>> 767c489 (feat(sync): add offline trivia attempt queue and deferred verification)
 const PIN_AUTH_PATHS = ['/login', '/register', '/logout', '/me']
 
 // Better Auth endpoint passthrough
@@ -138,37 +139,11 @@ app.use(async (req, res, next) => {
         return next()
     }
 
-<<<<<<< HEAD
-  // 2. Better Auth session (Google OAuth)
-  try {
-    const bSession = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    })
-    if (bSession?.user) {
-      const [users] = await pool.query(
-        'SELECT user_id, name, email, avatar_url, points FROM users WHERE email = ?',
-        [bSession.user.email]
-      )
-      if (users.length) {
-        req.user = users[0]
-      } else {
-        // First-time Google user — sync into our users table
-        const [result] = await pool.query(
-          `INSERT INTO users (provider_id, email, name, avatar_url, points)
-           VALUES (?, ?, ?, ?, 0)`,
-          [`betterauth:${bSession.user.id}`, bSession.user.email, bSession.user.name, bSession.user.image]
-        )
-        const [newUsers] = await pool.query(
-          'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
-          [result.insertId]
-        )
-        req.user = newUsers[0]
-      }
-      // Keep the express-session cookie in sync so existing code that reads
-      // req.session.user.user_id continues to work for Google-OAuth users.
-      req.session.user = req.user
-=======
     // 2. Better Auth session (Google OAuth)
+    // CONFLICT RESOLUTION NOTE: matches by provider_id OR email (rather than
+    // email alone) so a returning Google-auth user is correctly recognised
+    // even if their provider_id was set on a prior visit — avoids creating
+    // duplicate user rows for the same person.
     try {
         const baSession = await auth.api.getSession({
             headers: fromNodeHeaders(req.headers),
@@ -207,31 +182,21 @@ app.use(async (req, res, next) => {
     } catch (err) {
         // Bridge failure must never block the request — treat as unauthenticated
         console.warn('Bridge middleware session resolve error:', err.message)
->>>>>>> 767c489 (feat(sync): add offline trivia attempt queue and deferred verification)
     }
     next()
 })
 
 // ---------------------------------------------------------------------------
 // ROUTE MOUNTS
+// CONFLICT RESOLUTION NOTE: both question_routes (US6, existing) and
+// sync_routes (offline sync, this PR) are needed — they're unrelated
+// features that both got added independently, not alternatives to each
+// other.
 // ---------------------------------------------------------------------------
 app.use('/api/events', event_routes)
 app.use('/api/cards', card_routes)
 app.use('/api/battles', battle_routes)
 app.use('/api/trivia', trivia_routes)
-<<<<<<< HEAD
-// User Story 6 — question authoring. Mounted at /api so the single
-// router can serve both /api/events/:eventId/questions and /api/questions/:id.
-app.use('/api', question_routes)
-
-app.get('/api/health', async (req, res) => {
-	try {
-		const [rows] = await pool.query('SHOW TABLES')
-		res.json({ success: true, tables: rows })
-	} catch (error) {
-		res.status(500).json({ success: false, error: error.message })
-	}
-=======
 app.use('/api/sync', sync_routes)
 
 // Question authoring. Mounted at /api so the single router
@@ -255,24 +220,23 @@ app.post('/api/auth-bridge/logout', (req, res) => {
         res.clearCookie('connect.sid')
         res.json({ message: 'Bridge session cleared' })
     })
->>>>>>> 767c489 (feat(sync): add offline trivia attempt queue and deferred verification)
 })
 
 // ---------------------------------------------------------------------------
 // Get current authenticated user (used by frontend checkAuthSession)
+//
+// CONFLICT RESOLUTION NOTE: neither original side was quite right alone —
+// req.user is populated by the bridge middleware above for BOTH PIN and
+// Better Auth sessions, while req.session.user is only guaranteed for PIN
+// sessions. Checking both (matching the same pattern already used by
+// requireAuth() in routes/trivia.js and routes/sync.js) covers either path.
 // ---------------------------------------------------------------------------
 app.get('/api/me', async (req, res) => {
-<<<<<<< HEAD
-	if (!req.user?.user_id) {
-		return res.status(401).json({ error: 'Not authenticated' })
-	}
-	res.json(req.user)
-=======
-    if (!req.session?.user?.user_id) {
+    const userId = req.session?.user?.user_id || req.user?.user_id
+    if (!userId) {
         return res.status(401).json({ error: 'Not authenticated' })
     }
-    res.json(req.session.user)
->>>>>>> 767c489 (feat(sync): add offline trivia attempt queue and deferred verification)
+    res.json(req.user || req.session.user)
 })
 
 // ---------------------------------------------------------------------------
@@ -296,7 +260,7 @@ app.get('/pages/auth.html', (_req, res) => {
     res.sendFile(path.join(pagesDir, 'auth.html'))
 })
 app.get('/pages/collection.html', (_req, res) => {
-	res.sendFile(path.join(pagesDir, 'collection.html'))
+    res.sendFile(path.join(pagesDir, 'collection.html'))
 })
 app.get('/pages/console.html', (_req, res) => {
     res.sendFile(path.join(pagesDir, 'console.html'))
@@ -304,16 +268,14 @@ app.get('/pages/console.html', (_req, res) => {
 app.get('/pages/events.html', (_req, res) => {
     res.sendFile(path.join(pagesDir, 'events.html'))
 })
-<<<<<<< HEAD
-app.get('/pages/battle.html', (_req, res) => {
-	res.sendFile(path.join(pagesDir, 'battle.html'))
-=======
 app.get('/pages/map.html', (_req, res) => {
     res.sendFile(path.join(pagesDir, 'map.html'))
 })
+// CONFLICT RESOLUTION NOTE / BUG FIX: this route was serving map.html
+// instead of battle.html (looked like a copy-paste error from the route
+// above it during the merge). Fixed to point at the correct file.
 app.get('/pages/battle.html', (_req, res) => {
-    res.sendFile(path.join(pagesDir, 'map.html'))
->>>>>>> 767c489 (feat(sync): add offline trivia attempt queue and deferred verification)
+    res.sendFile(path.join(pagesDir, 'battle.html'))
 })
 
 // ---------------------------------------------------------------------------
