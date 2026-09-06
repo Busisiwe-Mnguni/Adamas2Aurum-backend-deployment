@@ -1,4 +1,3 @@
-import './env.js'
 import pool from './utils/db.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 
