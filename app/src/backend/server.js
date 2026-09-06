@@ -43,18 +43,15 @@ const PORT = process.env.PORT || 3000
 
 app.use(express.json())
 
-var allowed_origins
-if (process.env.FRONTEND_URL) {
-	allowed_origins = [process.env.FRONTEND_URL]
-} else {
-	allowed_origins = [
+var allowed_origins = [
 		'http://localhost:8055',
 		'http://localhost:5173',
 		'http://127.0.0.1:5173',
 		'http://localhost:3000',
 		'http://127.0.0.1:3000',
 	]
-}
+if (process.env.FRONTEND_URL)
+	allowed_origins.push(process.env.FRONTEND_URL)
 
 app.use(
 	cors({
