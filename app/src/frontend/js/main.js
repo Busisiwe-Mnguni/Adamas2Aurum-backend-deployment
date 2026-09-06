@@ -714,10 +714,16 @@ function setupAuthDrawerHandlers() {
 			const username = document
 				.getElementById('drawer-login-username')
 				.value.trim()
-			const pin = document.getElementById('drawer-login-pin').value
+			const pin =
+				document.getElementById(
+					'drawer-login-pin'
+				).value
 
 			showDrawerStatus('Signing in...', false)
-			const { data, error } = await usernameSignIn(username, pin)
+			const { data, error } = await usernameSignIn(
+				username,
+				pin
+			)
 
 			if (error) {
 				showDrawerStatus(
@@ -743,7 +749,10 @@ function setupAuthDrawerHandlers() {
 			const username = document
 				.getElementById('drawer-signup-username')
 				.value.trim()
-			const pin = document.getElementById('drawer-signup-pin').value
+			const pin =
+				document.getElementById(
+					'drawer-signup-pin'
+				).value
 			const confirm = document.getElementById(
 				'drawer-signup-pin-confirm'
 			).value

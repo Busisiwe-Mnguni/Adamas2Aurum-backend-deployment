@@ -55,24 +55,29 @@ router.get('/get-all', requireAuth, async (req, res) => {
  * so next() was never called and every POST/PUT/DELETE hung forever.
  */
 async function requireCardAuthor(req, res, next) {
-	const allowedRoles = ['SUPER_ADMIN', 'CARD_AUTHOR'];
-	const placeholders = allowedRoles.map(() => '?').join(', ');
+	const allowedRoles = ['SUPER_ADMIN', 'CARD_AUTHOR']
+	const placeholders = allowedRoles.map(() => '?').join(', ')
 
 	const sql = `
 		SELECT 1 FROM admin_roles
 		WHERE user_id = ?
 			AND role IN (${placeholders})
 		LIMIT 1
-	`;
+	`
 
 	try {
-		const [rows] = await pool.query(sql, [req.user.user_id, ...allowedRoles]);
+		const [rows] = await pool.query(sql, [
+			req.user.user_id,
+			...allowedRoles,
+		])
 		if (!rows.length) {
-			return res.status(403).json({ error: 'Forbidden — card author role required' });
+			return res.status(403).json({
+				error: 'Forbidden — card author role required',
+			})
 		}
-		next();
+		next()
 	} catch (err) {
-		return res.status(500).json({ error: err.message });
+		return res.status(500).json({ error: err.message })
 	}
 }
 
@@ -165,8 +170,13 @@ router.post('/', requireAuth, requireCardAuthor, async (req, res) => {
 		})
 	}
 
-	const valid_categories = ['CHARACTER', 'LOCATION', 'INFLUENCE', 'HISTORICAL']
-	const valid_rarities   = ['COMMON', 'RARE', 'LEGENDARY']
+	const valid_categories = [
+		'CHARACTER',
+		'LOCATION',
+		'INFLUENCE',
+		'HISTORICAL',
+	]
+	const valid_rarities = ['COMMON', 'RARE', 'LEGENDARY']
 
 	if (!valid_categories.includes(category)) {
 		return res.status(400).json({
@@ -190,22 +200,25 @@ router.post('/', requireAuth, requireCardAuthor, async (req, res) => {
 
 	const values = [
 		name,
-		flavour_text  ?? null,
-		image_url     ?? null,
+		flavour_text ?? null,
+		image_url ?? null,
 		category,
 		rarity,
-		stat_attack   ?? 0,
+		stat_attack ?? 0,
 		stat_location ?? 0,
 		stat_influence ?? 0,
-		stat_legacy   ?? 100,
-		stat_era      ?? 0,
-		ability_name  ?? null,
-		ability_desc  ?? null,
+		stat_legacy ?? 100,
+		stat_era ?? 0,
+		ability_name ?? null,
+		ability_desc ?? null,
 	]
 
 	try {
 		const [result] = await pool.query(sql, values)
-		res.status(201).json({ message: 'Card created', card_id: result.insertId })
+		res.status(201).json({
+			message: 'Card created',
+			card_id: result.insertId,
+		})
 	} catch (err) {
 		res.status(500).json({ error: err.message })
 	}
@@ -253,17 +266,17 @@ router.put('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 
 	const values = [
 		name,
-		flavour_text   ?? null,
-		image_url      ?? null,
+		flavour_text ?? null,
+		image_url ?? null,
 		category,
 		rarity,
-		stat_attack    ?? 0,
-		stat_location  ?? 0,
+		stat_attack ?? 0,
+		stat_location ?? 0,
 		stat_influence ?? 0,
-		stat_legacy    ?? 100,
-		stat_era       ?? 0,
-		ability_name   ?? null,
-		ability_desc   ?? null,
+		stat_legacy ?? 100,
+		stat_era ?? 0,
+		ability_name ?? null,
+		ability_desc ?? null,
 		req.params.id,
 	]
 
@@ -291,8 +304,7 @@ router.delete('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 	} catch (err) {
 		if (err.code === 'ER_ROW_IS_REFERENCED_2') {
 			return res.status(409).json({
-				error:
-					'Cannot delete — card is still linked to an event pool or player collection. Remove those links first.',
+				error: 'Cannot delete — card is still linked to an event pool or player collection. Remove those links first.',
 			})
 		}
 		res.status(500).json({ error: err.message })

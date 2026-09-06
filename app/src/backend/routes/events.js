@@ -13,12 +13,14 @@ router.use((req, res, next) => {
 })
 
 function requireAuth(req, res, next) {
-	const userId = req.session?.user?.user_id || req.user?.user_id;
+	const userId = req.session?.user?.user_id || req.user?.user_id
 	if (!userId) {
-		return res.status(401).json({ error: 'Unauthorised — please log in' })
+		return res
+			.status(401)
+			.json({ error: 'Unauthorised — please log in' })
 	}
 	if (!req.user) {
-		req.user = req.session.user;
+		req.user = req.session.user
 	}
 	next()
 }
@@ -29,34 +31,42 @@ function requireAuth(req, res, next) {
  * middleware actually calls next() instead of hanging forever.
  */
 async function requireEventAuthor(req, res, next) {
-  const allowedRoles = ['SUPER_ADMIN', 'EVENT_AUTHOR'];
-  const placeholders = allowedRoles.map(() => '?').join(', ');
+	const allowedRoles = ['SUPER_ADMIN', 'EVENT_AUTHOR']
+	const placeholders = allowedRoles.map(() => '?').join(', ')
 
-  const sql = `
+	const sql = `
     SELECT 1 FROM admin_roles
     WHERE user_id = ?
       AND role IN (${placeholders})
     LIMIT 1
-  `;
+  `
 
-  try {
-    const [rows] = await pool.query(sql, [req.user.user_id, ...allowedRoles]);
-    if (!rows.length) {
-      return res.status(403).json({ error: 'Forbidden — event author role required' });
-    }
-    next();
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
+	try {
+		const [rows] = await pool.query(sql, [
+			req.user.user_id,
+			...allowedRoles,
+		])
+		if (!rows.length) {
+			return res.status(403).json({
+				error: 'Forbidden — event author role required',
+			})
+		}
+		next()
+	} catch (err) {
+		return res.status(500).json({ error: err.message })
+	}
 }
 
 router.get('/', async (req, res) => {
 	try {
 		// Author-only: return every event (including inactive / future) for management
 		if (req.query.all === 'true') {
-			const userId = req.session?.user?.user_id || req.user?.user_id;
+			const userId =
+				req.session?.user?.user_id || req.user?.user_id
 			if (!userId) {
-				return res.status(401).json({ error: 'Unauthorised — please log in' });
+				return res.status(401).json({
+					error: 'Unauthorised — please log in',
+				})
 			}
 
 			const [roles] = await pool.query(
@@ -64,14 +74,18 @@ router.get('/', async (req, res) => {
 				 WHERE user_id = ? AND role IN (?, ?) 
 				 LIMIT 1`,
 				[userId, 'SUPER_ADMIN', 'EVENT_AUTHOR']
-			);
+			)
 
 			if (!roles.length) {
-				return res.status(403).json({ error: 'Forbidden — event author access required' });
+				return res.status(403).json({
+					error: 'Forbidden — event author access required',
+				})
 			}
 
-			const [results] = await pool.query('SELECT * FROM events ORDER BY created_at DESC');
-			return res.json(results);
+			const [results] = await pool.query(
+				'SELECT * FROM events ORDER BY created_at DESC'
+			)
+			return res.json(results)
 		}
 
 		// Public: only events that are active AND inside their time window
@@ -80,12 +94,12 @@ router.get('/', async (req, res) => {
 			 WHERE is_active = TRUE 
 			   AND (starts_at IS NULL OR starts_at <= NOW()) 
 			   AND (ends_at IS NULL OR ends_at >= NOW())`
-		);
-		res.json(results);
+		)
+		res.json(results)
 	} catch (err) {
-		res.status(500).json({ error: err.message });
+		res.status(500).json({ error: err.message })
 	}
-});
+})
 
 router.get('/:id', async (req, res) => {
 	try {
@@ -94,7 +108,9 @@ router.get('/:id', async (req, res) => {
 			[req.params.id]
 		)
 		if (!results.length) {
-			return res.status(404).json({ error: 'Event not found' })
+			return res
+				.status(404)
+				.json({ error: 'Event not found' })
 		}
 		res.json(results[0])
 	} catch (err) {
@@ -149,11 +165,14 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
 		attempt_cooldown_s ?? 86400,
 		max_attempts_per_window ?? 1,
 		req.user.user_id,
-	];
+	]
 
 	try {
 		const [result] = await pool.query(sql, values)
-		res.status(201).json({ message: 'Event created', event_id: result.insertId })
+		res.status(201).json({
+			message: 'Event created',
+			event_id: result.insertId,
+		})
 	} catch (err) {
 		res.status(500).json({ error: err.message })
 	}
@@ -215,7 +234,9 @@ router.put('/:id', requireAuth, requireEventAuthor, async (req, res) => {
 	try {
 		const [result] = await pool.query(sql, values)
 		if (!result.affectedRows) {
-			return res.status(404).json({ error: 'Event not found' })
+			return res
+				.status(404)
+				.json({ error: 'Event not found' })
 		}
 		res.json({ message: 'Event updated' })
 	} catch (err) {
@@ -230,7 +251,9 @@ router.delete('/:id', requireAuth, requireEventAuthor, async (req, res) => {
 			[req.params.id]
 		)
 		if (!result.affectedRows) {
-			return res.status(404).json({ error: 'Event not found' })
+			return res
+				.status(404)
+				.json({ error: 'Event not found' })
 		}
 		res.json({ message: 'Event deleted' })
 	} catch (err) {

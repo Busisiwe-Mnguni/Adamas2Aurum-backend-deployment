@@ -26,22 +26,30 @@
 						href="events.html"
 						class="nav-link hidden"
 						id="nav-events"
-					>Events</a>
+					>
+						Events
+					</a>
 					<a
 						href="collection.html"
 						class="nav-link nav-link-active hidden"
 						id="nav-collection"
-					>Collection</a>
+					>
+						Collection
+					</a>
 					<a
 						href="battle.html"
 						class="nav-link hidden"
 						id="nav-battle"
-					>Battle</a>
+					>
+						Battle
+					</a>
 					<a
 						href="console.html"
 						class="nav-link nav-link-admin hidden"
 						id="nav-console"
-					>Console</a>
+					>
+						Console
+					</a>
 				</nav>
 				<div class="header-right">
 					<span
@@ -72,34 +80,83 @@
 			<div id="collection-content" class="hidden">
 				<div class="page-header">
 					<div>
-						<h1 class="page-title">My Collection</h1>
-						<p class="page-subtitle" id="collection-subtitle">
+						<h1 class="page-title">
+							My Collection
+						</h1>
+						<p
+							class="page-subtitle"
+							id="collection-subtitle"
+						>
 							Loading…
 						</p>
 					</div>
 					<!-- Filter controls -->
-					<div class="collection-filters" id="collection-filters" style="display:none;">
-						<select id="filter-category" class="filter-select">
-							<option value="">All categories</option>
-							<option value="CHARACTER">Character</option>
-							<option value="LOCATION">Location</option>
-							<option value="INFLUENCE">Influence</option>
-							<option value="HISTORICAL">Historical</option>
+					<div
+						class="collection-filters"
+						id="collection-filters"
+						style="display: none"
+					>
+						<select
+							id="filter-category"
+							class="filter-select"
+						>
+							<option value="">
+								All categories
+							</option>
+							<option
+								value="CHARACTER"
+							>
+								Character
+							</option>
+							<option
+								value="LOCATION"
+							>
+								Location
+							</option>
+							<option
+								value="INFLUENCE"
+							>
+								Influence
+							</option>
+							<option
+								value="HISTORICAL"
+							>
+								Historical
+							</option>
 						</select>
-						<select id="filter-rarity" class="filter-select">
-							<option value="">All rarities</option>
-							<option value="COMMON">Common</option>
-							<option value="RARE">Rare</option>
-							<option value="LEGENDARY">Legendary</option>
+						<select
+							id="filter-rarity"
+							class="filter-select"
+						>
+							<option value="">
+								All rarities
+							</option>
+							<option value="COMMON">
+								Common
+							</option>
+							<option value="RARE">
+								Rare
+							</option>
+							<option
+								value="LEGENDARY"
+							>
+								Legendary
+							</option>
 						</select>
 					</div>
 				</div>
 
-				<div id="loading" class="state-msg">Loading your cards…</div>
-				<div id="empty" class="state-msg hidden">
-					No cards yet — head out to campus events to earn your first one.
+				<div id="loading" class="state-msg">
+					Loading your cards…
 				</div>
-				<div id="error" class="state-msg error hidden"></div>
+				<div id="empty" class="state-msg hidden">
+					No cards yet — head out to campus events
+					to earn your first one.
+				</div>
+				<div
+					id="error"
+					class="state-msg error hidden"
+				></div>
 
 				<ul id="card-list" class="collection-grid"></ul>
 			</div>
