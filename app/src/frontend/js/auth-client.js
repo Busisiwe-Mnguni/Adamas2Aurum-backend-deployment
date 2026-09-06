@@ -34,7 +34,8 @@ export async function usernameSignUp(name, username, pin) {
 			body: JSON.stringify({ name, email: username, pin }),
 		})
 		const data = await res.json()
-		if (!res.ok) throw new Error(data.error || 'Registration failed')
+		if (!res.ok)
+			throw new Error(data.error || 'Registration failed')
 		return { data: data.user, error: null }
 	} catch (error) {
 		return { data: null, error }

@@ -3,14 +3,14 @@ import { get_player_location } from './geolocation.js'
 import { distance } from './general.js'
 import { updateAuthNav } from './auth-helpers.js'
 
-const AUTH_API  = `${API_BASE}/api/auth`
+const AUTH_API = `${API_BASE}/api/auth`
 const EVENT_API = `${API_BASE}/api/events`
 
 // ── DOM ──────────────────────────────────────────────────────
 const btnLogout = document.getElementById('btn-logout')
-const elLoading   = document.getElementById('map-loading')
-const elError     = document.getElementById('map-error')
-const elSidebar   = document.getElementById('map-sidebar')
+const elLoading = document.getElementById('map-loading')
+const elError = document.getElementById('map-error')
+const elSidebar = document.getElementById('map-sidebar')
 
 // ── Map ───────────────────────────────────────────────────────
 const map = L.map('map', {
@@ -21,7 +21,8 @@ const map = L.map('map', {
 })
 
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+	attribution:
+		'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 	maxZoom: 19,
 }).addTo(map)
 
@@ -76,7 +77,9 @@ let currentUser = null
 
 async function checkAuth() {
 	try {
-		const res = await fetch(`${AUTH_API}/me`, { credentials: 'include' })
+		const res = await fetch(`${AUTH_API}/me`, {
+			credentials: 'include',
+		})
 		if (!res.ok) throw new Error()
 		currentUser = await res.json()
 		updateAuthNav(currentUser)
@@ -87,7 +90,10 @@ async function checkAuth() {
 }
 
 btnLogout.addEventListener('click', async () => {
-	await fetch(`${AUTH_API}/logout`, { method: 'POST', credentials: 'include' })
+	await fetch(`${AUTH_API}/logout`, {
+		method: 'POST',
+		credentials: 'include',
+	})
 	window.location.href = '../index.html'
 })
 
@@ -107,7 +113,9 @@ function startGeolocation() {
 		(pos) => {
 			const ll = [pos.coords.latitude, pos.coords.longitude]
 			if (!playerMarker) {
-				playerMarker = L.marker(ll, { icon: playerIcon })
+				playerMarker = L.marker(ll, {
+					icon: playerIcon,
+				})
 					.addTo(map)
 					.bindPopup('📍 You are here')
 			} else {
@@ -126,33 +134,52 @@ async function loadEvents() {
 		elError.classList.add('hidden')
 
 		const res = await fetch(EVENT_API, { cache: 'no-store' })
-		if (!res.ok) throw new Error(`Server responded with ${res.status}`)
+		if (!res.ok)
+			throw new Error(`Server responded with ${res.status}`)
 		const events = await res.json()
 
 		elLoading.classList.add('hidden')
 
 		if (!events.length) {
-			elError.textContent = 'No active events right now — check back later.'
+			elError.textContent =
+				'No active events right now — check back later.'
 			elError.classList.remove('hidden')
 			return
 		}
 
 		let playerLoc = null
-		try { playerLoc = await get_player_location() } catch { /* fine */ }
+		try {
+			playerLoc = await get_player_location()
+		} catch {
+			/* fine */
+		}
 
 		events.forEach((ev) => {
-			const ll = [parseFloat(ev.latitude), parseFloat(ev.longitude)]
+			const ll = [
+				parseFloat(ev.latitude),
+				parseFloat(ev.longitude),
+			]
 			// FIX: distance() expects two {latitude, longitude} objects, not 4 args
 			const inRange = playerLoc
 				? distance(
-					{ latitude: playerLoc[0], longitude: playerLoc[1] },
-					{ latitude: ll[0], longitude: ll[1] }
-				  ) <= ev.radius_meters
+						{
+							latitude: playerLoc[0],
+							longitude: playerLoc[1],
+						},
+						{
+							latitude: ll[0],
+							longitude: ll[1],
+						}
+					) <= ev.radius_meters
 				: false
 
-			const marker = L.marker(ll, { icon: makeEventIcon(inRange) })
+			const marker = L.marker(ll, {
+				icon: makeEventIcon(inRange),
+			})
 				.addTo(map)
-				.bindPopup(buildPopup(ev, inRange), { maxWidth: 260 })
+				.bindPopup(buildPopup(ev, inRange), {
+					maxWidth: 260,
+				})
 
 			eventMarkers.push(marker)
 			addSidebarEvent(ev, inRange, marker)
@@ -206,9 +233,15 @@ function addSidebarEvent(ev, inRange, marker) {
 	`
 
 	card.addEventListener('click', () => {
-		map.setView([parseFloat(ev.latitude), parseFloat(ev.longitude)], 18, { animate: true })
+		map.setView(
+			[parseFloat(ev.latitude), parseFloat(ev.longitude)],
+			18,
+			{ animate: true }
+		)
 		marker.openPopup()
-		document.querySelectorAll('.sidebar-event').forEach((c) => c.classList.remove('active'))
+		document.querySelectorAll('.sidebar-event').forEach((c) =>
+			c.classList.remove('active')
+		)
 		card.classList.add('active')
 	})
 
@@ -222,15 +255,20 @@ window._challenge = async function (eventId) {
 		return
 	}
 	try {
-		const res = await fetch(`${API_BASE}/api/trivia/event/${eventId}`, {
-			credentials: 'include',
-		})
+		const res = await fetch(
+			`${API_BASE}/api/trivia/event/${eventId}`,
+			{
+				credentials: 'include',
+			}
+		)
 		if (res.status === 401) {
 			window.location.href = '../index.html'
 			return
 		}
 		if (!res.ok) {
-			alert('No trivia challenge available for this event right now.')
+			alert(
+				'No trivia challenge available for this event right now.'
+			)
 			return
 		}
 		showTriviaModal(eventId, await res.json())
@@ -249,7 +287,9 @@ function showTriviaModal(eventId, trivia) {
 		display:flex;align-items:center;justify-content:center;z-index:10000;
 	`
 
-	const optionsHtml = trivia.options.map((opt) => `
+	const optionsHtml = trivia.options
+		.map(
+			(opt) => `
 		<button onclick="window._submitAnswer(${eventId},${trivia.question_id},${opt.option_id})"
 			style="
 				display:block;width:100%;margin:6px 0;padding:10px 14px;
@@ -262,7 +302,9 @@ function showTriviaModal(eventId, trivia) {
 			onmouseout="this.style.borderColor='';this.style.background=''">
 			${opt.body}
 		</button>
-	`).join('')
+	`
+		)
+		.join('')
 
 	overlay.innerHTML = `
 		<div style="

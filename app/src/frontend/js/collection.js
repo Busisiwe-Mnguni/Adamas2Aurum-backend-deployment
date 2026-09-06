@@ -1,31 +1,36 @@
 import { API_BASE } from './constants.js'
 import { updateAuthNav } from './auth-helpers.js'
 
-const AUTH_API  = `${API_BASE}/api/auth`
+const AUTH_API = `${API_BASE}/api/auth`
 const CARDS_API = `${API_BASE}/api/cards`
 
-//  DOM refs 
-const elContent     = document.getElementById('collection-content')
-const elLoading     = document.getElementById('loading')
-const elEmpty       = document.getElementById('empty')
-const elError       = document.getElementById('error')
-const elCardList    = document.getElementById('card-list')
-const elSubtitle    = document.getElementById('collection-subtitle')
-const elFilters     = document.getElementById('collection-filters')
+//  DOM refs
+const elContent = document.getElementById('collection-content')
+const elLoading = document.getElementById('loading')
+const elEmpty = document.getElementById('empty')
+const elError = document.getElementById('error')
+const elCardList = document.getElementById('card-list')
+const elSubtitle = document.getElementById('collection-subtitle')
+const elFilters = document.getElementById('collection-filters')
 const btnLogout = document.getElementById('btn-logout')
-const filterCat     = document.getElementById('filter-category')
-const filterRarity  = document.getElementById('filter-rarity')
+const filterCat = document.getElementById('filter-category')
+const filterRarity = document.getElementById('filter-rarity')
 
-//  Auth 
+//  Auth
 
 btnLogout.addEventListener('click', async () => {
-  await fetch(`${AUTH_API}/logout`, { method: 'POST', credentials: 'include' });
-  window.location.href = '../index.html';
-});
+	await fetch(`${AUTH_API}/logout`, {
+		method: 'POST',
+		credentials: 'include',
+	})
+	window.location.href = '../index.html'
+})
 
 async function checkAccess() {
 	try {
-		const res = await fetch(`${AUTH_API}/me`, { credentials: 'include' })
+		const res = await fetch(`${AUTH_API}/me`, {
+			credentials: 'include',
+		})
 		if (!res.ok) throw new Error('Not authenticated')
 		const user = await res.json()
 
@@ -39,7 +44,7 @@ async function checkAccess() {
 	}
 }
 
-//  Load collection 
+//  Load collection
 
 let allCards = []
 
@@ -55,7 +60,8 @@ async function loadCollection() {
 		const res = await fetch(`${CARDS_API}/collection/mine`, {
 			credentials: 'include',
 		})
-		if (!res.ok) throw new Error(`Server responded with ${res.status}`)
+		if (!res.ok)
+			throw new Error(`Server responded with ${res.status}`)
 		allCards = await res.json()
 
 		elLoading.classList.add('hidden')
@@ -66,7 +72,7 @@ async function loadCollection() {
 			return
 		}
 
-		elSubtitle.textContent  = `${allCards.length} card${allCards.length !== 1 ? 's' : ''} collected`
+		elSubtitle.textContent = `${allCards.length} card${allCards.length !== 1 ? 's' : ''} collected`
 		elFilters.style.display = ''
 		renderCards(allCards)
 	} catch (err) {
@@ -76,18 +82,18 @@ async function loadCollection() {
 	}
 }
 
-// Filtering 
+// Filtering
 
-filterCat.addEventListener('change',    applyFilters)
+filterCat.addEventListener('change', applyFilters)
 filterRarity.addEventListener('change', applyFilters)
 
 function applyFilters() {
-	const cat    = filterCat.value
+	const cat = filterCat.value
 	const rarity = filterRarity.value
 
 	const filtered = allCards.filter((card) => {
-		if (cat    && card.category !== cat)    return false
-		if (rarity && card.rarity   !== rarity) return false
+		if (cat && card.category !== cat) return false
+		if (rarity && card.rarity !== rarity) return false
 		return true
 	})
 
@@ -101,28 +107,30 @@ function applyFilters() {
 	}
 }
 
-//  Render 
+//  Render
 
 function renderCards(cards) {
-	cards.forEach((card) => elCardList.appendChild(buildCollectionCard(card)))
+	cards.forEach((card) =>
+		elCardList.appendChild(buildCollectionCard(card))
+	)
 }
 
 const RARITY_COLOURS = {
-	COMMON:    'var(--text-muted)',
-	RARE:      '#60a5fa',
+	COMMON: 'var(--text-muted)',
+	RARE: '#60a5fa',
 	LEGENDARY: '#f59e0b',
 }
 
 const RARITY_LABELS = {
-	COMMON:    'Common',
-	RARE:      'Rare ✦',
+	COMMON: 'Common',
+	RARE: 'Rare ✦',
 	LEGENDARY: 'Legendary ✦✦',
 }
 
 const CATEGORY_ROLES = {
-	CHARACTER:  'Attacker',
-	LOCATION:   'Evasion',
-	INFLUENCE:  'Buff / Debuff',
+	CHARACTER: 'Attacker',
+	LOCATION: 'Evasion',
+	INFLUENCE: 'Buff / Debuff',
 	HISTORICAL: 'Revive',
 }
 
@@ -131,8 +139,8 @@ function buildCollectionCard(card) {
 	li.className = 'collection-card'
 
 	const rarityColour = RARITY_COLOURS[card.rarity] ?? 'inherit'
-	const rarityLabel  = RARITY_LABELS[card.rarity]  ?? card.rarity
-	const roleLabel    = CATEGORY_ROLES[card.category] ?? card.category
+	const rarityLabel = RARITY_LABELS[card.rarity] ?? card.rarity
+	const roleLabel = CATEGORY_ROLES[card.category] ?? card.category
 
 	const obtainedDate = new Date(card.obtained_at).toLocaleDateString(
 		undefined,
@@ -141,9 +149,10 @@ function buildCollectionCard(card) {
 
 	li.innerHTML = `
 		<div class="cc-header" style="border-top: 3px solid ${rarityColour};">
-			${card.image_url
-				? `<img class="cc-image" src="${card.image_url}" alt="${card.name}" />`
-				: `<div class="cc-image-placeholder">${card.name.charAt(0)}</div>`
+			${
+				card.image_url
+					? `<img class="cc-image" src="${card.image_url}" alt="${card.name}" />`
+					: `<div class="cc-image-placeholder">${card.name.charAt(0)}</div>`
 			}
 			<div class="cc-title-block">
 				<div class="cc-name">${card.name}</div>
@@ -154,10 +163,7 @@ function buildCollectionCard(card) {
 		<div class="cc-body">
 			<div class="cc-category">${card.category} — <span class="cc-role">${roleLabel}</span></div>
 
-			${card.flavour_text
-				? `<p class="cc-flavour">"${card.flavour_text}"</p>`
-				: ''
-			}
+			${card.flavour_text ? `<p class="cc-flavour">"${card.flavour_text}"</p>` : ''}
 
 			<div class="cc-stats">
 				<div class="cc-stat"><span class="cc-stat-label">ATK</span><span class="cc-stat-value">${card.stat_attack}</span></div>
@@ -167,12 +173,13 @@ function buildCollectionCard(card) {
 				<div class="cc-stat"><span class="cc-stat-label">ERA</span><span class="cc-stat-value">${card.stat_era}</span></div>
 			</div>
 
-			${card.ability_name
-				? `<div class="cc-ability">
+			${
+				card.ability_name
+					? `<div class="cc-ability">
 						<span class="cc-ability-name">⚡ ${card.ability_name}</span>
 						${card.ability_desc ? `<span class="cc-ability-desc"> — ${card.ability_desc}</span>` : ''}
 					</div>`
-				: ''
+					: ''
 			}
 		</div>
 

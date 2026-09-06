@@ -34,11 +34,9 @@ export function updateAuthNav(user) {
 	const btnLogout = document.getElementById('btn-logout')
 	const btnSignin = document.getElementById('btn-signin')
 	const navConsole = document.getElementById('nav-console')
-	const playerLinks = [
-		'nav-events',
-		'nav-collection',
-		'nav-battle',
-	].map((id) => document.getElementById(id))
+	const playerLinks = ['nav-events', 'nav-collection', 'nav-battle'].map(
+		(id) => document.getElementById(id)
+	)
 
 	if (user) {
 		if (badge) {
@@ -52,7 +50,9 @@ export function updateAuthNav(user) {
 			playerLinks.forEach((el) => el?.classList.add('hidden'))
 			if (navConsole) navConsole.classList.remove('hidden')
 		} else {
-			playerLinks.forEach((el) => el?.classList.remove('hidden'))
+			playerLinks.forEach((el) =>
+				el?.classList.remove('hidden')
+			)
 			if (navConsole) navConsole.classList.add('hidden')
 		}
 	} else {
