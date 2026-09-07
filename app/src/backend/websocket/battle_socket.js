@@ -1,5 +1,6 @@
 import { WebSocketServer } from 'ws'
 import pool from '../utils/db.js'
+import { valid_user_cards, get_active_battle } from '../utils/battle.js'
 import {
 	load_battle_state,
 	get_battle_state,
@@ -16,6 +17,20 @@ import {
 	TEAM_ACTIONS,
 } from './battle_effects.js'
 
+export const BATTLE_DECK_NO_CARDS = 5
+
+/* A mapping from players user_id to the timeout interval
+ */
+const disconnected_players = new Map()
+/* A mapping from a players user id to a JS object.
+ * user_id -> {
+ * 	ws, // the websocket connection used to communicate with the player.
+ * 	battle_id, // the battle id of the player used to distinguish if they are the lobby, a pending battle request, or active battle.
+ * 	user_id, // a redundant field for an easily accesible user id of the player.
+ * 	name, // the name of the user/player
+ * 	username, // the username of the user/player
+ * }
+ */
 const active_players = new Map()
 
 function get_player_connection(user_id) {
@@ -24,6 +39,53 @@ function get_player_connection(user_id) {
 
 function clear_player_connection(user_id) {
 	active_players.delete(user_id)
+}
+
+export function get_players_in_battle(battle_id) {
+	const players = []
+	const state = get_battle_state(battle_id)
+
+	if (!state) return players
+
+	if (state.player1_id !== null) players.push(player1_id)
+	if (state.player2_id !== null) players.push(player2_id)
+	return players
+}
+
+export function get_active_players_in_battle(battle_id) {
+	const players = get_players_in_battle(battle_id)
+	players.map((x) => get_player_connection(x)).filter((x) => x !== null)
+	return players
+}
+
+/* battle_id = null: connected to battle site and active in lobby
+ * battle_id = -1: received or issued a pending battle challenge
+ * battle_id >= 0: currently in an active battle
+ */
+function get_online_lobby_users() {
+	const available = []
+	for (const [id, player] of active_players.entries()) {
+		if (player.battle_id === null) {
+			available.push({
+				user_id: id,
+				username: player.username,
+				name: player.name,
+			})
+		}
+	}
+	return available
+}
+
+function broadcast_lobby_presence() {
+	const users = get_online_lobby_users()
+	const payload = JSON.stringify({ type: 'lobby_users', users })
+
+	for (const [, player] of active_players.entries()) {
+		// Send updates only to players currently resting in the lobby
+		if (player.battle_id === null && player.ws.readyState === 1) {
+			player.ws.send(payload)
+		}
+	}
 }
 
 async function set_battle_finished(battle_id, reason, winner = null) {
@@ -35,6 +97,129 @@ async function set_battle_finished(battle_id, reason, winner = null) {
 		`UPDATE battles SET status = '${reason}', winner_id = ?, ended_at = NOW() WHERE battle_id = ?`,
 		[winner, battle_id]
 	)
+}
+
+// 1. Create a PvP or NPC Battle row in MySQL
+export async function create_db_battle(player1_id, player2_id = null) {
+	const [result] = await pool.query(
+		`INSERT INTO battles (
+            player1_id, player2_id, winner_id, status, started_at, ended_at
+        ) VALUES (?, ?, NULL, 'ACTIVE', CURRENT_TIMESTAMP, NULL)`,
+		[player1_id, player2_id]
+	)
+
+	if (result.affectedRows === 0) {
+		throw new Error('Failed to insert new battle record')
+	}
+
+	return result.insertId
+}
+
+export async function player_has_submitted_deck(battle_id, user_id) {
+	const isNull = user_id === null || user_id === undefined
+
+	const query = `
+        SELECT COUNT(*) AS card_count
+        FROM battle_decks
+        WHERE battle_id = ?
+          AND ${isNull ? 'user_id IS NULL' : 'user_id = ?'}
+    `
+	const params = isNull ? [battle_id] : [battle_id, user_id]
+
+	const [rows] = await pool.query(query, params)
+
+	return rows[0].card_count === BATTLE_DECK_NO_CARDS
+}
+
+// 2. Validate and save a player's selected deck for a battle
+export async function save_player_deck(battle_id, user, deck) {
+	if (!deck || deck.length !== BATTLE_DECK_NO_CARDS) {
+		throw new Error(
+			`Decks must contain exactly ${BATTLE_DECK_NO_CARDS} cards`
+		)
+	}
+
+	const has_submitted = await player_has_submitted_deck(
+		battle_id,
+		user.user_id
+	)
+	if (has_submitted) {
+		throw new Error(
+			'Player has already submitted cards for this battle'
+		)
+	}
+
+	const is_valid = await valid_user_cards(user, deck)
+	if (!is_valid) {
+		throw new Error('Invalid card selection')
+	}
+
+	const values = []
+	const placeholders = deck
+		.map((card, idx) => {
+			values.push(battle_id, user.user_id, card.card_id, idx)
+			return '(?,?,?,?)'
+		})
+		.join(',')
+
+	const [result] = await pool.query(
+		`INSERT INTO battle_decks (battle_id, user_id, card_id, slot_position)
+         VALUES ${placeholders}`,
+		values
+	)
+
+	if (result.affectedRows !== BATTLE_DECK_NO_CARDS) {
+		throw new Error('Failed to save complete deck')
+	}
+
+	return result
+}
+
+export async function check_battle_decks(battle_id, p1_user_id, p2_user_id) {
+	const p1_has_submitted = await player_has_submitted_deck(
+		battle_id,
+		p1_user_id
+	)
+	if (!p1_has_submitted) return false
+	const p2_has_submitted = await player_has_submitted_deck(
+		battle_id,
+		p2_user_id
+	)
+	if (!p2_has_submitted) return false
+	return true
+}
+
+async function build_npc_deck(battle_id) {
+	const [cards] = await pool.query(
+		`SELECT card_id, stat_legacy FROM cards ORDER BY RAND() LIMIT ${BATTLE_DECK_NO_CARDS}`
+	)
+
+	if (cards.length < BATTLE_DECK_NO_CARDS) {
+		throw new Error(
+			'Not enough cards in the pool to build an NPC deck'
+		)
+	}
+
+	const values = []
+	const placeholders = cards
+		.map((card, idx) => {
+			values.push(battle_id, card.card_id, idx)
+			return '(?, NULL, ?, ?)'
+		})
+		.join(',')
+
+	const [result] = await pool.query(
+		`INSERT INTO battle_decks
+		 (battle_id, user_id, card_id, slot_position) VALUES
+		 ${placeholders}`,
+		values
+	)
+
+	if (result.affectedRows !== BATTLE_DECK_NO_CARDS) {
+		throw new Error('Failed to build NPC deck')
+	}
+
+	return result
 }
 
 function next_turn(state) {
@@ -295,45 +480,317 @@ battleWss.on('connection', (ws, request) => {
 						type: 'pong',
 					})
 				)
-			}
-
-			if (msg.type === 'join_battle') {
-				const state = await load_battle_state(
-					pool,
-					msg.battle_id
-				)
-				if (!state)
-					return ws.send(
-						JSON.stringify({
-							type: 'error',
-							message: 'Battle not found',
-						})
-					)
-				if (
-					state.player1_id !== user_id &&
-					state.player2_id !== user_id
-				)
-					return ws.send(
-						JSON.stringify({
-							type: 'error',
-							message: 'Not your battle',
-						})
-					)
-				battle_id = msg.battle_id
-				active_players.set(user_id, { ws, battle_id })
-				return ws.send(
-					JSON.stringify({
-						type: 'battle_state',
+			} else if (msg.type === 'join_lobby') {
+				const old_battle_id =
+					await get_active_battle(user_id)
+				const pending_timeout =
+					disconnected_players.get(user_id)
+				if (pending_timeout) {
+					clearTimeout(pending_timeout)
+					disconnected_players.delete(user_id)
+				}
+				active_players.set(user_id, {
+					ws,
+					battle_id: old_battle_id,
+					user_id,
+					name: request.user.name,
+					username: request.user.name,
+				})
+				if (old_battle_id) {
+					const state =
+						await load_battle_state(
+							old_battle_id
+						)
+					const state_payload = JSON.stringify({
+						type: 'state_update',
+						battle_id: old_battle_id,
 						state,
 						user_id,
 					})
-				)
-			}
-
-			if (msg.type === 'attack') {
-				if (battle_id === null)
+					ws.send(state_payload)
+				} else {
+					broadcast_lobby_presence()
+				}
+			} else if (msg.type === 'challenge_player') {
+				battle_id =
+					get_player_connection(user_id).battle_id
+				if (battle_id !== null)
 					return ws.send(
 						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: 'Already in battle',
+						})
+					)
+				if (msg.target_user_id === null) {
+					get_player_connection(
+						user_id
+					).battle_id = null
+					return ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: 'Target user id invalid',
+						})
+					)
+				}
+				const target = get_player_connection(
+					msg.target_user_id
+				)
+
+				if (!target || target.battle_id !== null) {
+					return ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: 'Player is unavailable or offline',
+						})
+					)
+				}
+
+				get_player_connection(user_id).battle_id = -1
+				target.battle_id = -1
+
+				target.ws.send(
+					JSON.stringify({
+						type: 'incoming_challenge',
+						from_user_id: user_id,
+						from_username:
+							request.user.name,
+					})
+				)
+
+				broadcast_lobby_presence()
+			} else if (msg.type === 'accept_challenge') {
+				const current_p2 =
+					get_player_connection(user_id)
+				if (current_p2 && current_p2.battle_id > 0) {
+					return ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: 'Already in a battle',
+						})
+					)
+				}
+				if (!msg.accept) {
+					current_p2.battle_id = null
+					const challenger =
+						get_player_connection(
+							msg.challenger_id
+						)
+					challenger.battle_id = null
+					return challenger.ws.send(
+						JSON.stringify({
+							type: 'reject_challenge',
+							challenger_id:
+								msg.challenger_id,
+						})
+					)
+				}
+
+				try {
+					// 1. Create DB entry for the match
+					const new_battle_id =
+						await create_db_battle(
+							msg.challenger_id,
+							user_id
+						)
+
+					// 2. Update player states in memory
+					const p1 = get_player_connection(
+						msg.challenger_id
+					)
+					const p2 =
+						get_player_connection(user_id)
+
+					if (p1) p1.battle_id = new_battle_id
+					if (p2) p2.battle_id = new_battle_id
+
+					// 3. Prompt both players to select/confirm decks
+					const start_payload = JSON.stringify({
+						type: 'battle_started',
+						battle_id: new_battle_id,
+						player1_id: msg.challenger_id,
+						player2_id: user_id,
+						user_id: user_id,
+					})
+
+					if (p1 && p1.ws.readyState === 1)
+						p1.ws.send(start_payload)
+					if (p2 && p2.ws.readyState === 1)
+						p2.ws.send(start_payload)
+
+					broadcast_lobby_presence()
+				} catch (err) {
+					console.error(
+						'Error starting PvP battle:',
+						err
+					)
+					ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: 'Could not start battle',
+						})
+					)
+				}
+			} else if (msg.type === 'start_npc_battle') {
+				try {
+					const new_battle_id =
+						await create_db_battle(
+							user_id,
+							null
+						)
+					await build_npc_deck(new_battle_id)
+
+					const player =
+						get_player_connection(user_id)
+					if (player)
+						player.battle_id = new_battle_id
+
+					ws.send(
+						JSON.stringify({
+							type: 'battle_started',
+							battle_id: new_battle_id,
+							user_id,
+							is_npc: true,
+						})
+					)
+
+					broadcast_lobby_presence()
+				} catch (err) {
+					console.error(
+						'Error starting NPC battle:',
+						err
+					)
+					ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: 'Failed to start NPC match',
+						})
+					)
+				}
+			} else if (msg.type === 'submit_deck') {
+				const player_info =
+					get_player_connection(user_id)
+				if (
+					!player_info ||
+					!player_info.battle_id ||
+					player_info.battle_id <= 0
+				) {
+					return ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: 'Not currently in an active battle',
+						})
+					)
+				}
+
+				try {
+					await save_player_deck(
+						player_info.battle_id,
+						request.user,
+						msg.deck
+					)
+
+					const missing_deck_payload =
+						JSON.stringify({
+							type: 'deck_accepted',
+							message: 'Deck saved. Waiting for opponent...',
+						})
+					// Check if both decks are loaded before initializing game loop
+					var opponent =
+						get_active_players_in_battle(
+							player_info.battle_id
+						).filter(
+							(x) =>
+								x.user_id !=
+								request.user
+									.user_id
+						)
+					if (opponent.length === 0)
+						opponent = null
+					const decks_submitted =
+						await check_battle_decks(
+							player_info.battle_id,
+							request.user.user_id,
+							opponent === null
+								? null
+								: opponent[0]
+										.user_id
+						)
+					if (!decks_submitted)
+						return ws.send(
+							missing_deck_payload
+						)
+
+					const state = await load_battle_state(
+						player_info.battle_id
+					)
+
+					if (!state) {
+						// Waiting on second player to lock in deck
+						return ws.send(
+							missing_deck_payload
+						)
+					}
+
+					// Both players have submitted decks; initialize and sync battle state
+					const p1 = get_player_connection(
+						state.player1_id
+					)
+					const p2 = get_player_connection(
+						state.player2_id
+					)
+
+					const state_payload_p1 = JSON.stringify(
+						{
+							type: 'state_update',
+							battle_id: p1.battle_id,
+							state,
+							user_id: state.player1_id,
+						}
+					)
+
+					if (p1 && p1.ws.readyState === 1)
+						p1.ws.send(state_payload_p1)
+
+					if (p2) {
+						const state_payload_p2 =
+							JSON.stringify({
+								type: 'state_update',
+								battle_id: p2.battle_id,
+								state,
+								user_id: state.player2_id,
+							})
+						if (p2.ws.readyState === 1)
+							p2.ws.send(
+								state_payload_p2
+							)
+					}
+				} catch (err) {
+					console.error(
+						'Deck submission error:',
+						err
+					)
+					ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: err.message,
+						})
+					)
+				}
+			} else if (msg.type === 'attack') {
+				battle_id =
+					get_player_connection(user_id).battle_id
+				if (battle_id === null || battle_id === -1)
+					return ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
 							type: 'error',
 							message: 'Join a battle first',
 						})
@@ -343,6 +800,7 @@ battleWss.on('connection', (ws, request) => {
 				if (!state)
 					return ws.send(
 						JSON.stringify({
+							reject_type: msg.type,
 							type: 'error',
 							message: 'Battle state not loaded',
 						})
@@ -368,6 +826,7 @@ battleWss.on('connection', (ws, request) => {
 				if (!is_players_turn(state, user_id)) {
 					return ws.send(
 						JSON.stringify({
+							reject_type: msg.type,
 							type: 'error',
 							message: 'Not your turn',
 						})
@@ -380,6 +839,7 @@ battleWss.on('connection', (ws, request) => {
 				if (!attacker_check.ok) {
 					return ws.send(
 						JSON.stringify({
+							reject_type: msg.type,
 							type: 'error',
 							message: attacker_check.reason,
 						})
@@ -395,6 +855,7 @@ battleWss.on('connection', (ws, request) => {
 				if (!target_check.ok) {
 					return ws.send(
 						JSON.stringify({
+							reject_type: msg.type,
 							type: 'error',
 							message: target_check.reason,
 						})
@@ -408,6 +869,7 @@ battleWss.on('connection', (ws, request) => {
 				) {
 					return ws.send(
 						JSON.stringify({
+							reject_type: msg.type,
 							type: 'error',
 							message: `${attacker_check.card.category} cards can't ${msg.action}`,
 						})
@@ -442,6 +904,7 @@ battleWss.on('connection', (ws, request) => {
 					state.turn = next_turn(state)
 
 					if (opponent_id === null) {
+						// NPC Logic branch
 						state.turn_number += 0.5
 						const cpu_result =
 							take_cpu_turn(state)
@@ -479,75 +942,110 @@ battleWss.on('connection', (ws, request) => {
 							tick_effects(state)
 						state.turn = next_turn(state)
 					} else {
+						// PVP Logic
 						state.turn_number += 0.5
+					}
+
+					if (
+						state.turn_number >= 1 &&
+						state.turn_number % 1 === 0
+					) {
+						tick_effects(state)
+						winner =
+							check_battle_over(state)
 					}
 				}
 
-				ws.send(
-					JSON.stringify({
-						type: 'turn_result',
-						player_result,
-						opponent_result,
-						state,
-						user_id,
-						winner,
-					})
-				)
+				const p1_conn = state.player1_id
+					? get_player_connection(
+							state.player1_id
+						)
+					: null
+				const p2_conn = state.player2_id
+					? get_player_connection(
+							state.player2_id
+						)
+					: null
+
+				if (p1_conn && p1_conn.ws.readyState === 1) {
+					p1_conn.ws.send(
+						JSON.stringify({
+							type: 'turn_result',
+							player_result,
+							opponent_result,
+							battle_id: p1_conn.battle_id,
+							state,
+							user_id: state.player1_id,
+							winner,
+						})
+					)
+				}
+
+				if (p2_conn && p2_conn.ws.readyState === 1) {
+					p2_conn.ws.send(
+						JSON.stringify({
+							type: 'turn_result',
+							player_result,
+							opponent_result,
+							battle_id: p2_conn.battle_id,
+							state,
+							user_id: state.player2_id,
+							winner,
+						})
+					)
+				}
 
 				if (winner !== -1) {
-					set_battle_finished(
+					await set_battle_finished(
 						battle_id,
 						'COMPLETED',
 						winner
 					)
-					persist_final_health(state)
+					await persist_final_health(state)
 					clear_battle_state(battle_id)
-					if (state.player1_id !== null) {
-						const tmp_connection =
-							get_player_connection(
-								state.player1_id
-							)
-						const tmp_wss =
-							tmp_connection.ws
-						tmp_wss.send(
-							JSON.stringify({
-								type: 'match-results',
-								winner,
-								user_id,
-							})
+
+					const match_results_payload =
+						JSON.stringify({
+							type: 'match_results',
+							winner,
+							user_id,
+						})
+
+					if (
+						p1_conn &&
+						p1_conn.ws.readyState === 1
+					) {
+						p1_conn.ws.send(
+							match_results_payload
 						)
 						clear_player_connection(
 							state.player1_id
 						)
 					}
-					if (state.player2_id !== null) {
-						const tmp_connection =
-							get_player_connection(
-								state.player2_id
-							)
-						const tmp_wss =
-							tmp_connection.ws
-						tmp_wss.send(
-							JSON.stringify({
-								type: 'match-results',
-								winner,
-								user_id,
-							})
+
+					if (
+						p2_conn &&
+						p2_conn.ws.readyState === 1
+					) {
+						p2_conn.ws.send(
+							match_results_payload
 						)
 						clear_player_connection(
 							state.player2_id
 						)
 					}
-				}
-				return
-			}
 
-			ws.send(
-				JSON.stringify({
-					type: 'error',
-					message: `Unknown message type: ${msg.type}`,
-				})
-			)
+					broadcast_lobby_presence()
+				}
+			} else {
+				ws.send(
+					JSON.stringify({
+						reject_type: msg.type,
+						type: 'error',
+						message: `Unknown message type: ${msg.type}`,
+					})
+				)
+			}
 		} catch (err) {
 			console.error('battle socket error:', err)
 			ws.send(
@@ -567,8 +1065,54 @@ battleWss.on('connection', (ws, request) => {
 	})
 
 	ws.on('close', (ev) => {
-		console.log(
-			`[WebSocket Log] ${new Date().toISOString()} - ${ev.reason} (Clean: ${ev.wasClean}) (${ev.code})`
-		)
+		const player = get_player_connection(user_id)
+
+		// If they were in a active match, flag the match as abandoned
+		if (player && player.battle_id > 0) {
+			const existing_timeout = disconnected_players.get(
+				player.user_id
+			)
+			if (existing_timeout) clearTimeout(existing_timeout)
+			const timeout_id = setTimeout(async () => {
+				if (
+					disconnected_players.get(
+						player.user_id
+					) === undefined
+				)
+					return
+				if (
+					get_battle_state(player.battle_id) ===
+					null
+				) {
+					set_battle_finished(
+						player.battle_id,
+						'ABANDONED',
+						null
+					)
+					return
+				}
+				const is_active = get_player_connection(
+					player.user_id
+				)
+				if (is_active) {
+					disconnected_players.delete(
+						player.user_id
+					)
+					return
+				}
+				set_battle_finished(
+					player.battle_id,
+					'ABANDONED',
+					null
+				)
+				await persist_final_health(state)
+				clear_battle_state(player.battle_id)
+			}, 120000) // 2 minutes
+			disconnected_players.set(player.user_id, timeout_id)
+		}
+
+		// Remove connection and update lobby list
+		clear_player_connection(user_id)
+		broadcast_lobby_presence()
 	})
 })

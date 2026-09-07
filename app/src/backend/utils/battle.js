@@ -30,14 +30,14 @@ export async function valid_user_cards(user, deck) {
 export async function get_active_battle(user_id) {
 	try {
 		const [rows, fields] = await pool.query(
-			`SELECT battle_id FROM battles WHERE ? IN (battles.player1_id, battles.player2_id) AND battles.status = 'ACTIVE'`,
-			[user_id]
+			`SELECT battle_id FROM battles WHERE (player1_id = ? OR player2_id = ?) AND status = 'ACTIVE' LIMIT 1`,
+			[user_id, user_id]
 		)
 
 		if (rows.length == 0) return null
 		else return rows[0].battle_id
 	} catch {
-		return false
+		return null
 	}
 }
 
