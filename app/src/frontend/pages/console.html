@@ -129,15 +129,28 @@
 						No events yet — create the first
 						one.
 					</div>
-					<div
-						id="list-error"
-						class="state-msg error hidden"
-					></div>
+					<div id="list-error" class="state-msg error hidden"></div>
 
-					<ul
-						id="event-list"
-						class="event-list"
-					></ul>
+					<div id="event-toolbar" class="list-toolbar hidden">
+						<div class="toolbar-chips" id="event-filter-chips">
+							<button type="button" class="meta-pill filter-chip active" data-filter="all">All</button>
+							<button type="button" class="meta-pill filter-chip active" data-filter="active">Active</button>
+							<button type="button" class="meta-pill filter-chip active" data-filter="scheduled">Scheduled</button>
+							<button type="button" class="meta-pill filter-chip active" data-filter="inactive">Inactive</button>
+							<button type="button" class="meta-pill filter-chip active" data-filter="expired">Expired</button>
+						</div>
+						<div class="toolbar-sort">
+							<label for="event-sort">Sort</label>
+							<select id="event-sort" class="sort-select">
+								<option value="newest">Newest first</option>
+								<option value="oldest">Oldest first</option>
+								<option value="title">Title A–Z</option>
+								<option value="points">Most points</option>
+							</select>
+						</div>
+					</div>
+
+					<div id="event-list"></div>
 				</div>
 
 				<div id="view-form" class="hidden">
@@ -150,6 +163,15 @@
 						</h1>
 					</div>
 
+					<div class="event-edit-layout hidden" id="event-edit-layout">
+						<nav class="sub-tabs" id="event-sub-tabs">
+							<button type="button" class="sub-tab-btn sub-tab-active" data-subtab="details">Details</button>
+							<button type="button" class="sub-tab-btn" data-subtab="questions">Questions</button>
+							<button type="button" class="sub-tab-btn" data-subtab="pool">Card Pool</button>
+						</nav>
+						<div class="sub-tab-panels">
+
+					<div id="subtab-details">
 					<div class="form-card">
 						<form
 							id="event-form"
@@ -439,13 +461,10 @@
 							</div>
 						</form>
 					</div>
-					<!-- User Story 6 — Questions panel. Additive: does not modify the event form above. -->
-					<div
-						class="form-card"
-						id="questions-panel"
-						hidden
-						style="margin-top: 1.5rem"
-					>
+					</div> <!-- /subtab-details -->
+
+					<div id="subtab-questions" class="hidden">
+					<div class="form-card" id="questions-panel">
 						<div
 							class="page-header"
 							style="
@@ -635,7 +654,54 @@
 							</div>
 						</form>
 					</div>
-				</div>
+					</div> <!-- /subtab-questions -->
+
+					<div id="subtab-pool" class="hidden">
+					<div class="form-card">
+						<div class="page-header" style="margin-bottom:1rem;">
+							<h2 class="page-title" style="font-size:1.3rem;">Card Pool</h2>
+							<p class="page-subtitle" id="pool-count">No cards in pool</p>
+						</div>
+						<div id="pool-loading" class="state-msg">Loading pool…</div>
+						<ul id="pool-list" class="event-list"></ul>
+						<div id="pool-empty" class="state-msg hidden">
+							No cards in this event's pool yet. Add cards below so players can earn them from trivia.
+						</div>
+						<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border);" />
+						<form id="pool-form" novalidate>
+							<input type="hidden" id="pool-edit-id" />
+							<div class="field-row">
+								<div class="field">
+									<label for="pool-card-select">
+										Add a card <span class="req">*</span>
+									</label>
+									<select id="pool-card-select" required>
+										<option value="">-- pick a card --</option>
+									</select>
+								</div>
+								<div class="field">
+									<label for="pool-weight">Weight</label>
+									<input id="pool-weight" type="number" min="1" placeholder="1" />
+								</div>
+							</div>
+							<div class="field-row" style="margin-top:1rem;">
+								<div class="field">
+									<label for="pool-copy-limit">Global copy limit</label>
+									<input id="pool-copy-limit" type="number" min="1" placeholder="Leave blank for unlimited" />
+								</div>
+								<div class="field" style="display:flex;align-items:flex-end;">
+									<button type="submit" class="btn btn-primary" id="pool-submit">
+										Add to Pool
+									</button>
+								</div>
+							</div>
+						</form>
+					</div>
+					</div> <!-- /subtab-pool -->
+
+						</div> <!-- /sub-tab-panels -->
+					</div> <!-- /event-edit-layout -->
+				</div> <!-- /view-form -->
 				</div> <!-- /tab-events -->
 
 				<!-- ═══════════════════════════════════════════
@@ -657,7 +723,26 @@
 						<div id="card-empty" class="state-msg hidden">No cards yet — create the first one.</div>
 						<div id="card-list-error" class="state-msg error hidden"></div>
 
-						<ul id="card-list" class="event-list"></ul>
+						<div id="card-toolbar" class="list-toolbar hidden">
+							<div class="toolbar-chips" id="card-filter-chips">
+								<button type="button" class="meta-pill filter-chip active" data-filter="all">All</button>
+								<button type="button" class="meta-pill filter-chip active" data-filter="LEGENDARY">Legendary</button>
+								<button type="button" class="meta-pill filter-chip active" data-filter="EPIC">Epic</button>
+								<button type="button" class="meta-pill filter-chip active" data-filter="RARE">Rare</button>
+								<button type="button" class="meta-pill filter-chip active" data-filter="UNCOMMON">Uncommon</button>
+								<button type="button" class="meta-pill filter-chip active" data-filter="COMMON">Common</button>
+							</div>
+							<div class="toolbar-sort">
+								<label for="card-sort">Sort</label>
+								<select id="card-sort" class="sort-select">
+									<option value="name">Name A–Z</option>
+									<option value="rarity">Rarity</option>
+									<option value="category">Category</option>
+								</select>
+							</div>
+						</div>
+
+						<div id="card-list"></div>
 					</div>
 
 					<!-- Form view -->
@@ -701,7 +786,9 @@
 												<select id="cf-rarity" required>
 													<option value="">— pick one —</option>
 													<option value="COMMON">Common</option>
+													<option value="UNCOMMON">Uncommon</option>
 													<option value="RARE">Rare</option>
+													<option value="EPIC">Epic</option>
 													<option value="LEGENDARY">Legendary</option>
 												</select>
 											</div>
@@ -787,7 +874,7 @@
 			</div>
 		</div>
 
-		<!-- User Story 6 — question delete confirmation modal (mirrors the event delete modal above). -->
+		<!-- Question delete confirmation modal -->
 		<div
 			id="q-modal-overlay"
 			class="modal-overlay hidden"
@@ -812,6 +899,23 @@
 					>
 						Delete
 					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Pool remove confirmation modal -->
+		<div
+			id="pool-modal-overlay"
+			class="modal-overlay hidden"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div class="modal">
+				<h2 class="modal-title">Remove this card from the pool?</h2>
+				<p id="pool-modal-body" class="modal-body"></p>
+				<div class="modal-actions">
+					<button class="btn btn-ghost" id="pool-modal-cancel">Keep it</button>
+					<button class="btn btn-danger" id="pool-modal-confirm">Remove</button>
 				</div>
 			</div>
 		</div>

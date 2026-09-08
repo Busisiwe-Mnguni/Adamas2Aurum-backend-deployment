@@ -109,14 +109,18 @@ function renderCards(cards) {
 
 const RARITY_COLOURS = {
 	COMMON:    'var(--text-muted)',
+	UNCOMMON:  '#22c55e',
 	RARE:      '#60a5fa',
+	EPIC:      '#a855f7',
 	LEGENDARY: '#f59e0b',
 }
 
 const RARITY_LABELS = {
 	COMMON:    'Common',
-	RARE:      'Rare ✦',
-	LEGENDARY: 'Legendary ✦✦',
+	UNCOMMON:  'Uncommon ✦',
+	RARE:      'Rare ✦✦',
+	EPIC:      'Epic ✦✦✦',
+	LEGENDARY: 'Legendary ✦✦✦✦',
 }
 
 const CATEGORY_ROLES = {

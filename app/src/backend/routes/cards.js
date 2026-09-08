@@ -166,7 +166,7 @@ router.post('/', requireAuth, requireCardAuthor, async (req, res) => {
 	}
 
 	const valid_categories = ['CHARACTER', 'LOCATION', 'INFLUENCE', 'HISTORICAL']
-	const valid_rarities   = ['COMMON', 'RARE', 'LEGENDARY']
+	const valid_rarities   = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY']
 
 	if (!valid_categories.includes(category)) {
 		return res.status(400).json({

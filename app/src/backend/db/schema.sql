@@ -404,4 +404,21 @@ CREATE TABLE IF NOT EXISTS questions (
         REFERENCES events (event_id) ON DELETE CASCADE
 );
 
+-- ============================================================
+--  QR FALLBACK TOKENS  (low-accuracy GPS fallback)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS event_qr_tokens (
+    token_id    INT          AUTO_INCREMENT PRIMARY KEY,
+    event_id    INT          NOT NULL,
+    token       VARCHAR(64)  NOT NULL UNIQUE,
+    expires_at  DATETIME     NOT NULL,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_qrt_event FOREIGN KEY (event_id) REFERENCES events (event_id) ON DELETE CASCADE
+);
+
+-- Add FALLBACK_QR to location_check_log status ENUM
+ALTER TABLE location_check_log
+    MODIFY COLUMN status ENUM('PENDING','VERIFIED','FAILED','SPOOFED','FALLBACK_QR') NOT NULL DEFAULT 'PENDING';
+
 SET FOREIGN_KEY_CHECKS = 1;

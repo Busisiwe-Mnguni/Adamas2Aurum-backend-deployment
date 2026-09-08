@@ -30,11 +30,14 @@ import battle_routes from './routes/battle.js'
 import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
 import question_routes from './routes/questions.js'
+import pool_routes from './routes/event_pool.js'
 
 import pool from './utils/db.js'
 import { auth } from './src/auth.js'
 import { execute_sql_script } from './utils/sql_utils.js'
 import { setup_websocket_router } from './websocket/socket_router.js'
+
+import qr_routes from './routes/qr.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -153,6 +156,8 @@ app.use(async (req, res, next) => {
   next()
 })
 
+app.use( '/api/events', qr_routes)
+app.use('/api/events', pool_routes)
 app.use('/api/events', event_routes)
 app.use('/api/cards', card_routes)
 app.use('/api/battles', battle_routes)

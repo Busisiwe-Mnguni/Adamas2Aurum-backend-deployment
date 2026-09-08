@@ -14,6 +14,29 @@ import {
 import { redirectAfterLogin, updateAuthNav } from './auth-helpers.js'
 import { get_player_location } from './geolocation.js'
 
+// ── Trivia result rendering helpers ───────────────────────────
+const RARITY_STYLE = {
+	COMMON:    { bg: '#e5e7eb', fg: '#1f2937', label: 'Common' },
+	UNCOMMON:  { bg: '#bbf7d0', fg: '#14532d', label: 'Uncommon' },
+	RARE:      { bg: '#bfdbfe', fg: '#1e3a8a', label: 'Rare' },
+	EPIC:      { bg: '#e9d5ff', fg: '#581c87', label: 'Epic' },
+	LEGENDARY: { bg: '#fde68a', fg: '#78350f', label: 'Legendary' },
+}
+function rarityBadge(rarity) {
+	const s = RARITY_STYLE[rarity] || RARITY_STYLE.COMMON
+	return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:0.7rem;font-weight:600;letter-spacing:0.5px;background:${s.bg};color:${s.fg};text-transform:uppercase;">${s.label}</span>`
+}
+function escapeHtml(str) {
+	if (str == null) return ''
+	return String(str).replace(/[&<>"']/g, (c) => ({
+		'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+	}[c]))
+}
+
+// Handle to the running trivia countdown, so a reuse of the modal for a
+// new question clears any prior interval.
+let activeTriviaTimer = null
+
 /**
  * MAP CONFIGURATION CONSTANTS
  */
@@ -328,6 +351,16 @@ window.handleChallengeAttempt = async function (eventId) {
  * player picks an answer.
  */
 function showTriviaModal(eventId, trivia) {
+	// Stop any countdown from a previous question if the modal is being
+	// reused before its timer ran out.
+	if (activeTriviaTimer) {
+		clearInterval(activeTriviaTimer)
+		activeTriviaTimer = null
+	}
+
+	const startedAt = Date.now()
+	const timeLimitMs = (trivia.time_limit_s || 30) * 1000
+
 	let modal = document.getElementById('trivia-modal')
 	if (!modal) {
 		// Reuse the same modal element across multiple challenge attempts
@@ -342,15 +375,15 @@ function showTriviaModal(eventId, trivia) {
 		document.body.appendChild(modal)
 	}
 
-	// Each button's onclick bakes in the eventId, question_id, and this
-	// specific option's option_id — that's all submitTriviaAnswer() needs
-	// to tell the server which question and which choice was picked.
+	// Each button carries its option_id in a data attribute; an event
+	// listener below wires it up so the click handler can compute the
+	// real elapsed time (instead of the old hardcoded 1500 ms).
 	const optionsHtml = trivia.options
 		.map(
 			(opt) => `
-    <button style="display: block; width: 100%; margin: 8px 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer;"
-            onclick="submitTriviaAnswer(${eventId}, ${trivia.question_id}, ${opt.option_id})">
-      ${opt.body}
+    <button data-opt-id="${opt.option_id}" class="trivia-option-btn"
+            style="display: block; width: 100%; margin: 8px 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer;">
+      ${escapeHtml(opt.body)}
     </button>
   `
 		)
@@ -365,21 +398,85 @@ function showTriviaModal(eventId, trivia) {
 	const earnedCardName = elig?.earned_card?.name
 	const alreadyEarnedBanner = elig?.already_earned
 		? `<div style="margin: 8px 0 12px; padding: 10px 12px; background: #fff8e1; border: 1px solid #ffd54f; border-left: 4px solid #ffb300; border-radius: 6px; color: #7a5c00; font-size: 0.85rem;">
-         🎓 You've already earned ${earnedCardName ? `the <strong>${earnedCardName}</strong> ` : ''}card for this challenge — replay for practice? No new card will be awarded.
+         🎓 You've already earned ${earnedCardName ? `the <strong>${escapeHtml(earnedCardName)}</strong> ` : ''}card for this challenge — replay for practice? No new card will be awarded.
        </div>`
 		: ''
 
 	modal.innerHTML = `
     <div style="background: #fff; padding: 24px; border-radius: 8px; max-width: 400px; width: 90%;">
-      <h3>🎯 Campus Challenge</h3>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <h3 style="margin:0;">🎯 Campus Challenge</h3>
+        <div id="trivia-timer-text" style="font-variant-numeric:tabular-nums;font-weight:600;font-size:0.85rem;color:#475569;"></div>
+      </div>
+      <div style="height:6px;border-radius:999px;background:#e5e7eb;margin-bottom:12px;overflow:hidden;">
+        <div id="trivia-timer-bar" style="height:100%;background:#0c2461;border-radius:999px;transition:width 100ms linear,background-color 200ms;width:100%;"></div>
+      </div>
       ${alreadyEarnedBanner}
-      <p style="margin: 12px 0;"><strong>${trivia.body}</strong></p>
+      <p style="margin: 12px 0;"><strong>${escapeHtml(trivia.body)}</strong></p>
       <div id="trivia-options">${optionsHtml}</div>
       <div id="trivia-result" style="margin-top: 12px;"></div>
-      <button style="margin-top: 12px; background: none; border: none; color: #888; cursor: pointer; text-decoration: underline;"
-              onclick="document.getElementById('trivia-modal').remove()">Close</button>
+      <button id="trivia-close-btn" style="margin-top: 12px; background: none; border: none; color: #888; cursor: pointer; text-decoration: underline;">Close</button>
     </div>
   `
+
+	// Wire option buttons via addEventListener — computes elapsed since
+	// the question opened and disables the rest so the player can't
+	// double-submit.
+	let submitted = false
+	const submit = async (optionId, timedOut) => {
+		if (submitted) return
+		submitted = true
+		if (activeTriviaTimer) {
+			clearInterval(activeTriviaTimer)
+			activeTriviaTimer = null
+		}
+		const elapsed = Date.now() - startedAt
+		modal.querySelectorAll('.trivia-option-btn').forEach((b) => (b.disabled = true))
+		await window.submitTriviaAnswer(eventId, trivia.question_id, optionId, {
+			timed_out: timedOut,
+			elapsed_ms: elapsed,
+		})
+	}
+	modal.querySelectorAll('.trivia-option-btn').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			submit(Number(btn.dataset.optId), false)
+		})
+	})
+	modal.querySelector('#trivia-close-btn').addEventListener('click', () => {
+		if (activeTriviaTimer) {
+			clearInterval(activeTriviaTimer)
+			activeTriviaTimer = null
+		}
+		modal.remove()
+	})
+
+	// Countdown bar — ticks every 100 ms for a smooth animation, shifts
+	// colour from blue → amber (<10 s) → red (<5 s), and auto-submits as
+	// timed_out at zero.
+	const barEl = modal.querySelector('#trivia-timer-bar')
+	const textEl = modal.querySelector('#trivia-timer-text')
+	const tick = () => {
+		const elapsed = Date.now() - startedAt
+		const remaining = Math.max(0, timeLimitMs - elapsed)
+		const pct = (remaining / timeLimitMs) * 100
+		barEl.style.width = pct + '%'
+		textEl.textContent = Math.ceil(remaining / 1000) + 's'
+		if (remaining < 5000) {
+			barEl.style.background = '#dc2626'
+			textEl.style.color = '#dc2626'
+		} else if (remaining < 10000) {
+			barEl.style.background = '#f59e0b'
+			textEl.style.color = '#b45309'
+		} else {
+			barEl.style.background = '#0c2461'
+			textEl.style.color = ''
+		}
+		if (remaining <= 0) {
+			submit(null, true)
+		}
+	}
+	tick()
+	activeTriviaTimer = setInterval(tick, 100)
 }
 
 /**
@@ -399,7 +496,8 @@ function showTriviaModal(eventId, trivia) {
  * got it right or wrong, using correct_option_text from the server's
  * response.
  */
-window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
+window.submitTriviaAnswer = async function (eventId, questionId, optionId, opts = {}) {
+	const { timed_out: timedOut = false, elapsed_ms: elapsedMs = 0 } = opts
 	const optionsContainer = document.getElementById('trivia-options')
 	const resultContainer = document.getElementById('trivia-result')
 
@@ -423,23 +521,26 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
 		// verify location (and so won't award points). Surface this clearly
 		// rather than silently losing the points.
 		if (resultContainer) {
-			resultContainer.innerHTML = `<p style="color: #c0392b;">Couldn't confirm your location (${err.message}) — your answer will be graded but points may not be awarded.</p>`
+			resultContainer.innerHTML = `<p style="color: #c0392b;">Couldn't confirm your location (${escapeHtml(err.message)}) — your answer will be graded but points may not be awarded.</p>`
 		}
 	}
+
+	const body = {
+		event_id: eventId,
+		question_id: questionId,
+		answer_time_ms: elapsedMs,
+		timed_out: !!timedOut,
+	}
+	if (!timedOut) body.selected_option_id = optionId
+	if (lat !== null) body.claimed_lat = lat
+	if (lng !== null) body.claimed_lng = lng
 
 	try {
 		const res = await fetch(`${API_BASE}/api/trivia/submit`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			credentials: 'include', // same reason as above — the backend needs the session cookie to know who's submitting
-			body: JSON.stringify({
-				event_id: eventId,
-				question_id: questionId,
-				selected_option_id: optionId,
-				answer_time_ms: 1500, // TODO: currently hardcoded; a real implementation would time from when the modal opened
-				claimed_lat: lat,
-				claimed_lng: lng,
-			}),
+			body: JSON.stringify(body),
 		})
 
 		if (res.status === 401) {
@@ -453,49 +554,81 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
 		if (!res.ok) {
 			// e.g. a 404 "Invalid option selected" from the backend
 			if (resultContainer) {
-				resultContainer.innerHTML = `<p style="color: #c0392b;">${data.error || 'Something went wrong submitting your answer.'}</p>`
+				resultContainer.innerHTML = `<p style="color: #c0392b;">${escapeHtml(data.error) || 'Something went wrong submitting your answer.'}</p>`
 			}
 			return
 		}
 
+		// ── Result view ───────────────────────────────────────
+		// Replaces the old inline verdict with a full result block that
+		// surfaces everything the server told us: status, correct answer,
+		// time taken, points earned, and the awarded card (with rarity
+		// badge) when applicable.
 		if (resultContainer) {
-			// Green for correct-and-verified, red for anything else (wrong
-			// answer, OR correct but too far away — location_verified === false
-			// means no points either way, so both cases read as "not a win").
-			const succeeded =
-				data.is_correct && data.location_verified
-			const verdictColor = succeeded ? '#27ae60' : '#c0392b'
-			const verdictText = succeeded
-				? `✅ Correct! +${data.points_awarded} points`
-				: data.location_verified === false
-					? `📍 Too far away — this attempt didn't count.`
-					: `❌ Not quite.`
+			// Also hide the now-stale option buttons — the player is done
+			// with this question, and the result view sits below the old
+			// options area.
+			if (optionsContainer) optionsContainer.style.display = 'none'
 
-			// correct_option_text will be null only if a question was seeded
-			// without any option marked is_correct — guard against that so we
-			// don't render "Correct answer: null".
-			const correctAnswerHtml = data.correct_option_text
-				? `<p style="margin-top: 6px; color: #333;">Correct answer: <strong>${data.correct_option_text}</strong></p>`
+			let statusIcon, statusText, statusColor
+			if (data.timed_out) {
+				statusIcon = '⏰'
+				statusText = "Time's up!"
+				statusColor = '#b45309'
+			} else if (data.location_verified === false) {
+				statusIcon = '📍'
+				statusText = 'Too far away — attempt did not count.'
+				statusColor = '#b45309'
+			} else if (data.is_correct) {
+				statusIcon = '✅'
+				statusText = 'Correct!'
+				statusColor = '#16a34a'
+			} else {
+				statusIcon = '❌'
+				statusText = 'Incorrect.'
+				statusColor = '#dc2626'
+			}
+
+			const elapsedSec = ((data.answer_time_ms || 0) / 1000).toFixed(1)
+			const limitSec = data.time_limit_s || 30
+
+			const correctHtml = data.correct_option_text
+				? `<div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:#ecfdf5;border:1px solid #bbf7d0;font-size:0.85rem;color:#065f46;"><strong>Correct answer:</strong> ${escapeHtml(data.correct_option_text)}</div>`
 				: ''
 
-			// User story 8 — show the card outcome explicitly. A retry after a
-			// win must read as intended behaviour ("you've already earned this
-			// card"), not a silent missing reward.
-			let cardHtml = ''
+			let cardBlock = ''
 			if (data.card_awarded && data.awarded_card) {
-				const rarity = data.awarded_card.rarity
-					? ` (${data.awarded_card.rarity})`
-					: ''
-				cardHtml = `<p style="margin-top: 6px; color: #7a5c00; font-weight: bold;">🎉 New card earned: ${data.awarded_card.name}${rarity}!</p>`
-			} else if (succeeded && data.already_earned_card) {
-				cardHtml = `<p style="margin-top: 6px; color: #888; font-size: 0.85rem;">You've already earned this card — no new card this time.</p>`
+				const c = data.awarded_card
+				cardBlock = `
+					<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;">
+						<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;margin-bottom:4px;">Card awarded</div>
+						<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+							<div style="font-weight:600;color:#0f172a;">${escapeHtml(c.name)}</div>
+							${rarityBadge(c.rarity)}
+						</div>
+					</div>`
+			} else if (data.already_earned_card) {
+				cardBlock = `<div style="margin-top:8px;font-size:0.8rem;color:#9ca3af;">You've already earned this event's card.</div>`
 			}
 
 			resultContainer.innerHTML = `
-        <p style="color: ${verdictColor}; font-weight: bold;">${verdictText}</p>
-        ${cardHtml}
-        ${correctAnswerHtml}
-      `
+				<div style="text-align:center;margin:8px 0 12px;">
+					<div style="font-size:2rem;line-height:1;">${statusIcon}</div>
+					<div style="font-weight:700;font-size:1rem;color:${statusColor};margin-top:4px;">${statusText}</div>
+				</div>
+				${correctHtml}
+				<div style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:8px;">
+					<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem;color:#475569;">
+						<span>Time taken</span>
+						<span style="font-variant-numeric:tabular-nums;font-weight:600;color:#0f172a;">${elapsedSec}s <span style="color:#9ca3af;font-weight:400;">/ ${limitSec}s</span></span>
+					</div>
+					<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.85rem;color:#475569;">
+						<span>Points earned</span>
+						<span style="font-weight:600;color:${data.points_awarded > 0 ? '#16a34a' : '#9ca3af'};">${data.points_awarded > 0 ? '+' + data.points_awarded : '0'}</span>
+					</div>
+				</div>
+				${cardBlock}
+			`
 		}
 	} catch (err) {
 		// Network failure, backend down, etc. — distinct from the res.ok

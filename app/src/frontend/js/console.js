@@ -56,13 +56,47 @@ const tabButtons = document.querySelectorAll('.tab-btn')
 const tabEvents = document.getElementById('tab-events')
 const tabCards = document.getElementById('tab-cards')
 
+// Sub-tabs (event edit view)
+const editLayout = document.getElementById('event-edit-layout')
+const subTabBtns = document.querySelectorAll('.sub-tab-btn')
+const subtabDetails = document.getElementById('subtab-details')
+const subtabQuestions = document.getElementById('subtab-questions')
+const subtabPool = document.getElementById('subtab-pool')
+
+// Card pool
+const poolList = document.getElementById('pool-list')
+const poolCount = document.getElementById('pool-count')
+const poolLoading = document.getElementById('pool-loading')
+const poolEmpty = document.getElementById('pool-empty')
+const poolForm = document.getElementById('pool-form')
+const poolSelect = document.getElementById('pool-card-select')
+const poolWeight = document.getElementById('pool-weight')
+const poolCopyLimit = document.getElementById('pool-copy-limit')
+const poolSubmit = document.getElementById('pool-submit')
+const poolModalOverlay = document.getElementById('pool-modal-overlay')
+const poolModalBody = document.getElementById('pool-modal-body')
+const poolModalCancel = document.getElementById('pool-modal-cancel')
+const poolModalConfirm = document.getElementById('pool-modal-confirm')
+
+// Toolbars
+const eventToolbar = document.getElementById('event-toolbar')
+const eventFilterChips = document.getElementById('event-filter-chips')
+const eventSortSelect = document.getElementById('event-sort')
+const cardToolbar = document.getElementById('card-toolbar')
+const cardFilterChips = document.getElementById('card-filter-chips')
+const cardSortSelect = document.getElementById('card-sort')
+
 const f = (id) => document.getElementById(id)
 const cf = (id) => document.getElementById(id)
 
 // ── STATE ──
 let pendingDeleteId = null
 let pendingCardDeleteId = null
+let pendingPoolDeleteId = null
 let allCards = []
+let allEvents = []
+let eventFilters = new Set(['active', 'scheduled', 'inactive', 'expired'])
+let cardFilters = new Set(['LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'COMMON'])
 
 // ── HELPERS ──
 function hideAllConsoleUI() {
@@ -75,6 +109,8 @@ function hideAllConsoleUI() {
     document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('tab-active'))
     tabEvents.classList.add('hidden')
     tabCards.classList.add('hidden')
+
+    if (editLayout) editLayout.classList.add('hidden')
 
     resetEventForm()
     resetCardForm()
@@ -185,12 +221,29 @@ tabButtons.forEach((btn) => {
 })
 
 // ── EVENTS CRUD ──
+const EVENT_SECTION_ORDER = ['active', 'scheduled', 'inactive', 'expired']
+const EVENT_SECTION_LABELS = {
+    active: 'Active',
+    scheduled: 'Scheduled',
+    inactive: 'Inactive',
+    expired: 'Expired',
+}
+
+function classifyEvent(ev) {
+    const now = new Date()
+    if (!ev.is_active) return 'inactive'
+    if (ev.starts_at && new Date(ev.starts_at) > now) return 'scheduled'
+    if (ev.ends_at && new Date(ev.ends_at) < now) return 'expired'
+    return 'active'
+}
+
 async function loadEvents() {
     elLoading.classList.remove('hidden')
     elEmpty.classList.add('hidden')
     elListError.classList.add('hidden')
     elEventList.innerHTML = ''
     elEventCount.textContent = 'Loading…'
+    eventToolbar.classList.add('hidden')
 
     try {
         const res = await fetch(`${EVENTS_API}?all=true`, {
@@ -204,6 +257,7 @@ async function loadEvents() {
             throw new Error(`Server responded with ${res.status}`)
         }
         const data = await res.json()
+        allEvents = data
 
         elLoading.classList.add('hidden')
 
@@ -213,12 +267,69 @@ async function loadEvents() {
             return
         }
 
-        elEventCount.textContent = `${data.length} event${data.length !== 1 ? 's' : ''}`
-        data.forEach((ev) => elEventList.appendChild(buildEventCard(ev)))
+        eventToolbar.classList.remove('hidden')
+        renderEvents()
     } catch (err) {
         elLoading.classList.add('hidden')
         elListError.textContent = `Could not load events — ${err.message}`
         elListError.classList.remove('hidden')
+    }
+}
+
+function renderEvents() {
+    elEventList.innerHTML = ''
+    elEmpty.classList.add('hidden')
+
+    const sortBy = eventSortSelect.value
+    const sorted = [...allEvents].sort((a, b) => {
+        switch (sortBy) {
+            case 'oldest':  return new Date(a.created_at) - new Date(b.created_at)
+            case 'title':   return a.title.localeCompare(b.title)
+            case 'points':  return (b.point_reward ?? 0) - (a.point_reward ?? 0)
+            default:        return new Date(b.created_at) - new Date(a.created_at)
+        }
+    })
+
+    const groups = { active: [], scheduled: [], inactive: [], expired: [] }
+    sorted.forEach(ev => {
+        groups[classifyEvent(ev)].push(ev)
+    })
+
+    let visibleCount = 0
+    EVENT_SECTION_ORDER.forEach(key => {
+        const items = groups[key]
+        if (items.length === 0) return
+        if (!eventFilters.has(key)) return
+
+        visibleCount += items.length
+
+        const details = document.createElement('details')
+        details.className = 'list-section'
+        details.open = true
+        details.dataset.section = key
+
+        const summary = document.createElement('summary')
+        summary.innerHTML = `${EVENT_SECTION_LABELS[key]} <span class="section-count">${items.length}</span>`
+        details.appendChild(summary)
+
+        const ul = document.createElement('ul')
+        ul.className = 'event-list'
+        items.forEach(ev => ul.appendChild(buildEventCard(ev)))
+        details.appendChild(ul)
+
+        elEventList.appendChild(details)
+    })
+
+    const total = allEvents.length
+    if (visibleCount === total) {
+        elEventCount.textContent = `${total} event${total !== 1 ? 's' : ''}`
+    } else {
+        elEventCount.textContent = `Showing ${visibleCount} of ${total} events`
+    }
+
+    if (visibleCount === 0 && total > 0) {
+        elEmpty.textContent = 'No events match the current filters.'
+        elEmpty.classList.remove('hidden')
     }
 }
 
@@ -253,11 +364,16 @@ btnNew.addEventListener('click', () => {
     formHeading.textContent = 'New Event'
     btnSubmit.textContent = 'Save Event'
     btnSubmit.disabled = false
+    editLayout.classList.remove('hidden')
+    document.getElementById('event-sub-tabs').style.display = ''
+    resetSubTabs('details')
+    setSubTabsEnabled(false)
     showEventForm()
 })
 
 btnCancel.addEventListener('click', () => {
     resetEventForm()
+    editLayout.classList.add('hidden')
     showEventList()
     loadEvents()
 })
@@ -284,6 +400,25 @@ function openEventEditForm(ev) {
     f('f-ends').value = toDatetimeLocal(ev.ends_at)
 
     showEventForm()
+    editLayout.classList.remove('hidden')
+    document.getElementById('event-sub-tabs').style.display = ''
+    resetSubTabs('details')
+    setSubTabsEnabled(true)
+}
+
+function resetSubTabs(active) {
+    subTabBtns.forEach(b => b.classList.remove('sub-tab-active'))
+    const btn = document.querySelector(`[data-subtab="${active}"]`)
+    if (btn) btn.classList.add('sub-tab-active')
+    subtabDetails.classList.toggle('hidden', active !== 'details')
+    subtabQuestions.classList.toggle('hidden', active !== 'questions')
+    subtabPool.classList.toggle('hidden', active !== 'pool')
+}
+
+function setSubTabsEnabled(enabled) {
+    subTabBtns.forEach(b => {
+        if (b.dataset.subtab !== 'details') b.disabled = !enabled
+    })
 }
 
 eventForm.addEventListener('submit', async (e) => {
@@ -352,10 +487,33 @@ eventForm.addEventListener('submit', async (e) => {
             throw new Error(data.error || `Server error ${res.status}`)
         }
 
-        showToast(id ? 'Event updated successfully.' : 'Event created successfully.', 'success')
-        resetEventForm()
-        showEventList()
-        loadEvents()
+        if (id) {
+            // Editing existing event — go back to list as before
+            showToast('Event updated successfully.', 'success')
+            resetEventForm()
+            showEventList()
+            loadEvents()
+        } else {
+            // New event just created — stay on the form and open the
+            // questions panel so the author can add questions immediately
+            const newEventId = data.event_id
+            editIdInput.value = newEventId
+            formHeading.textContent = 'Edit Event'
+            btnSubmit.textContent = 'Save Changes'
+            btnSubmit.disabled = false
+
+            currentEventId = newEventId
+            editLayout.classList.remove('hidden')
+            document.getElementById('event-sub-tabs').style.display = ''
+            resetSubTabs('details')
+            setSubTabsEnabled(true)
+            resetQuestionForm()
+            loadQuestions(newEventId)
+            loadPool(newEventId)
+            populatePoolCardSelect()
+
+            showToast('Event created! Add questions or cards via the side tabs.', 'success')
+        }
     } catch (err) {
         showToast(err.message, 'error')
         btnSubmit.disabled = false
@@ -394,11 +552,26 @@ async function doEventDelete() {
         }
 
         const card = elEventList.querySelector(`[data-id="${id}"]`)
-        if (card) card.remove()
+        if (card) {
+            const section = card.closest('.list-section')
+            card.remove()
 
-        const remaining = elEventList.querySelectorAll('.event-card').length
+            if (section) {
+                const remaining = section.querySelectorAll('.event-card').length
+                const badge = section.querySelector('.section-count')
+                if (badge) badge.textContent = remaining
+                if (remaining === 0) section.remove()
+            }
+        }
+
+        allEvents = allEvents.filter(e => e.event_id !== id)
+        const remaining = allEvents.length
+        if (remaining === 0) {
+            elEmpty.textContent = 'No events yet — create the first one.'
+            elEmpty.classList.remove('hidden')
+            eventToolbar.classList.add('hidden')
+        }
         elEventCount.textContent = `${remaining} event${remaining !== 1 ? 's' : ''}`
-        if (!remaining) elEmpty.classList.remove('hidden')
 
         showToast('Event deleted.', 'success')
     } catch (err) {
@@ -413,6 +586,7 @@ async function loadCards() {
     elCardListError.classList.add('hidden')
     elCardList.innerHTML = ''
     elCardCount.textContent = 'Loading…'
+    cardToolbar.classList.add('hidden')
 
     try {
         const res = await fetch(CARDS_API, { credentials: 'include' })
@@ -434,8 +608,8 @@ async function loadCards() {
             return
         }
 
-        elCardCount.textContent = `${data.length} card${data.length !== 1 ? 's' : ''}`
-        data.forEach((card) => elCardList.appendChild(buildCardRow(card)))
+        cardToolbar.classList.remove('hidden')
+        renderCards()
     } catch (err) {
         elCardLoading.classList.add('hidden')
         elCardListError.textContent = `Could not load cards — ${err.message}`
@@ -443,9 +617,78 @@ async function loadCards() {
     }
 }
 
+const CARD_SECTION_ORDER = ['LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'COMMON']
+const RARITY_SORT_INDEX = { LEGENDARY: 0, EPIC: 1, RARE: 2, UNCOMMON: 3, COMMON: 4 }
+
+function renderCards() {
+    elCardList.innerHTML = ''
+    elCardEmpty.classList.add('hidden')
+
+    const sortBy = cardSortSelect.value
+    const sorted = [...allCards].sort((a, b) => {
+        switch (sortBy) {
+            case 'rarity': {
+                const rd = (RARITY_SORT_INDEX[a.rarity] ?? 9) - (RARITY_SORT_INDEX[b.rarity] ?? 9)
+                return rd !== 0 ? rd : a.name.localeCompare(b.name)
+            }
+            case 'category':
+                return a.category.localeCompare(b.category) || a.name.localeCompare(b.name)
+            default:
+                return a.name.localeCompare(b.name)
+        }
+    })
+
+    const groups = {}
+    CARD_SECTION_ORDER.forEach(r => { groups[r] = [] })
+    sorted.forEach(card => {
+        if (groups[card.rarity]) groups[card.rarity].push(card)
+        else groups[card.rarity] = [card]
+    })
+
+    let visibleCount = 0
+    CARD_SECTION_ORDER.forEach(key => {
+        const items = groups[key]
+        if (!items || items.length === 0) return
+        if (!cardFilters.has(key)) return
+
+        visibleCount += items.length
+
+        const details = document.createElement('details')
+        details.className = 'list-section'
+        details.open = true
+        details.dataset.section = key
+
+        const summary = document.createElement('summary')
+        const colour = RARITY_COLOURS[key] ?? 'inherit'
+        summary.innerHTML = `<span style="color:${colour}">${key.charAt(0) + key.slice(1).toLowerCase()}</span> <span class="section-count">${items.length}</span>`
+        details.appendChild(summary)
+
+        const ul = document.createElement('ul')
+        ul.className = 'event-list'
+        items.forEach(card => ul.appendChild(buildCardRow(card)))
+        details.appendChild(ul)
+
+        elCardList.appendChild(details)
+    })
+
+    const total = allCards.length
+    if (visibleCount === total) {
+        elCardCount.textContent = `${total} card${total !== 1 ? 's' : ''}`
+    } else {
+        elCardCount.textContent = `Showing ${visibleCount} of ${total} cards`
+    }
+
+    if (visibleCount === 0 && total > 0) {
+        elCardEmpty.textContent = 'No cards match the current filters.'
+        elCardEmpty.classList.remove('hidden')
+    }
+}
+
 const RARITY_COLOURS = {
     COMMON: 'var(--text-muted)',
+    UNCOMMON: '#27ae60',
     RARE: '#60a5fa',
+    EPIC: '#a855f7',
     LEGENDARY: '#f59e0b',
 }
 
@@ -619,11 +862,26 @@ async function doCardDelete() {
         if (!res.ok) throw new Error(data.error || `Server error ${res.status}`)
 
         const row = elCardList.querySelector(`[data-id="${id}"]`)
-        if (row) row.remove()
+        if (row) {
+            const section = row.closest('.list-section')
+            row.remove()
 
-        const remaining = elCardList.querySelectorAll('.event-card').length
+            if (section) {
+                const remaining = section.querySelectorAll('.event-card').length
+                const badge = section.querySelector('.section-count')
+                if (badge) badge.textContent = remaining
+                if (remaining === 0) section.remove()
+            }
+        }
+
+        allCards = allCards.filter(c => c.card_id !== id)
+        const remaining = allCards.length
+        if (remaining === 0) {
+            elCardEmpty.textContent = 'No cards yet — create the first one.'
+            elCardEmpty.classList.remove('hidden')
+            cardToolbar.classList.add('hidden')
+        }
         elCardCount.textContent = `${remaining} card${remaining !== 1 ? 's' : ''}`
-        if (!remaining) elCardEmpty.classList.remove('hidden')
 
         showToast('Card deleted.', 'success')
     } catch (err) {
@@ -733,21 +991,20 @@ elEventList.addEventListener('click', (e) => {
 	const id = card?.dataset.id
 	if (!id) return
 	currentEventId = id
-	qPanel.hidden = false
 	loadQuestions(id)
+	loadPool(id)
+	populatePoolCardSelect()
 })
 
-// Brand-new events have no id yet, so hide the questions panel.
+// Brand-new events have no id yet.
 btnNew.addEventListener('click', () => {
 	currentEventId = null
-	qPanel.hidden = true
 	resetQuestionForm()
 })
 
-// Leaving the edit view hides the panel too.
+// Leaving the edit view resets the question form.
 btnCancel.addEventListener('click', () => {
 	currentEventId = null
-	qPanel.hidden = true
 	resetQuestionForm()
 })
 
@@ -1060,3 +1317,260 @@ qModalConfirm.addEventListener('click', async () => {
 	}
 })
 
+// ============================================================
+// Sub-tab switching
+// ============================================================
+subTabBtns.forEach(btn => {
+	btn.addEventListener('click', () => {
+		resetSubTabs(btn.dataset.subtab)
+	})
+})
+
+// ============================================================
+// Filter chips + sort controls
+// ============================================================
+function wireFilterChips(container, filterSet, allKeys, renderFn) {
+    container.addEventListener('click', (e) => {
+        const chip = e.target.closest('.filter-chip')
+        if (!chip) return
+        const key = chip.dataset.filter
+
+        if (key === 'all') {
+            const allActive = allKeys.every(k => filterSet.has(k))
+            if (allActive) {
+                allKeys.forEach(k => filterSet.delete(k))
+            } else {
+                allKeys.forEach(k => filterSet.add(k))
+            }
+        } else {
+            if (filterSet.has(key)) {
+                filterSet.delete(key)
+            } else {
+                filterSet.add(key)
+            }
+        }
+
+        container.querySelectorAll('.filter-chip').forEach(c => {
+            const k = c.dataset.filter
+            if (k === 'all') {
+                c.classList.toggle('active', allKeys.every(k2 => filterSet.has(k2)))
+            } else {
+                c.classList.toggle('active', filterSet.has(k))
+            }
+        })
+
+        renderFn()
+    })
+}
+
+wireFilterChips(eventFilterChips, eventFilters, ['active', 'scheduled', 'inactive', 'expired'], renderEvents)
+wireFilterChips(cardFilterChips, cardFilters, ['LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'COMMON'], renderCards)
+
+eventSortSelect.addEventListener('change', renderEvents)
+cardSortSelect.addEventListener('change', renderCards)
+
+// ============================================================
+// Card Pool Management
+// ============================================================
+const POOL_API = (eventId) => `${EVENTS_API}/${eventId}/pool`
+
+async function loadPool(eventId) {
+	poolLoading.classList.remove('hidden')
+	poolEmpty.classList.add('hidden')
+	poolList.innerHTML = ''
+	poolCount.textContent = 'Loading…'
+
+	try {
+		const res = await fetch(POOL_API(eventId), { credentials: 'include' })
+		if (!res.ok) throw new Error(`Server responded with ${res.status}`)
+		const data = await res.json()
+
+		poolLoading.classList.add('hidden')
+		poolCount.textContent = `${data.length} card${data.length !== 1 ? 's' : ''} in pool`
+
+		if (!data.length) {
+			poolEmpty.classList.remove('hidden')
+			return
+		}
+		data.forEach(item => poolList.appendChild(buildPoolItem(item)))
+	} catch (err) {
+		poolLoading.classList.add('hidden')
+		poolCount.textContent = 'Could not load pool'
+		showToast(err.message, 'error')
+	}
+}
+
+function buildPoolItem(item) {
+	const li = document.createElement('li')
+	li.className = 'pool-item'
+	li.dataset.poolId = item.pool_id
+
+	const rarityColour = RARITY_COLOURS[item.rarity] ?? 'inherit'
+
+	const limitLabel = item.global_copy_limit != null
+		? `${item.copies_awarded} / ${item.global_copy_limit} awarded`
+		: `${item.copies_awarded} awarded (unlimited)`
+
+	li.innerHTML = `
+		<div>
+			<div class="pool-item-name">${escapeHtml(item.name)}</div>
+			<div class="pool-item-meta">
+				<span style="color:${rarityColour};font-weight:600;">${escapeHtml(item.rarity)}</span>
+				<span>&middot; ${escapeHtml(item.category)}</span>
+				<span>&middot; Wt:</span>
+				<input type="number" min="1" value="${item.weight}"
+					class="pool-inline-field" data-field="weight" data-pool-id="${item.pool_id}" />
+				<span>&middot; Limit:</span>
+				<input type="number" min="1" value="${item.global_copy_limit ?? ''}"
+					placeholder="∞"
+					class="pool-inline-field" data-field="limit" data-pool-id="${item.pool_id}" />
+				<span>&middot; ${escapeHtml(limitLabel)}</span>
+			</div>
+		</div>
+		<div class="pool-item-actions">
+			<button class="btn btn-ghost btn-sm" data-pool-action="save">Save</button>
+			<button class="btn btn-sm" data-pool-action="remove"
+				style="color:var(--danger);border-color:#5a2a2a;background:var(--danger-dim);">
+				Remove
+			</button>
+		</div>
+	`
+
+	li.querySelector('[data-pool-action="save"]').addEventListener('click', () =>
+		savePoolEntry(item.pool_id, li)
+	)
+	li.querySelector('[data-pool-action="remove"]').addEventListener('click', () =>
+		openPoolDeleteModal(item.name, item.pool_id)
+	)
+
+	return li
+}
+
+async function savePoolEntry(poolId, li) {
+	const weightInput = li.querySelector('[data-field="weight"]')
+	const limitInput = li.querySelector('[data-field="limit"]')
+
+	const weight = parseInt(weightInput.value, 10) || 1
+	const limitVal = limitInput.value.trim()
+	const global_copy_limit = limitVal ? parseInt(limitVal, 10) : null
+
+	try {
+		const res = await fetch(`${POOL_API(currentEventId)}/${poolId}`, {
+			method: 'PUT',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ weight, global_copy_limit }),
+		})
+		const data = await res.json()
+		if (!res.ok) throw new Error(data.error || `Server error ${res.status}`)
+		showToast('Pool entry updated.', 'success')
+	} catch (err) {
+		showToast(err.message, 'error')
+	}
+}
+
+async function populatePoolCardSelect() {
+	if (!allCards.length) {
+		try {
+			const res = await fetch(CARDS_API, { credentials: 'include' })
+			if (res.ok) allCards = await res.json()
+		} catch { /* ignore */ }
+	}
+
+	poolSelect.innerHTML = '<option value="">-- pick a card --</option>'
+	const sorted = [...allCards].sort((a, b) => {
+		const rarityOrder = { COMMON: 0, UNCOMMON: 1, RARE: 2, EPIC: 3, LEGENDARY: 4 }
+		const rd = (rarityOrder[a.rarity] ?? 0) - (rarityOrder[b.rarity] ?? 0)
+		if (rd !== 0) return rd
+		return a.name.localeCompare(b.name)
+	})
+	sorted.forEach(card => {
+		const opt = document.createElement('option')
+		opt.value = card.card_id
+		opt.textContent = `${card.name} (${card.rarity})`
+		poolSelect.appendChild(opt)
+	})
+}
+
+poolForm.addEventListener('submit', async (e) => {
+	e.preventDefault()
+
+	const cardId = poolSelect.value
+	if (!cardId) {
+		showToast('Please select a card.', 'error')
+		return
+	}
+	if (!currentEventId) {
+		showToast('Save the event first.', 'error')
+		return
+	}
+
+	const weight = parseInt(poolWeight.value, 10) || 1
+	const limitVal = poolCopyLimit.value.trim()
+	const global_copy_limit = limitVal ? parseInt(limitVal, 10) : null
+
+	poolSubmit.disabled = true
+	poolSubmit.textContent = 'Adding…'
+
+	try {
+		const res = await fetch(POOL_API(currentEventId), {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ card_id: parseInt(cardId, 10), weight, global_copy_limit }),
+		})
+		const data = await res.json()
+		if (!res.ok) throw new Error(data.error || `Server error ${res.status}`)
+
+		showToast('Card added to pool.', 'success')
+		poolForm.reset()
+		loadPool(currentEventId)
+	} catch (err) {
+		showToast(err.message, 'error')
+	} finally {
+		poolSubmit.disabled = false
+		poolSubmit.textContent = 'Add to Pool'
+	}
+})
+
+function openPoolDeleteModal(name, poolId) {
+	pendingPoolDeleteId = poolId
+	poolModalBody.textContent = `"${name}" will be removed from this event's card pool.`
+	poolModalOverlay.classList.remove('hidden')
+}
+
+function closePoolDeleteModal() {
+	pendingPoolDeleteId = null
+	poolModalOverlay.classList.add('hidden')
+}
+
+poolModalCancel.addEventListener('click', closePoolDeleteModal)
+poolModalOverlay.addEventListener('click', (e) => {
+	if (e.target === poolModalOverlay) closePoolDeleteModal()
+})
+
+poolModalConfirm.addEventListener('click', async () => {
+	if (!pendingPoolDeleteId) return
+	const poolId = pendingPoolDeleteId
+	closePoolDeleteModal()
+
+	try {
+		const res = await fetch(`${POOL_API(currentEventId)}/${poolId}`, {
+			method: 'DELETE',
+			credentials: 'include',
+		})
+		const data = await res.json()
+		if (!res.ok) throw new Error(data.error || `Server error ${res.status}`)
+
+		const item = poolList.querySelector(`[data-pool-id="${poolId}"]`)
+		if (item) item.remove()
+
+		const remaining = poolList.querySelectorAll('.pool-item').length
+		poolCount.textContent = `${remaining} card${remaining !== 1 ? 's' : ''} in pool`
+		if (!remaining) poolEmpty.classList.remove('hidden')
+
+		showToast('Card removed from pool.', 'success')
+	} catch (err) {
+		showToast(err.message, 'error')
+	}
+})
