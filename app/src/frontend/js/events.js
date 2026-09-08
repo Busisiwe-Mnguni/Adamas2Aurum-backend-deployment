@@ -2,15 +2,16 @@ import { API_BASE } from './constants.js'
 import { get_player_location } from './geolocation.js'
 import { distance } from './general.js'
 import { updateAuthNav } from './auth-helpers.js'
+import { get_location_for_challenge } from './qr-scanner.js'
 
-const AUTH_API = `${API_BASE}/api/auth`
+const AUTH_API  = `${API_BASE}/api/auth`
 const EVENT_API = `${API_BASE}/api/events`
 
 // ── DOM ──────────────────────────────────────────────────────
 const btnLogout = document.getElementById('btn-logout')
-const elLoading = document.getElementById('map-loading')
-const elError = document.getElementById('map-error')
-const elSidebar = document.getElementById('map-sidebar')
+const elLoading   = document.getElementById('map-loading')
+const elError     = document.getElementById('map-error')
+const elSidebar   = document.getElementById('map-sidebar')
 
 // ── Map ───────────────────────────────────────────────────────
 const map = L.map('map', {
@@ -21,8 +22,7 @@ const map = L.map('map', {
 })
 
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-	attribution:
-		'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 	maxZoom: 19,
 }).addTo(map)
 
@@ -77,9 +77,7 @@ let currentUser = null
 
 async function checkAuth() {
 	try {
-		const res = await fetch(`${AUTH_API}/me`, {
-			credentials: 'include',
-		})
+		const res = await fetch(`${AUTH_API}/me`, { credentials: 'include' })
 		if (!res.ok) throw new Error()
 		currentUser = await res.json()
 		updateAuthNav(currentUser)
@@ -90,10 +88,7 @@ async function checkAuth() {
 }
 
 btnLogout.addEventListener('click', async () => {
-	await fetch(`${AUTH_API}/logout`, {
-		method: 'POST',
-		credentials: 'include',
-	})
+	await fetch(`${AUTH_API}/logout`, { method: 'POST', credentials: 'include' })
 	window.location.href = '../index.html'
 })
 
@@ -113,9 +108,7 @@ function startGeolocation() {
 		(pos) => {
 			const ll = [pos.coords.latitude, pos.coords.longitude]
 			if (!playerMarker) {
-				playerMarker = L.marker(ll, {
-					icon: playerIcon,
-				})
+				playerMarker = L.marker(ll, { icon: playerIcon })
 					.addTo(map)
 					.bindPopup('📍 You are here')
 			} else {
@@ -134,52 +127,33 @@ async function loadEvents() {
 		elError.classList.add('hidden')
 
 		const res = await fetch(EVENT_API, { cache: 'no-store' })
-		if (!res.ok)
-			throw new Error(`Server responded with ${res.status}`)
+		if (!res.ok) throw new Error(`Server responded with ${res.status}`)
 		const events = await res.json()
 
 		elLoading.classList.add('hidden')
 
 		if (!events.length) {
-			elError.textContent =
-				'No active events right now — check back later.'
+			elError.textContent = 'No active events right now — check back later.'
 			elError.classList.remove('hidden')
 			return
 		}
 
 		let playerLoc = null
-		try {
-			playerLoc = await get_player_location()
-		} catch {
-			/* fine */
-		}
+		try { playerLoc = await get_player_location() } catch { /* fine */ }
 
 		events.forEach((ev) => {
-			const ll = [
-				parseFloat(ev.latitude),
-				parseFloat(ev.longitude),
-			]
+			const ll = [parseFloat(ev.latitude), parseFloat(ev.longitude)]
 			// FIX: distance() expects two {latitude, longitude} objects, not 4 args
 			const inRange = playerLoc
 				? distance(
-						{
-							latitude: playerLoc[0],
-							longitude: playerLoc[1],
-						},
-						{
-							latitude: ll[0],
-							longitude: ll[1],
-						}
-					) <= ev.radius_meters
+					{ latitude: playerLoc[0], longitude: playerLoc[1] },
+					{ latitude: ll[0], longitude: ll[1] }
+				  ) <= ev.radius_meters
 				: false
 
-			const marker = L.marker(ll, {
-				icon: makeEventIcon(inRange),
-			})
+			const marker = L.marker(ll, { icon: makeEventIcon(inRange) })
 				.addTo(map)
-				.bindPopup(buildPopup(ev, inRange), {
-					maxWidth: 260,
-				})
+				.bindPopup(buildPopup(ev, inRange), { maxWidth: 260 })
 
 			eventMarkers.push(marker)
 			addSidebarEvent(ev, inRange, marker)
@@ -233,51 +207,94 @@ function addSidebarEvent(ev, inRange, marker) {
 	`
 
 	card.addEventListener('click', () => {
-		map.setView(
-			[parseFloat(ev.latitude), parseFloat(ev.longitude)],
-			18,
-			{ animate: true }
-		)
+		map.setView([parseFloat(ev.latitude), parseFloat(ev.longitude)], 18, { animate: true })
 		marker.openPopup()
-		document.querySelectorAll('.sidebar-event').forEach((c) =>
-			c.classList.remove('active')
-		)
+		document.querySelectorAll('.sidebar-event').forEach((c) => c.classList.remove('active'))
 		card.classList.add('active')
 	})
 
 	elSidebar.appendChild(card)
 }
 
+// ── Rarity styling ────────────────────────────────────────────
+const RARITY_STYLE = {
+	COMMON:    { bg: '#e5e7eb', fg: '#1f2937', label: 'Common' },
+	UNCOMMON:  { bg: '#bbf7d0', fg: '#14532d', label: 'Uncommon' },
+	RARE:      { bg: '#bfdbfe', fg: '#1e3a8a', label: 'Rare' },
+	EPIC:      { bg: '#e9d5ff', fg: '#581c87', label: 'Epic' },
+	LEGENDARY: { bg: '#fde68a', fg: '#78350f', label: 'Legendary' },
+}
+function rarityBadge(rarity) {
+	const s = RARITY_STYLE[rarity] || RARITY_STYLE.COMMON
+	return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:0.7rem;font-weight:600;letter-spacing:0.5px;background:${s.bg};color:${s.fg};text-transform:uppercase;">${s.label}</span>`
+}
+function escapeHtml(str) {
+	if (str == null) return ''
+	return String(str).replace(/[&<>"']/g, (c) => ({
+		'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+	}[c]))
+}
+
 // ── Challenge + trivia modal ──────────────────────────────────
+// Module-level so _submitAnswer can attach the same location it
+// was captured with — the submit endpoint requires claimed_lat/lng
+// (or qr_verified + location_check_id) when location verification is
+// enabled, otherwise it rejects the attempt with 400.
+let currentChallengeLocation = null
+
 window._challenge = async function (eventId) {
 	if (!currentUser) {
 		window.location.href = '../index.html'
 		return
 	}
+
+	// Get location — automatically falls back to QR scanner if GPS
+	// accuracy is too poor (handled inside get_location_for_challenge)
+	const location = await get_location_for_challenge(eventId)
+	if (!location) return // user cancelled QR scanner
+	currentChallengeLocation = location
+
+	// Build query params depending on which verification path was used
+	const locationParams = location.mode === 'gps'
+		? `lat=${location.lat}&lng=${location.lng}&accuracy=${location.accuracy}`
+		: `qr_verified=true&location_check_id=${location.location_check_id}`
+
 	try {
 		const res = await fetch(
-			`${API_BASE}/api/trivia/event/${eventId}`,
-			{
-				credentials: 'include',
-			}
+			`${API_BASE}/api/trivia/event/${eventId}?${locationParams}`,
+			{ credentials: 'include' }
 		)
+
 		if (res.status === 401) {
 			window.location.href = '../index.html'
 			return
 		}
-		if (!res.ok) {
-			alert(
-				'No trivia challenge available for this event right now.'
-			)
+
+		const data = await res.json()
+
+		// Backend signals GPS too poor but QR not yet scanned —
+		// this shouldn't normally happen since qr-scanner.js handles
+		// it client-side first, but handle it defensively
+		if (data.fallback_required) {
+			alert(`GPS accuracy too poor (${data.reported_accuracy_m}m). Please scan the QR code at this location.`)
 			return
 		}
-		showTriviaModal(eventId, await res.json())
+
+		if (!res.ok) {
+			alert(data.error || 'No trivia challenge available for this event right now.')
+			return
+		}
+
+		showTriviaModal(eventId, data)
 	} catch {
 		alert('Error connecting to the challenge server.')
 	}
 }
 
 function showTriviaModal(eventId, trivia) {
+	const startedAt = Date.now()
+	const timeLimitMs = (trivia.time_limit_s || 30) * 1000
+
 	document.getElementById('trivia-overlay')?.remove()
 
 	const overlay = document.createElement('div')
@@ -287,61 +304,142 @@ function showTriviaModal(eventId, trivia) {
 		display:flex;align-items:center;justify-content:center;z-index:10000;
 	`
 
-	const optionsHtml = trivia.options
-		.map(
-			(opt) => `
-		<button onclick="window._submitAnswer(${eventId},${trivia.question_id},${opt.option_id})"
+	const optionsHtml = trivia.options.map((opt) => `
+		<button data-opt-id="${opt.option_id}" class="trivia-option-btn"
 			style="
 				display:block;width:100%;margin:6px 0;padding:10px 14px;
-				border-radius:var(--radius);border:1px solid var(--border);
-				background:var(--surface-2);color:var(--text);
+				border-radius:8px;border:1px solid var(--border,#e5e7eb);
+				background:var(--surface-2,#f5f5f5);color:var(--text,#0f172a);
 				cursor:pointer;font-size:0.875rem;text-align:left;
-				font-family:var(--font-body);
-				transition:border-color 180ms ease,background 180ms ease;"
-			onmouseover="this.style.borderColor='#0c2461';this.style.background='#f0f4ff'"
-			onmouseout="this.style.borderColor='';this.style.background=''">
-			${opt.body}
+				font-family:var(--font-body,'Segoe UI',sans-serif);
+				transition:border-color 180ms ease,background 180ms ease;">
+			${escapeHtml(opt.body)}
 		</button>
-	`
-		)
-		.join('')
+	`).join('')
 
 	overlay.innerHTML = `
 		<div style="
-			background:var(--surface);border:1px solid var(--border);
-			border-radius:var(--radius-lg);padding:1.75rem;
+			background:var(--surface,#fff);border:1px solid var(--border,#e5e7eb);
+			border-radius:12px;padding:1.75rem;
 			max-width:420px;width:90%;
 			box-shadow:0 8px 30px rgba(0,0,0,0.15);
-			font-family:var(--font-body);">
-			<div style="font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--text);margin-bottom:0.75rem;">
-				🎯 Campus Challenge
+			font-family:var(--font-body,'Segoe UI',sans-serif);">
+			<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+				<div style="font-family:var(--font-display,'Segoe UI',sans-serif);font-weight:700;font-size:1.05rem;color:var(--text,#0f172a);">
+					🎯 Campus Challenge
+				</div>
+				<div id="trivia-timer-text" style="font-variant-numeric:tabular-nums;font-weight:600;font-size:0.85rem;color:var(--text-dim,#475569);"></div>
 			</div>
-			<p style="font-size:0.875rem;color:var(--text-dim);margin-bottom:1rem;line-height:1.5;">
-				${trivia.body}
+			<div style="height:6px;border-radius:999px;background:#e5e7eb;margin-bottom:1rem;overflow:hidden;">
+				<div id="trivia-timer-bar" style="height:100%;background:#0c2461;border-radius:999px;transition:width 100ms linear,background-color 200ms;width:100%;"></div>
+			</div>
+			<p style="font-size:0.875rem;color:var(--text-dim,#475569);margin-bottom:1rem;line-height:1.5;">
+				${escapeHtml(trivia.body)}
 			</p>
-			<div>${optionsHtml}</div>
-			<button onclick="document.getElementById('trivia-overlay').remove()"
-				style="margin-top:1rem;background:none;border:none;color:var(--text-muted);
-					cursor:pointer;font-size:0.8rem;text-decoration:underline;font-family:var(--font-body);">
+			<div id="trivia-options">${optionsHtml}</div>
+			<button id="trivia-close-btn"
+				style="margin-top:1rem;background:none;border:none;color:var(--text-muted,#9ca3af);
+					cursor:pointer;font-size:0.8rem;text-decoration:underline;">
 				Close
 			</button>
 		</div>
 	`
 	document.body.appendChild(overlay)
+
+	// Submit handler — guards against double-submit and auto-timeout both
+	// racing with a late user click.
+	let submitted = false
+	const submit = async (optionId, timedOut) => {
+		if (submitted) return
+		submitted = true
+		clearInterval(timerInterval)
+		const elapsed = Date.now() - startedAt
+		overlay.querySelectorAll('.trivia-option-btn').forEach((b) => (b.disabled = true))
+		await window._submitAnswer(eventId, trivia.question_id, optionId, {
+			timed_out: timedOut,
+			elapsed_ms: elapsed,
+		})
+	}
+
+	overlay.querySelectorAll('.trivia-option-btn').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			submit(Number(btn.dataset.optId), false)
+		})
+		btn.addEventListener('mouseover', () => {
+			if (!btn.disabled) {
+				btn.style.borderColor = '#0c2461'
+				btn.style.background = '#f0f4ff'
+			}
+		})
+		btn.addEventListener('mouseout', () => {
+			btn.style.borderColor = ''
+			btn.style.background = ''
+		})
+	})
+	overlay.querySelector('#trivia-close-btn').addEventListener('click', () => {
+		clearInterval(timerInterval)
+		overlay.remove()
+	})
+
+	// Countdown — ticks every 100 ms for a smooth bar; shifts color from
+	// deep blue → amber (<10 s) → red (<5 s), auto-submits at zero.
+	const barEl = overlay.querySelector('#trivia-timer-bar')
+	const textEl = overlay.querySelector('#trivia-timer-text')
+	const tick = () => {
+		const elapsed = Date.now() - startedAt
+		const remaining = Math.max(0, timeLimitMs - elapsed)
+		const pct = (remaining / timeLimitMs) * 100
+		barEl.style.width = pct + '%'
+		textEl.textContent = Math.ceil(remaining / 1000) + 's'
+		if (remaining < 5000) {
+			barEl.style.background = '#dc2626'
+			textEl.style.color = '#dc2626'
+		} else if (remaining < 10000) {
+			barEl.style.background = '#f59e0b'
+			textEl.style.color = '#b45309'
+		} else {
+			barEl.style.background = '#0c2461'
+			textEl.style.color = ''
+		}
+		if (remaining <= 0) {
+			submit(null, true)
+		}
+	}
+	tick()
+	const timerInterval = setInterval(tick, 100)
 }
 
-window._submitAnswer = async function (eventId, questionId, optionId) {
+window._submitAnswer = async function (eventId, questionId, optionId, opts = {}) {
+	const { timed_out = false, elapsed_ms = 0 } = opts
+	const loc = currentChallengeLocation
+
+	const body = {
+		event_id: eventId,
+		question_id: questionId,
+		answer_time_ms: elapsed_ms,
+		timed_out: !!timed_out,
+	}
+	if (!timed_out) body.selected_option_id = optionId
+
+	// Forward the same location we verified with at open time — the
+	// submit endpoint rejects attempts missing claimed_lat/lng when
+	// location verification is enabled.
+	if (loc) {
+		if (loc.mode === 'qr') {
+			body.qr_verified = true
+			body.location_check_id = loc.location_check_id
+		} else {
+			body.claimed_lat = loc.lat
+			body.claimed_lng = loc.lng
+		}
+	}
+
 	try {
 		const res = await fetch(`${API_BASE}/api/trivia/submit`, {
 			method: 'POST',
 			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				event_id: eventId,
-				question_id: questionId,
-				selected_option_id: optionId,
-				answer_time_ms: 1500,
-			}),
+			body: JSON.stringify(body),
 		})
 		if (res.status === 401) {
 			alert('Session expired — please sign in again.')
@@ -349,11 +447,90 @@ window._submitAnswer = async function (eventId, questionId, optionId) {
 			return
 		}
 		const data = await res.json()
-		document.getElementById('trivia-overlay')?.remove()
-		alert(data.message)
+		showResultModal(data)
 	} catch {
 		alert('Failed to submit answer.')
 	}
+}
+
+function showResultModal(data) {
+	const overlay = document.getElementById('trivia-overlay')
+	if (!overlay) return
+
+	let statusIcon, statusText, statusColor
+	if (data.timed_out) {
+		statusIcon = '⏰'
+		statusText = "Time's up!"
+		statusColor = '#b45309'
+	} else if (data.location_verified === false) {
+		statusIcon = '📍'
+		statusText = 'Too far away — attempt did not count.'
+		statusColor = '#b45309'
+	} else if (data.is_correct) {
+		statusIcon = '✅'
+		statusText = 'Correct!'
+		statusColor = '#16a34a'
+	} else {
+		statusIcon = '❌'
+		statusText = 'Incorrect.'
+		statusColor = '#dc2626'
+	}
+
+	const elapsedSec = ((data.answer_time_ms || 0) / 1000).toFixed(1)
+	const limitSec = data.time_limit_s || 30
+
+	let cardBlock = ''
+	if (data.card_awarded && data.awarded_card) {
+		const c = data.awarded_card
+		cardBlock = `
+			<div style="margin-top:1rem;padding:0.85rem 1rem;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;">
+				<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;margin-bottom:4px;">Card awarded</div>
+				<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+					<div style="font-weight:600;color:var(--text,#0f172a);">${escapeHtml(c.name)}</div>
+					${rarityBadge(c.rarity)}
+				</div>
+			</div>
+		`
+	} else if (data.already_earned_card) {
+		cardBlock = `<div style="margin-top:0.75rem;font-size:0.8rem;color:var(--text-muted,#9ca3af);">You've already earned this event's card.</div>`
+	}
+
+	const correctHtml = data.correct_option_text
+		? `<div style="margin-top:0.75rem;padding:0.6rem 0.85rem;border-radius:8px;background:#ecfdf5;border:1px solid #bbf7d0;font-size:0.85rem;color:#065f46;"><strong>Correct answer:</strong> ${escapeHtml(data.correct_option_text)}</div>`
+		: ''
+
+	const inner = overlay.firstElementChild
+	inner.innerHTML = `
+		<div style="text-align:center;margin-bottom:1rem;">
+			<div style="font-size:2.5rem;line-height:1;">${statusIcon}</div>
+			<div style="font-weight:700;font-size:1.1rem;color:${statusColor};margin-top:0.5rem;">${statusText}</div>
+		</div>
+		${correctHtml}
+		<div style="margin-top:1rem;border-top:1px solid var(--border,#e5e7eb);padding-top:0.75rem;">
+			<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.85rem;color:var(--text-dim,#475569);">
+				<span>Time taken</span>
+				<span style="font-variant-numeric:tabular-nums;font-weight:600;color:var(--text,#0f172a);">
+					${elapsedSec}s <span style="color:var(--text-muted,#9ca3af);font-weight:400;">/ ${limitSec}s</span>
+				</span>
+			</div>
+			<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.85rem;color:var(--text-dim,#475569);">
+				<span>Points earned</span>
+				<span style="font-weight:600;color:${data.points_awarded > 0 ? '#16a34a' : '#9ca3af'};">
+					${data.points_awarded > 0 ? '+' + data.points_awarded : '0'}
+				</span>
+			</div>
+		</div>
+		${cardBlock}
+		<div style="text-align:center;margin-top:1.25rem;">
+			<button id="result-close-btn"
+				style="padding:0.55rem 1.4rem;border-radius:8px;border:1px solid var(--border,#e5e7eb);
+					background:var(--surface-2,#f5f5f5);color:var(--text,#0f172a);font-weight:600;
+					font-size:0.85rem;cursor:pointer;">
+				Continue
+			</button>
+		</div>
+	`
+	inner.querySelector('#result-close-btn').addEventListener('click', () => overlay.remove())
 }
 
 // ── Boot ──────────────────────────────────────────────────────

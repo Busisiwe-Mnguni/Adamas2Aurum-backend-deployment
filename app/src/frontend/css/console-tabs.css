@@ -1,31 +1,297 @@
 /* Author Console Tabs */
 .console-tabs {
-	display: flex;
-	gap: 0.25rem;
-	border-bottom: 1px solid var(--border);
-	margin-bottom: 2rem;
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
 }
 
 .tab-btn {
-	background: none;
-	border: none;
-	border-bottom: 3px solid transparent;
-	padding: 0.6rem 1.25rem;
-	font-size: 0.95rem;
-	font-weight: 500;
-	color: var(--text-muted);
-	cursor: pointer;
-	transition:
-		color 0.15s,
-		border-color 0.15s;
-	margin-bottom: -1px; /* sits flush on the border */
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px; /* sits flush on the border */
 }
 
 .tab-btn:hover {
-	color: var(--text);
+  color: var(--text);
 }
 
 .tab-btn.tab-active {
-	color: var(--accent, #a78bfa);
-	border-bottom-color: var(--accent, #a78bfa);
+  color: var(--accent, #a78bfa);
+  border-bottom-color: var(--accent, #a78bfa);
+}
+
+/* ── Event edit side sub-tabs ── */
+.event-edit-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.sub-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 80px;
+}
+
+.sub-tab-btn {
+  background: none;
+  border: none;
+  border-right: 3px solid transparent;
+  padding: 0.6rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s, border-color 0.15s;
+  margin-right: -1px;
+}
+
+.sub-tab-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.sub-tab-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sub-tab-btn.sub-tab-active {
+  color: var(--accent, #0c2461);
+  border-right-color: var(--accent, #0c2461);
+}
+
+.sub-tab-panels {
+  min-width: 0;
+}
+
+/* ── Pool entry items ── */
+.pool-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem 1rem;
+  align-items: start;
+}
+
+.pool-item-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pool-item-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pool-item-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.pool-inline-field {
+  width: 70px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.82rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.pool-inline-field:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* ── List Toolbar (filter chips + sort) ── */
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.toolbar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.toolbar-sort {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toolbar-sort label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sort-select {
+  width: auto;
+  min-width: 140px;
+  padding: 0.35rem 2rem 0.35rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+/* ── Filter chips (interactive meta-pill) ── */
+.filter-chip {
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background var(--transition, 181ms ease),
+    color var(--transition, 181ms ease),
+    border-color var(--transition, 181ms ease),
+    opacity var(--transition, 181ms ease);
+}
+
+.filter-chip:hover {
+  opacity: 0.85;
+}
+
+.filter-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.filter-chip:not(.active) {
+  opacity: 0.45;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+/* Rarity-coloured card filter chips */
+.filter-chip[data-filter="LEGENDARY"].active {
+  border-color: #f59e0b;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+.filter-chip[data-filter="EPIC"].active {
+  border-color: #a855f7;
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.1);
+}
+.filter-chip[data-filter="RARE"].active {
+  border-color: #60a5fa;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+.filter-chip[data-filter="UNCOMMON"].active {
+  border-color: #27ae60;
+  color: #27ae60;
+  background: rgba(39, 174, 96, 0.1);
+}
+.filter-chip[data-filter="COMMON"].active {
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+/* ── Collapsible list sections ── */
+.list-section {
+  margin-bottom: 1.5rem;
+}
+
+.list-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.list-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.list-section > summary::before {
+  content: '\25B8';
+  display: inline-block;
+  transition: transform var(--transition, 181ms ease);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.list-section[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.list-section > summary .section-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 99px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.list-section > .event-list {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .event-edit-layout {
+    grid-template-columns: 1fr;
+  }
+  .sub-tabs {
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    position: static;
+  }
+  .sub-tab-btn {
+    border-right: none;
+    border-bottom: 3px solid transparent;
+    margin-right: 0;
+    margin-bottom: -1px;
+  }
+  .sub-tab-btn.sub-tab-active {
+    border-right-color: transparent;
+    border-bottom-color: var(--accent, #0c2461);
+  }
+  .list-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .sort-select {
+    width: 100%;
+  }
 }

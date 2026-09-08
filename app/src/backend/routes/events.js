@@ -132,6 +132,7 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
 		repeat_interval,
 		attempt_cooldown_s,
 		max_attempts_per_window,
+		is_active,
 	} = req.body
 
 	if (!title || latitude == null || longitude == null || !radius_meters) {
@@ -148,7 +149,7 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
       starts_at, ends_at,
       repeat_interval, attempt_cooldown_s, max_attempts_per_window,
       is_active, author_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
 
 	const values = [
@@ -164,6 +165,7 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
 		repeat_interval ?? null,
 		attempt_cooldown_s ?? 86400,
 		max_attempts_per_window ?? 1,
+		is_active ?? true,
 		req.user.user_id,
 	]
 
