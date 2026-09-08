@@ -1,7 +1,14 @@
-.vscode
-
-*.pdf
 .env
+.env.bak
+.secrets
+ca.pem
 
+data
 node_modules
-package-lock.json
+
+.vscode
+*.pdf
+app/src/backend/data/
+app/src/backend/data/
+public/
+.qoder/

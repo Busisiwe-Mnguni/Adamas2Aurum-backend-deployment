@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0"
+		/>
+		<title>A2A — Author Console</title>
+		<link rel="stylesheet" href="../css/style.css" />
+		<link rel="stylesheet" href="../css/console-tabs.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<div class="header-inner">
+				<a class="logo" href="console.html">
+					<span class="logo-a">A</span>
+					<span class="logo-sep">→</span>
+					<span class="logo-a">A</span>
+					<span class="logo-sub">
+						Adamas to Aurum
+					</span>
+				</a>
+				<nav class="header-nav" id="header-nav">
+					<a
+						href="events.html"
+						class="nav-link hidden"
+						id="nav-events"
+					>
+						Events
+					</a>
+					<a
+						href="collection.html"
+						class="nav-link hidden"
+						id="nav-collection"
+					>
+						Collection
+					</a>
+					<a
+						href="battle.html"
+						class="nav-link hidden"
+						id="nav-battle"
+					>
+						Battle
+					</a>
+				</nav>
+				<div class="header-right">
+					<span
+						class="admin-badge hidden"
+						id="user-badge"
+					></span>
+					<button
+						class="btn btn-sm btn-header hidden"
+						id="btn-logout"
+					>
+						Logout
+					</button>
+					<a
+						id="btn-signin"
+						href="../index.html"
+						class="btn btn-sm btn-header"
+					>
+						Sign In
+					</a>
+				</div>
+			</div>
+		</header>
+
+		<main class="main">
+			<div id="toast" class="toast" aria-live="polite"></div>
+
+			<!--logged in but missing role -->
+			<div id="access-denied" class="access-denied hidden">
+				<h2>Access Denied</h2>
+				<p>
+					You need an Event Author or Super Admin
+					role to use this console.
+				</p>
+				<button
+					class="btn btn-ghost"
+					id="btn-logout-denied"
+					style="margin-top: 1rem"
+				>
+					Logout
+				</button>
+			</div>
+
+			<div id="console-content" class="hidden">
+				<!-- Tab switcher -->
+				<nav class="console-tabs" id="console-tabs">
+					<button
+						class="tab-btn tab-active"
+						data-tab="events"
+					>
+						Events
+					</button>
+					<button
+						class="tab-btn"
+						data-tab="cards"
+					>
+						Cards
+					</button>
+				</nav>
+
+				<!-- ═══════════════════════════════════════════
+				     EVENTS TAB
+				════════════════════════════════════════════ -->
+				<div id="tab-events">
+					<div id="view-list">
+						<div
+							class="page-header"
+							style="
+								display: flex;
+								align-items: baseline;
+								justify-content: space-between;
+								flex-wrap: wrap;
+								gap: 1rem;
+							"
+						>
+							<div>
+								<h1
+									class="page-title"
+								>
+									Manage
+									Events
+								</h1>
+								<p
+									class="page-subtitle"
+									id="event-count"
+								>
+									Loading…
+								</p>
+							</div>
+							<button
+								class="btn btn-primary"
+								id="btn-new"
+							>
+								+ New Event
+							</button>
+						</div>
+
+						<div
+							id="loading"
+							class="state-msg"
+						>
+							Loading events…
+						</div>
+						<div
+							id="empty"
+							class="state-msg hidden"
+						>
+							No events yet — create
+							the first one.
+						</div>
+						<div
+							id="list-error"
+							class="state-msg error hidden"
+						></div>
+
+						<ul
+							id="event-list"
+							class="event-list"
+						></ul>
+					</div>
+
+					<div id="view-form" class="hidden">
+						<div class="page-header">
+							<h1
+								class="page-title"
+								id="form-heading"
+							>
+								New Event
+							</h1>
+						</div>
+
+						<div class="form-card">
+							<form
+								id="event-form"
+								novalidate
+							>
+								<input
+									type="hidden"
+									id="edit-id"
+								/>
+
+								<div
+									class="form-grid"
+								>
+									<div
+										class="form-col"
+									>
+										<div
+											class="field"
+										>
+											<label
+												for="f-title"
+											>
+												Title
+												<span
+													class="req"
+												>
+													*
+												</span>
+											</label>
+											<input
+												id="f-title"
+												type="text"
+												placeholder="e.g. Senate House Steps"
+												required
+											/>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												for="f-description"
+											>
+												Description
+											</label>
+											<textarea
+												id="f-description"
+												rows="3"
+												placeholder="What will players find here?"
+											></textarea>
+										</div>
+										<div
+											class="field-row"
+										>
+											<div
+												class="field"
+											>
+												<label
+													for="f-latitude"
+												>
+													Latitude
+													<span
+														class="req"
+													>
+														*
+													</span>
+												</label>
+												<input
+													id="f-latitude"
+													type="number"
+													step="any"
+													placeholder="-26.1929"
+													required
+												/>
+											</div>
+											<div
+												class="field"
+											>
+												<label
+													for="f-longitude"
+												>
+													Longitude
+													<span
+														class="req"
+													>
+														*
+													</span>
+												</label>
+												<input
+													id="f-longitude"
+													type="number"
+													step="any"
+													placeholder="28.0305"
+													required
+												/>
+											</div>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												for="f-radius"
+											>
+												Radius
+												(metres)
+												<span
+													class="req"
+												>
+													*
+												</span>
+											</label>
+											<input
+												id="f-radius"
+												type="number"
+												min="10"
+												placeholder="50"
+												required
+											/>
+										</div>
+									</div>
+
+									<!-- Right -->
+									<div
+										class="form-col"
+									>
+										<div
+											class="field-row"
+										>
+											<div
+												class="field"
+											>
+												<label
+													for="f-starts"
+												>
+													Starts
+													at
+												</label>
+												<input
+													id="f-starts"
+													type="datetime-local"
+												/>
+											</div>
+											<div
+												class="field"
+											>
+												<label
+													for="f-ends"
+												>
+													Ends
+													at
+												</label>
+												<input
+													id="f-ends"
+													type="datetime-local"
+												/>
+											</div>
+										</div>
+										<div
+											class="field-row"
+										>
+											<div
+												class="field"
+											>
+												<label
+													for="f-threshold"
+												>
+													Point
+													threshold
+												</label>
+												<input
+													id="f-threshold"
+													type="number"
+													min="0"
+													placeholder="0"
+												/>
+											</div>
+											<div
+												class="field"
+											>
+												<label
+													for="f-reward"
+												>
+													Point
+													reward
+												</label>
+												<input
+													id="f-reward"
+													type="number"
+													min="0"
+													placeholder="10"
+												/>
+											</div>
+										</div>
+										<div
+											class="field-row"
+										>
+											<div
+												class="field"
+											>
+												<label
+													for="f-cooldown"
+												>
+													Attempt
+													cooldown
+													(s)
+												</label>
+												<input
+													id="f-cooldown"
+													type="number"
+													min="0"
+													placeholder="86400"
+												/>
+											</div>
+											<div
+												class="field"
+											>
+												<label
+													for="f-max-attempts"
+												>
+													Max
+													attempts
+													/
+													window
+												</label>
+												<input
+													id="f-max-attempts"
+													type="number"
+													min="1"
+													placeholder="1"
+												/>
+											</div>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												for="f-interval"
+											>
+												Repeat
+												interval
+												(s)
+											</label>
+											<input
+												id="f-interval"
+												type="number"
+												min="0"
+												placeholder="Leave blank for one-shot"
+											/>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												class="checkbox-label"
+											>
+												<input
+													id="f-active"
+													type="checkbox"
+													checked
+												/>
+												<span>
+													Active
+													—
+													visible
+													to
+													players
+												</span>
+											</label>
+										</div>
+									</div>
+								</div>
+								<div
+									class="form-actions"
+								>
+									<button
+										type="button"
+										class="btn btn-ghost"
+										id="btn-cancel"
+									>
+										Cancel
+									</button>
+									<button
+										type="submit"
+										class="btn btn-primary"
+										id="btn-submit"
+									>
+										Save
+										Event
+									</button>
+								</div>
+							</form>
+						</div>
+						<!-- User Story 6 — Questions panel. Additive: does not modify the event form above. -->
+						<div
+							class="form-card"
+							id="questions-panel"
+							hidden
+							style="
+								margin-top: 1.5rem;
+							"
+						>
+							<div
+								class="page-header"
+								style="
+									margin-bottom: 1rem;
+								"
+							>
+								<h2
+									class="page-title"
+									style="
+										font-size: 1.3rem;
+									"
+								>
+									Questions
+								</h2>
+								<p
+									class="page-subtitle"
+									id="question-count"
+								>
+									No
+									questions
+									yet.
+								</p>
+							</div>
+							<div
+								id="question-loading"
+								class="state-msg"
+							>
+								Loading
+								questions…
+							</div>
+							<ul
+								id="question-list"
+								class="event-list"
+							></ul>
+							<div
+								id="question-empty"
+								class="state-msg hidden"
+							>
+								No questions
+								attached to this
+								event yet.
+							</div>
+							<hr
+								style="
+									margin: 1.5rem
+										0;
+									border: none;
+									border-top: 1px
+										solid
+										var(
+											--border
+										);
+								"
+							/>
+							<form
+								id="question-form"
+								novalidate
+							>
+								<input
+									type="hidden"
+									id="q-edit-id"
+								/>
+								<div
+									class="field"
+								>
+									<label
+										for="q-text"
+									>
+										Question
+										text
+										<span
+											class="req"
+										>
+											*
+										</span>
+									</label>
+									<textarea
+										id="q-text"
+										rows="2"
+										placeholder="e.g. In what year was gold discovered on the Witwatersrand?"
+									></textarea>
+								</div>
+								<div
+									class="field-row"
+								>
+									<div
+										class="field"
+									>
+										<label
+											for="q-type"
+										>
+											Type
+											<span
+												class="req"
+											>
+												*
+											</span>
+										</label>
+										<select
+											id="q-type"
+										>
+											<option
+												value="MULTIPLE_CHOICE"
+											>
+												Multiple
+												choice
+											</option>
+											<option
+												value="TRUE_FALSE"
+											>
+												True
+												/
+												False
+											</option>
+											<option
+												value="FILL_BLANK"
+											>
+												Fill
+												in
+												the
+												blank
+											</option>
+										</select>
+									</div>
+									<div
+										class="field"
+									>
+										<label
+											for="q-correct"
+										>
+											Correct
+											answer
+											<span
+												class="req"
+											>
+												*
+											</span>
+										</label>
+										<input
+											id="q-correct"
+											type="text"
+											list="q-option-list"
+											placeholder="For true/false use 'true' or 'false'"
+										/>
+										<datalist
+											id="q-option-list"
+										></datalist>
+									</div>
+								</div>
+								<div
+									class="field hidden"
+									id="q-options-field"
+								>
+									<label>
+										Options
+										<span
+											class="req"
+										>
+											*
+										</span>
+									</label>
+									<div
+										id="q-options-container"
+									></div>
+									<button
+										type="button"
+										class="btn btn-ghost btn-sm"
+										id="q-add-option"
+										style="
+											margin-top: 0.5rem;
+										"
+									>
+										+
+										Add
+										option
+									</button>
+								</div>
+								<div
+									class="form-actions"
+								>
+									<button
+										type="button"
+										class="btn btn-ghost"
+										id="q-cancel"
+									>
+										Cancel
+									</button>
+									<button
+										type="submit"
+										class="btn btn-primary"
+										id="q-submit"
+									>
+										Save
+										Question
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+				<!-- /tab-events -->
+
+				<!-- ═══════════════════════════════════════════
+				     CARDS TAB
+				════════════════════════════════════════════ -->
+				<div id="tab-cards" class="hidden">
+					<!-- List view -->
+					<div id="card-view-list">
+						<div
+							class="page-header"
+							style="
+								display: flex;
+								align-items: baseline;
+								justify-content: space-between;
+								flex-wrap: wrap;
+								gap: 1rem;
+							"
+						>
+							<div>
+								<h1
+									class="page-title"
+								>
+									Manage
+									Cards
+								</h1>
+								<p
+									class="page-subtitle"
+									id="card-count"
+								>
+									Loading…
+								</p>
+							</div>
+							<button
+								class="btn btn-primary"
+								id="btn-card-new"
+							>
+								+ New Card
+							</button>
+						</div>
+
+						<div
+							id="card-loading"
+							class="state-msg"
+						>
+							Loading cards…
+						</div>
+						<div
+							id="card-empty"
+							class="state-msg hidden"
+						>
+							No cards yet — create
+							the first one.
+						</div>
+						<div
+							id="card-list-error"
+							class="state-msg error hidden"
+						></div>
+
+						<ul
+							id="card-list"
+							class="event-list"
+						></ul>
+					</div>
+
+					<!-- Form view -->
+					<div id="card-view-form" class="hidden">
+						<div class="page-header">
+							<h1
+								class="page-title"
+								id="card-form-heading"
+							>
+								New Card
+							</h1>
+						</div>
+
+						<div class="form-card">
+							<form
+								id="card-form"
+								novalidate
+							>
+								<input
+									type="hidden"
+									id="card-edit-id"
+								/>
+
+								<div
+									class="form-grid"
+								>
+									<!-- Left col -->
+									<div
+										class="form-col"
+									>
+										<div
+											class="field"
+										>
+											<label
+												for="cf-name"
+											>
+												Name
+												<span
+													class="req"
+												>
+													*
+												</span>
+											</label>
+											<input
+												id="cf-name"
+												type="text"
+												placeholder="e.g. Nelson Mandela"
+												required
+											/>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												for="cf-flavour"
+											>
+												Flavour
+												text
+											</label>
+											<textarea
+												id="cf-flavour"
+												rows="3"
+												placeholder="A short description shown on the card…"
+											></textarea>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												for="cf-image"
+											>
+												Image
+												URL
+											</label>
+											<input
+												id="cf-image"
+												type="text"
+												placeholder="https://…"
+											/>
+										</div>
+										<div
+											class="field-row"
+										>
+											<div
+												class="field"
+											>
+												<label
+													for="cf-category"
+												>
+													Category
+													<span
+														class="req"
+													>
+														*
+													</span>
+												</label>
+												<select
+													id="cf-category"
+													required
+												>
+													<option
+														value=""
+													>
+														—
+														pick
+														one
+														—
+													</option>
+													<option
+														value="CHARACTER"
+													>
+														Character
+													</option>
+													<option
+														value="LOCATION"
+													>
+														Location
+													</option>
+													<option
+														value="INFLUENCE"
+													>
+														Influence
+													</option>
+													<option
+														value="HISTORICAL"
+													>
+														Historical
+													</option>
+												</select>
+											</div>
+											<div
+												class="field"
+											>
+												<label
+													for="cf-rarity"
+												>
+													Rarity
+													<span
+														class="req"
+													>
+														*
+													</span>
+												</label>
+												<select
+													id="cf-rarity"
+													required
+												>
+													<option
+														value=""
+													>
+														—
+														pick
+														one
+														—
+													</option>
+													<option
+														value="COMMON"
+													>
+														Common
+													</option>
+													<option
+														value="RARE"
+													>
+														Rare
+													</option>
+													<option
+														value="LEGENDARY"
+													>
+														Legendary
+													</option>
+												</select>
+											</div>
+										</div>
+									</div>
+
+									<!-- Right col — stats -->
+									<div
+										class="form-col"
+									>
+										<p
+											style="
+												font-size: 0.8rem;
+												color: var(
+													--text-muted
+												);
+												margin-bottom: 0.75rem;
+											"
+										>
+											Stats
+											(0–100).
+											Legacy
+											defaults
+											to
+											100
+											(health/defence).
+										</p>
+										<div
+											class="field-row"
+										>
+											<div
+												class="field"
+											>
+												<label
+													for="cf-attack"
+												>
+													Attack
+												</label>
+												<input
+													id="cf-attack"
+													type="number"
+													min="0"
+													max="100"
+													placeholder="0"
+												/>
+											</div>
+											<div
+												class="field"
+											>
+												<label
+													for="cf-location"
+												>
+													Location
+												</label>
+												<input
+													id="cf-location"
+													type="number"
+													min="0"
+													max="100"
+													placeholder="0"
+												/>
+											</div>
+										</div>
+										<div
+											class="field-row"
+										>
+											<div
+												class="field"
+											>
+												<label
+													for="cf-influence"
+												>
+													Influence
+												</label>
+												<input
+													id="cf-influence"
+													type="number"
+													min="0"
+													max="100"
+													placeholder="0"
+												/>
+											</div>
+											<div
+												class="field"
+											>
+												<label
+													for="cf-legacy"
+												>
+													Legacy
+													(HP)
+												</label>
+												<input
+													id="cf-legacy"
+													type="number"
+													min="0"
+													max="100"
+													placeholder="100"
+												/>
+											</div>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												for="cf-era"
+											>
+												Era
+											</label>
+											<input
+												id="cf-era"
+												type="number"
+												min="0"
+												max="100"
+												placeholder="0"
+											/>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												for="cf-ability-name"
+											>
+												Ability
+												name
+											</label>
+											<input
+												id="cf-ability-name"
+												type="text"
+												placeholder="e.g. Iron Will (Sprint 2)"
+											/>
+										</div>
+										<div
+											class="field"
+										>
+											<label
+												for="cf-ability-desc"
+											>
+												Ability
+												description
+											</label>
+											<textarea
+												id="cf-ability-desc"
+												rows="2"
+												placeholder="What the ability does…"
+											></textarea>
+										</div>
+									</div>
+								</div>
+
+								<div
+									class="form-actions"
+								>
+									<button
+										type="button"
+										class="btn btn-ghost"
+										id="btn-card-cancel"
+									>
+										Cancel
+									</button>
+									<button
+										type="submit"
+										class="btn btn-primary"
+										id="btn-card-submit"
+									>
+										Save
+										Card
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+				<!-- /tab-cards -->
+			</div>
+			<!-- /console-content -->
+		</main>
+
+		<div
+			id="modal-overlay"
+			class="modal-overlay hidden"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div class="modal">
+				<h2 class="modal-title">Delete this event?</h2>
+				<p id="modal-body" class="modal-body"></p>
+				<div class="modal-actions">
+					<button
+						class="btn btn-ghost"
+						id="modal-cancel"
+					>
+						Keep it
+					</button>
+					<button
+						class="btn btn-danger"
+						id="modal-confirm"
+					>
+						Delete
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- User Story 6 — question delete confirmation modal (mirrors the event delete modal above). -->
+		<div
+			id="q-modal-overlay"
+			class="modal-overlay hidden"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div class="modal">
+				<h2 class="modal-title">
+					Delete this question?
+				</h2>
+				<p id="q-modal-body" class="modal-body"></p>
+				<div class="modal-actions">
+					<button
+						class="btn btn-ghost"
+						id="q-modal-cancel"
+					>
+						Keep it
+					</button>
+					<button
+						class="btn btn-danger"
+						id="q-modal-confirm"
+					>
+						Delete
+					</button>
+				</div>
+			</div>
+		</div>
+
+		<script type="module" src="../js/console.js"></script>
+	</body>
+</html>

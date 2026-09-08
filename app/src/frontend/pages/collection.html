@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0"
+		/>
+		<title>A2A — My Collection</title>
+		<link rel="stylesheet" href="../css/style.css" />
+		<link rel="stylesheet" href="../css/collection.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<div class="header-inner">
+				<a class="logo" href="/">
+					<span class="logo-a">A</span>
+					<span class="logo-sep">→</span>
+					<span class="logo-a">A</span>
+					<span class="logo-sub">
+						Adamas to Aurum
+					</span>
+				</a>
+				<nav class="header-nav" id="header-nav">
+					<a
+						href="events.html"
+						class="nav-link hidden"
+						id="nav-events"
+					>
+						Events
+					</a>
+					<a
+						href="collection.html"
+						class="nav-link nav-link-active hidden"
+						id="nav-collection"
+					>
+						Collection
+					</a>
+					<a
+						href="battle.html"
+						class="nav-link hidden"
+						id="nav-battle"
+					>
+						Battle
+					</a>
+					<a
+						href="console.html"
+						class="nav-link nav-link-admin hidden"
+						id="nav-console"
+					>
+						Console
+					</a>
+				</nav>
+				<div class="header-right">
+					<span
+						class="admin-badge hidden"
+						id="user-badge"
+					></span>
+					<button
+						class="btn btn-sm btn-header hidden"
+						id="btn-logout"
+					>
+						Logout
+					</button>
+					<a
+						id="btn-signin"
+						href="../index.html"
+						class="btn btn-sm btn-header"
+					>
+						Sign In
+					</a>
+				</div>
+			</div>
+		</header>
+
+		<main class="main">
+			<div id="toast" class="toast" aria-live="polite"></div>
+
+			<!-- Collection — shown once the auth check passes -->
+			<div id="collection-content" class="hidden">
+				<div class="page-header">
+					<div>
+						<h1 class="page-title">
+							My Collection
+						</h1>
+						<p
+							class="page-subtitle"
+							id="collection-subtitle"
+						>
+							Loading…
+						</p>
+					</div>
+					<!-- Filter controls -->
+					<div
+						class="collection-filters"
+						id="collection-filters"
+						style="display: none"
+					>
+						<select
+							id="filter-category"
+							class="filter-select"
+						>
+							<option value="">
+								All categories
+							</option>
+							<option
+								value="CHARACTER"
+							>
+								Character
+							</option>
+							<option
+								value="LOCATION"
+							>
+								Location
+							</option>
+							<option
+								value="INFLUENCE"
+							>
+								Influence
+							</option>
+							<option
+								value="HISTORICAL"
+							>
+								Historical
+							</option>
+						</select>
+						<select
+							id="filter-rarity"
+							class="filter-select"
+						>
+							<option value="">
+								All rarities
+							</option>
+							<option value="COMMON">
+								Common
+							</option>
+							<option value="RARE">
+								Rare
+							</option>
+							<option
+								value="LEGENDARY"
+							>
+								Legendary
+							</option>
+						</select>
+					</div>
+				</div>
+
+				<div id="loading" class="state-msg">
+					Loading your cards…
+				</div>
+				<div id="empty" class="state-msg hidden">
+					No cards yet — head out to campus events
+					to earn your first one.
+				</div>
+				<div
+					id="error"
+					class="state-msg error hidden"
+				></div>
+
+				<ul id="card-list" class="collection-grid"></ul>
+			</div>
+		</main>
+
+		<script type="module" src="../js/collection.js"></script>
+	</body>
+</html>
