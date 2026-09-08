@@ -73,7 +73,11 @@ export async function canAwardCard(conn, user_id, event_id) {
  * @param {number} event_id
  * @param {number} elapsed_fraction  0..1; values outside this range are clamped
  */
-export async function getEventCardForSpeed(conn, event_id, elapsed_fraction = 0.5) {
+export async function getEventCardForSpeed(
+	conn,
+	event_id,
+	elapsed_fraction = 0.5
+) {
 	const [rows] = await conn.query(
 		`SELECT c.card_id, c.name, c.image_url, c.rarity, c.category,
 		        ecp.pool_id, ecp.global_copy_limit, ecp.copies_awarded
@@ -117,7 +121,10 @@ export async function getEventCardForSpeed(conn, event_id, elapsed_fraction = 0.
  *   reason: 'AWARDED'|'ALREADY_EARNED'|'NO_CARD_CONFIGURED'|'RACE_LOST'
  * }}
  */
-export async function awardCardIfEligible(conn, { user_id, event_id, elapsed_fraction = 0.5 }) {
+export async function awardCardIfEligible(
+	conn,
+	{ user_id, event_id, elapsed_fraction = 0.5 }
+) {
 	// 1. Eligibility — has the player ever won this event before?
 	const eligible = await canAwardCard(conn, user_id, event_id)
 	if (!eligible) {
@@ -131,7 +138,11 @@ export async function awardCardIfEligible(conn, { user_id, event_id, elapsed_fra
 
 	// 2. Which card does this event award at the player's speed bracket
 	//    (and do any still have copies)?
-	const card = await getEventCardForSpeed(conn, event_id, elapsed_fraction)
+	const card = await getEventCardForSpeed(
+		conn,
+		event_id,
+		elapsed_fraction
+	)
 	if (!card) {
 		return {
 			awarded: false,

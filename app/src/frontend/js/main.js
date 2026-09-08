@@ -16,10 +16,10 @@ import { get_player_location } from './geolocation.js'
 
 // ── Trivia result rendering helpers ───────────────────────────
 const RARITY_STYLE = {
-	COMMON:    { bg: '#e5e7eb', fg: '#1f2937', label: 'Common' },
-	UNCOMMON:  { bg: '#bbf7d0', fg: '#14532d', label: 'Uncommon' },
-	RARE:      { bg: '#bfdbfe', fg: '#1e3a8a', label: 'Rare' },
-	EPIC:      { bg: '#e9d5ff', fg: '#581c87', label: 'Epic' },
+	COMMON: { bg: '#e5e7eb', fg: '#1f2937', label: 'Common' },
+	UNCOMMON: { bg: '#bbf7d0', fg: '#14532d', label: 'Uncommon' },
+	RARE: { bg: '#bfdbfe', fg: '#1e3a8a', label: 'Rare' },
+	EPIC: { bg: '#e9d5ff', fg: '#581c87', label: 'Epic' },
 	LEGENDARY: { bg: '#fde68a', fg: '#78350f', label: 'Legendary' },
 }
 function rarityBadge(rarity) {
@@ -28,9 +28,17 @@ function rarityBadge(rarity) {
 }
 function escapeHtml(str) {
 	if (str == null) return ''
-	return String(str).replace(/[&<>"']/g, (c) => ({
-		'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-	}[c]))
+	return String(str).replace(
+		/[&<>"']/g,
+		(c) =>
+			({
+				'&': '&amp;',
+				'<': '&lt;',
+				'>': '&gt;',
+				'"': '&quot;',
+				"'": '&#39;',
+			})[c]
+	)
 }
 
 // Handle to the running trivia countdown, so a reuse of the modal for a
@@ -431,24 +439,34 @@ function showTriviaModal(eventId, trivia) {
 			activeTriviaTimer = null
 		}
 		const elapsed = Date.now() - startedAt
-		modal.querySelectorAll('.trivia-option-btn').forEach((b) => (b.disabled = true))
-		await window.submitTriviaAnswer(eventId, trivia.question_id, optionId, {
-			timed_out: timedOut,
-			elapsed_ms: elapsed,
-		})
+		modal.querySelectorAll('.trivia-option-btn').forEach(
+			(b) => (b.disabled = true)
+		)
+		await window.submitTriviaAnswer(
+			eventId,
+			trivia.question_id,
+			optionId,
+			{
+				timed_out: timedOut,
+				elapsed_ms: elapsed,
+			}
+		)
 	}
 	modal.querySelectorAll('.trivia-option-btn').forEach((btn) => {
 		btn.addEventListener('click', () => {
 			submit(Number(btn.dataset.optId), false)
 		})
 	})
-	modal.querySelector('#trivia-close-btn').addEventListener('click', () => {
-		if (activeTriviaTimer) {
-			clearInterval(activeTriviaTimer)
-			activeTriviaTimer = null
+	modal.querySelector('#trivia-close-btn').addEventListener(
+		'click',
+		() => {
+			if (activeTriviaTimer) {
+				clearInterval(activeTriviaTimer)
+				activeTriviaTimer = null
+			}
+			modal.remove()
 		}
-		modal.remove()
-	})
+	)
 
 	// Countdown bar — ticks every 100 ms for a smooth animation, shifts
 	// colour from blue → amber (<10 s) → red (<5 s), and auto-submits as
@@ -496,7 +514,12 @@ function showTriviaModal(eventId, trivia) {
  * got it right or wrong, using correct_option_text from the server's
  * response.
  */
-window.submitTriviaAnswer = async function (eventId, questionId, optionId, opts = {}) {
+window.submitTriviaAnswer = async function (
+	eventId,
+	questionId,
+	optionId,
+	opts = {}
+) {
 	const { timed_out: timedOut = false, elapsed_ms: elapsedMs = 0 } = opts
 	const optionsContainer = document.getElementById('trivia-options')
 	const resultContainer = document.getElementById('trivia-result')
@@ -568,7 +591,8 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId, opts 
 			// Also hide the now-stale option buttons — the player is done
 			// with this question, and the result view sits below the old
 			// options area.
-			if (optionsContainer) optionsContainer.style.display = 'none'
+			if (optionsContainer)
+				optionsContainer.style.display = 'none'
 
 			let statusIcon, statusText, statusColor
 			if (data.timed_out) {
@@ -577,7 +601,8 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId, opts 
 				statusColor = '#b45309'
 			} else if (data.location_verified === false) {
 				statusIcon = '📍'
-				statusText = 'Too far away — attempt did not count.'
+				statusText =
+					'Too far away — attempt did not count.'
 				statusColor = '#b45309'
 			} else if (data.is_correct) {
 				statusIcon = '✅'
@@ -589,7 +614,9 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId, opts 
 				statusColor = '#dc2626'
 			}
 
-			const elapsedSec = ((data.answer_time_ms || 0) / 1000).toFixed(1)
+			const elapsedSec = (
+				(data.answer_time_ms || 0) / 1000
+			).toFixed(1)
 			const limitSec = data.time_limit_s || 30
 
 			const correctHtml = data.correct_option_text

@@ -107,56 +107,64 @@ app.use('/api/auth', auth_routes)
 // ── SESSION RESOLUTION MIDDLEWARE ──
 // Populates req.user from EITHER our custom session OR Better Auth's session.
 app.use(async (req, res, next) => {
-  // 1. Custom session (username + PIN)
-  if (req.session?.user?.user_id) {
-    try {
-      const [users] = await pool.query(
-        'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
-        [req.session.user.user_id]
-      )
-      if (users.length) req.user = users[0]
-    } catch (err) {
-      console.warn('Custom session resolve error:', err.message)
-    }
-    return next()
-  }
+	// 1. Custom session (username + PIN)
+	if (req.session?.user?.user_id) {
+		try {
+			const [users] = await pool.query(
+				'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
+				[req.session.user.user_id]
+			)
+			if (users.length) req.user = users[0]
+		} catch (err) {
+			console.warn(
+				'Custom session resolve error:',
+				err.message
+			)
+		}
+		return next()
+	}
 
-  // 2. Better Auth session (Google OAuth)
-  try {
-    const bSession = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    })
-    if (bSession?.user) {
-      const [users] = await pool.query(
-        'SELECT user_id, name, email, avatar_url, points FROM users WHERE email = ?',
-        [bSession.user.email]
-      )
-      if (users.length) {
-        req.user = users[0]
-      } else {
-        // First-time Google user — sync into our users table
-        const [result] = await pool.query(
-          `INSERT INTO users (provider_id, email, name, avatar_url, points)
+	// 2. Better Auth session (Google OAuth)
+	try {
+		const bSession = await auth.api.getSession({
+			headers: fromNodeHeaders(req.headers),
+		})
+		if (bSession?.user) {
+			const [users] = await pool.query(
+				'SELECT user_id, name, email, avatar_url, points FROM users WHERE email = ?',
+				[bSession.user.email]
+			)
+			if (users.length) {
+				req.user = users[0]
+			} else {
+				// First-time Google user — sync into our users table
+				const [result] = await pool.query(
+					`INSERT INTO users (provider_id, email, name, avatar_url, points)
            VALUES (?, ?, ?, ?, 0)`,
-          [`betterauth:${bSession.user.id}`, bSession.user.email, bSession.user.name, bSession.user.image]
-        )
-        const [newUsers] = await pool.query(
-          'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
-          [result.insertId]
-        )
-        req.user = newUsers[0]
-      }
-      // Keep the express-session cookie in sync so existing code that reads
-      // req.session.user.user_id continues to work for Google-OAuth users.
-      req.session.user = req.user
-    }
-  } catch (err) {
-    // Silently continue for unauthenticated requests
-  }
-  next()
+					[
+						`betterauth:${bSession.user.id}`,
+						bSession.user.email,
+						bSession.user.name,
+						bSession.user.image,
+					]
+				)
+				const [newUsers] = await pool.query(
+					'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
+					[result.insertId]
+				)
+				req.user = newUsers[0]
+			}
+			// Keep the express-session cookie in sync so existing code that reads
+			// req.session.user.user_id continues to work for Google-OAuth users.
+			req.session.user = req.user
+		}
+	} catch (err) {
+		// Silently continue for unauthenticated requests
+	}
+	next()
 })
 
-app.use( '/api/events', qr_routes)
+app.use('/api/events', qr_routes)
 app.use('/api/events', pool_routes)
 app.use('/api/events', event_routes)
 app.use('/api/cards', card_routes)

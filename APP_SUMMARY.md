@@ -6,27 +6,27 @@ A location-based campus trivia and card-collection game. Admins create geo-fence
 
 ## Tech stack
 
-| Layer | Tech |
-|---|---|
-| Frontend | Plain HTML/CSS/JS, Leaflet.js + OpenStreetMap |
-| Backend | Node.js + Express, MySQL via `mysql2/promise` |
-| Auth | Express sessions + custom PIN auth; Better Auth for Google OAuth |
-| Tests | Jest (frontend + backend) |
-| Formatting | Prettier |
+| Layer      | Tech                                                             |
+| ---------- | ---------------------------------------------------------------- |
+| Frontend   | Plain HTML/CSS/JS, Leaflet.js + OpenStreetMap                    |
+| Backend    | Node.js + Express, MySQL via `mysql2/promise`                    |
+| Auth       | Express sessions + custom PIN auth; Better Auth for Google OAuth |
+| Tests      | Jest (frontend + backend)                                        |
+| Formatting | Prettier                                                         |
 
 The backend serves the frontend statically from `http://localhost:3000` by default.
 
 ## Main pages
 
-| Page | File | Audience | Purpose |
-|---|---|---|---|
-| Landing / login | `app/src/frontend/index.html` | Everyone | Auth drawer with Username + PIN and Google OAuth |
-| Player events dashboard | `app/src/frontend/pages/events.html` | Players | List/map of active events, trivia entry point |
-| Collection | `app/src/frontend/pages/collection.html` | Players | Cards the user has earned |
-| Battle | `app/src/frontend/pages/battle.html` | Players | Card-battle feature |
-| Admin console | `app/src/frontend/pages/console.html` | Admins/Authors | CRUD for events, questions, and cards |
-| Legacy map page | `app/src/frontend/pages/map.html` | — | Kept but no longer linked from nav |
-| Legacy auth page | `app/src/frontend/pages/auth.html` | — | Redirects to `/` |
+| Page                    | File                                     | Audience       | Purpose                                          |
+| ----------------------- | ---------------------------------------- | -------------- | ------------------------------------------------ |
+| Landing / login         | `app/src/frontend/index.html`            | Everyone       | Auth drawer with Username + PIN and Google OAuth |
+| Player events dashboard | `app/src/frontend/pages/events.html`     | Players        | List/map of active events, trivia entry point    |
+| Collection              | `app/src/frontend/pages/collection.html` | Players        | Cards the user has earned                        |
+| Battle                  | `app/src/frontend/pages/battle.html`     | Players        | Card-battle feature                              |
+| Admin console           | `app/src/frontend/pages/console.html`    | Admins/Authors | CRUD for events, questions, and cards            |
+| Legacy map page         | `app/src/frontend/pages/map.html`        | —              | Kept but no longer linked from nav               |
+| Legacy auth page        | `app/src/frontend/pages/auth.html`       | —              | Redirects to `/`                                 |
 
 ## Frontend JS modules
 
@@ -43,28 +43,28 @@ The backend serves the frontend statically from `http://localhost:3000` by defau
 
 ## Backend routes
 
-| Route | Description |
-|---|---|
-| `POST /api/auth/login` | PIN login (sends `{ email: username, pin }`) |
-| `POST /api/auth/register` | PIN registration |
-| `GET /api/auth/me` | Current session user |
-| `POST /api/auth/logout` | Logout |
-| `GET /api/events` | Public active events (time + geo filtered) |
-| `POST /api/events` | Create event (author/admin) |
-| `PUT /api/events/:id` | Update event |
-| `DELETE /api/events/:id` | Delete event |
-| `GET /api/events/:id/questions` | Questions for an event (no answers) |
-| `POST /api/events/:id/questions` | Add question |
-| `PUT /api/questions/:id` | Edit question |
-| `DELETE /api/questions/:id` | Delete question |
-| `GET /api/trivia/event/:eventId` | Fetch a random question for an event (location-checked, answers stripped of is_correct) |
-| `POST /api/trivia/submit` | Submit a trivia answer (grades server-side, awards points + card) |
-| `GET /api/cards` | List cards |
-| `GET /api/cards/:id` | Card detail |
-| `GET /api/events/:eventId/pool` | List card pool entries for an event (with card details) |
-| `POST /api/events/:eventId/pool` | Add a card to an event's pool |
-| `PUT /api/events/:eventId/pool/:poolId` | Update pool entry weight/copy limit |
-| `DELETE /api/events/:eventId/pool/:poolId` | Remove a card from an event's pool |
+| Route                                      | Description                                                                             |
+| ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `POST /api/auth/login`                     | PIN login (sends `{ email: username, pin }`)                                            |
+| `POST /api/auth/register`                  | PIN registration                                                                        |
+| `GET /api/auth/me`                         | Current session user                                                                    |
+| `POST /api/auth/logout`                    | Logout                                                                                  |
+| `GET /api/events`                          | Public active events (time + geo filtered)                                              |
+| `POST /api/events`                         | Create event (author/admin)                                                             |
+| `PUT /api/events/:id`                      | Update event                                                                            |
+| `DELETE /api/events/:id`                   | Delete event                                                                            |
+| `GET /api/events/:id/questions`            | Questions for an event (no answers)                                                     |
+| `POST /api/events/:id/questions`           | Add question                                                                            |
+| `PUT /api/questions/:id`                   | Edit question                                                                           |
+| `DELETE /api/questions/:id`                | Delete question                                                                         |
+| `GET /api/trivia/event/:eventId`           | Fetch a random question for an event (location-checked, answers stripped of is_correct) |
+| `POST /api/trivia/submit`                  | Submit a trivia answer (grades server-side, awards points + card)                       |
+| `GET /api/cards`                           | List cards                                                                              |
+| `GET /api/cards/:id`                       | Card detail                                                                             |
+| `GET /api/events/:eventId/pool`            | List card pool entries for an event (with card details)                                 |
+| `POST /api/events/:eventId/pool`           | Add a card to an event's pool                                                           |
+| `PUT /api/events/:eventId/pool/:poolId`    | Update pool entry weight/copy limit                                                     |
+| `DELETE /api/events/:eventId/pool/:poolId` | Remove a card from an event's pool                                                      |
 
 ## Database tables
 
@@ -84,55 +84,58 @@ Seed data is in `app/src/backend/db/seed.sql`.
 ## Key features currently implemented
 
 1. **Auth**
-   - Username + PIN login/signup (username sent as `email` to the legacy backend)
-   - Google OAuth via Better Auth
-   - Session-based authentication with role-aware redirects
+      - Username + PIN login/signup (username sent as `email` to the legacy backend)
+      - Google OAuth via Better Auth
+      - Session-based authentication with role-aware redirects
 
 2. **Role-based routing & navigation**
-   - Single login entry point at `/`
-   - Players → `events.html`
-   - Admins/authors → `console.html`
-   - Header shows only role-appropriate links
-   - Map nav link removed; Events is the player landing page
+      - Single login entry point at `/`
+      - Players → `events.html`
+      - Admins/authors → `console.html`
+      - Header shows only role-appropriate links
+      - Map nav link removed; Events is the player landing page
 
 3. **Admin console**
-   - Create/edit/delete events
-   - Attach MC / true-false / fill-blank questions to events
-   - Manage cards (full CRUD with 5 rarity tiers: COMMON, UNCOMMON, RARE, EPIC, LEGENDARY)
-   - Manage event card pools — add/remove cards from an event's pool, set weight and global copy limits
-   - Side sub-tabs (Details / Questions / Card Pool) when editing an event
+      - Create/edit/delete events
+      - Attach MC / true-false / fill-blank questions to events
+      - Manage cards (full CRUD with 5 rarity tiers: COMMON, UNCOMMON, RARE, EPIC, LEGENDARY)
+      - Manage event card pools — add/remove cards from an event's pool, set weight and global copy limits
+      - Side sub-tabs (Details / Questions / Card Pool) when editing an event
 
 4. **Player experience**
-   - Leaflet map with event markers
-   - Timed trivia challenge overlay when near an event (countdown bar + live seconds)
-   - Auto-fail on timeout (server-graded as incorrect, with the correct answer still shown)
-   - Time-decayed points (linear, 50 % floor) and speed-ranked card rarity brackets
-   - Result modal after each answer showing status, correct answer, time taken, points earned, and the card awarded (name + colour-coded rarity badge)
-   - Once-only card awards per event with a retry-after-win "already earned" state
-   - Collection and battle pages
+      - Leaflet map with event markers
+      - Timed trivia challenge overlay when near an event (countdown bar + live seconds)
+      - Auto-fail on timeout (server-graded as incorrect, with the correct answer still shown)
+      - Time-decayed points (linear, 50 % floor) and speed-ranked card rarity brackets
+      - Result modal after each answer showing status, correct answer, time taken, points earned, and the card awarded (name + colour-coded rarity badge)
+      - Once-only card awards per event with a retry-after-win "already earned" state
+      - Collection and battle pages
 
 5. **Live sync**
-   - Player map and events dashboard poll every 30 seconds
-   - Refresh on `visibilitychange`
-   - `cache: 'no-store'` on event fetches
+      - Player map and events dashboard poll every 30 seconds
+      - Refresh on `visibilitychange`
+      - `cache: 'no-store'` on event fetches
 
 ## Timed trivia answer flow
 
 The trivia loop spans three files — `routes/trivia.js` (backend), `services/card_award.js` (speed-ranked card selection), and `js/events.js` (player UI, mirrored in `js/main.js` for the landing-page flow).
 
 **Question fetch (`GET /api/trivia/event/:eventId`):**
+
 - Requires the player to be within `events.radius_meters` of the event's location (GPS or QR-verified fallback)
 - Returns a random question + answer options (but never `is_correct` — that stays server-side only)
 - Stashes `{ question_id, event_id, issued_at }` in the session so the submit route can compute authoritative server-side elapsed time
 - Flags `card_eligibility.already_earned` so the UI can show a practice-mode banner
 
 **Question UI (`showTriviaModal` in events.js):**
+
 - Renders the question with a 6 px countdown bar and live seconds remaining, ticking every 100 ms for a smooth animation
 - Bar colour shifts blue → amber (<10 s) → red (<5 s)
 - At 0 s the buttons disable and `_submitAnswer` fires with `timed_out: true` (no selected option)
 - A `submitted` flag guards against a late user click racing the auto-timeout
 
 **Answer submit (`POST /api/trivia/submit`):**
+
 - Accepts `event_id`, `question_id`, `selected_option_id` (optional when `timed_out: true`), `answer_time_ms`, location params, and the optional `timed_out` flag
 - Computes authoritative elapsed: `Date.now() − session.trivia_issue.issued_at` when the question matches; falls back to client `answer_time_ms` otherwise
 - 1 s grace on the timeout verdict (network latency); elapsed capped at the time limit for scoring
@@ -143,6 +146,7 @@ The trivia loop spans three files — `routes/trivia.js` (backend), `services/ca
 - Eligibility unchanged: correct + verified + first win on this event (UNIQUE(user_id, event_id) backstop on `event_card_awards`)
 
 **Response shape:**
+
 ```json
 {
   "is_correct": true,
@@ -160,6 +164,7 @@ The trivia loop spans three files — `routes/trivia.js` (backend), `services/ca
 ```
 
 **Result modal (`showResultModal` in events.js):**
+
 - Status icon + text (✅ Correct / ❌ Incorrect / ⏰ Time's up / 📍 Too far)
 - "Correct answer: X" (always shown, user story 7)
 - Time taken: `X.Xs / Ys`
@@ -170,10 +175,10 @@ The trivia loop spans three files — `routes/trivia.js` (backend), `services/ca
 
 ## Test accounts
 
-| Username | PIN | Role | Lands on |
-|---|---|---|---|
-| `alice@example.com` | `1234` | Super admin | Console |
-| `player@example.com` | `1234` | Player | Events |
+| Username             | PIN    | Role        | Lands on |
+| -------------------- | ------ | ----------- | -------- |
+| `alice@example.com`  | `1234` | Super admin | Console  |
+| `player@example.com` | `1234` | Player      | Events   |
 
 ## Running locally
 
@@ -199,28 +204,28 @@ The trivia loop spans three files — `routes/trivia.js` (backend), `services/ca
 ## Recent changes
 
 - **2026-09-08 — Console sub-tab UX fix + event creation is_active fix**
-  - Fixed "New Event" form: sub-tabs (Details / Questions / Card Pool) are now always visible when creating a new event, but Questions and Card Pool are disabled (greyed out) until the event is saved — previously the entire tab nav was hidden, making the form look incomplete
-  - Fixed POST `/api/events` route: `is_active` is now read from the request body (matching the PUT route) instead of being hardcoded to TRUE — the admin console's "Active" checkbox now works correctly during creation
-  - Added `setSubTabsEnabled()` helper and `.sub-tab-btn:disabled` CSS (opacity 0.35, cursor not-allowed)
-  - Files touched: `routes/events.js`, `js/console.js`, `css/console-tabs.css`
+     - Fixed "New Event" form: sub-tabs (Details / Questions / Card Pool) are now always visible when creating a new event, but Questions and Card Pool are disabled (greyed out) until the event is saved — previously the entire tab nav was hidden, making the form look incomplete
+     - Fixed POST `/api/events` route: `is_active` is now read from the request body (matching the PUT route) instead of being hardcoded to TRUE — the admin console's "Active" checkbox now works correctly during creation
+     - Added `setSubTabsEnabled()` helper and `.sub-tab-btn:disabled` CSS (opacity 0.35, cursor not-allowed)
+     - Files touched: `routes/events.js`, `js/console.js`, `css/console-tabs.css`
 
 - **2026-09-08 — Event card pool management + console side sub-tabs**
-  - Added full CRUD API for `event_card_pool` (`routes/event_pool.js`) — add/remove cards from an event's pool, update weight and global copy limits
-  - Restructured the console event edit view with side sub-tabs (Details / Questions / Card Pool) instead of stacked panels
-  - Card Pool panel shows existing pool entries with inline-editable weight/copy limit fields, a dropdown to add cards (sorted by rarity), and a remove confirmation modal
-  - Added UNCOMMON and EPIC to the card rarity dropdown and backend validation (was previously missing, only had COMMON/RARE/LEGENDARY)
-  - Side sub-tabs collapse to horizontal on mobile (≤720px)
-  - Files touched: `routes/event_pool.js` (new), `server.js`, `routes/cards.js`, `pages/console.html`, `css/console-tabs.css`, `js/console.js`
+     - Added full CRUD API for `event_card_pool` (`routes/event_pool.js`) — add/remove cards from an event's pool, update weight and global copy limits
+     - Restructured the console event edit view with side sub-tabs (Details / Questions / Card Pool) instead of stacked panels
+     - Card Pool panel shows existing pool entries with inline-editable weight/copy limit fields, a dropdown to add cards (sorted by rarity), and a remove confirmation modal
+     - Added UNCOMMON and EPIC to the card rarity dropdown and backend validation (was previously missing, only had COMMON/RARE/LEGENDARY)
+     - Side sub-tabs collapse to horizontal on mobile (≤720px)
+     - Files touched: `routes/event_pool.js` (new), `server.js`, `routes/cards.js`, `pages/console.html`, `css/console-tabs.css`, `js/console.js`
 
 - **2026-09-08 — Timed trivia + result modal + speed-ranked cards**
-  - Replaced the old `alert()` after answering with a full result modal showing status (✅/❌/⏰/📍), correct answer, time taken, points earned, and the card awarded (with a colour-coded rarity badge)
-  - Added a live countdown bar to the question modal (blue → amber → red) that auto-submits as incorrect on timeout
-  - Points are now time-decayed (linear with a 50 % floor) instead of flat — faster answers earn more
-  - Card awards are now speed-ranked: faster answers land in higher-rarity brackets from the event's pool (LEGENDARY → COMMON)
-  - Server-side elapsed time (from a session-stamped issue timestamp) is now authoritative, preventing clients from faking fast answers to game the card brackets
-  - `events.js` now sends the captured location (GPS or QR) at submit time, fixing rejects when location verification is enabled
-  - Mirrored in `main.js` for the legacy landing-page flow
-  - Files touched: `routes/trivia.js`, `services/card_award.js`, `js/events.js`, `js/main.js`
+     - Replaced the old `alert()` after answering with a full result modal showing status (✅/❌/⏰/📍), correct answer, time taken, points earned, and the card awarded (with a colour-coded rarity badge)
+     - Added a live countdown bar to the question modal (blue → amber → red) that auto-submits as incorrect on timeout
+     - Points are now time-decayed (linear with a 50 % floor) instead of flat — faster answers earn more
+     - Card awards are now speed-ranked: faster answers land in higher-rarity brackets from the event's pool (LEGENDARY → COMMON)
+     - Server-side elapsed time (from a session-stamped issue timestamp) is now authoritative, preventing clients from faking fast answers to game the card brackets
+     - `events.js` now sends the captured location (GPS or QR) at submit time, fixing rejects when location verification is enabled
+     - Mirrored in `main.js` for the legacy landing-page flow
+     - Files touched: `routes/trivia.js`, `services/card_award.js`, `js/events.js`, `js/main.js`
 
 ## Notes for another agent
 

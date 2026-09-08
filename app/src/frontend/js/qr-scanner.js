@@ -32,33 +32,43 @@ const GPS_ACCURACY_THRESHOLD_M = 50 // must match backend qr.js
  * @returns {Promise<{mode:'gps',lat,lng,accuracy}|{mode:'qr',qr_verified:true,location_check_id}|null>}
  */
 export async function get_location_for_challenge(eventId) {
-    return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-            // No geolocation at all — go straight to QR
-            showQrScanner(eventId, resolve)
-            return
-        }
+	return new Promise((resolve) => {
+		if (!navigator.geolocation) {
+			// No geolocation at all — go straight to QR
+			showQrScanner(eventId, resolve)
+			return
+		}
 
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { latitude: lat, longitude: lng, accuracy } = pos.coords
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				const {
+					latitude: lat,
+					longitude: lng,
+					accuracy,
+				} = pos.coords
 
-                if (accuracy > GPS_ACCURACY_THRESHOLD_M) {
-                    // GPS too poor — trigger QR fallback
-                    showQrScanner(eventId, resolve, {
-                        reported_accuracy: Math.round(accuracy),
-                    })
-                } else {
-                    resolve({ mode: 'gps', lat, lng, accuracy })
-                }
-            },
-            () => {
-                // GPS failed entirely — try QR
-                showQrScanner(eventId, resolve)
-            },
-            { enableHighAccuracy: true, timeout: 10000 }
-        )
-    })
+				if (accuracy > GPS_ACCURACY_THRESHOLD_M) {
+					// GPS too poor — trigger QR fallback
+					showQrScanner(eventId, resolve, {
+						reported_accuracy:
+							Math.round(accuracy),
+					})
+				} else {
+					resolve({
+						mode: 'gps',
+						lat,
+						lng,
+						accuracy,
+					})
+				}
+			},
+			() => {
+				// GPS failed entirely — try QR
+				showQrScanner(eventId, resolve)
+			},
+			{ enableHighAccuracy: true, timeout: 10000 }
+		)
+	})
 }
 
 // ── QR Scanner overlay ────────────────────────────────────────
@@ -66,23 +76,30 @@ export async function get_location_for_challenge(eventId) {
 let jsQrLoaded = false
 
 async function loadJsQr() {
-    if (jsQrLoaded || window.jsQR) { jsQrLoaded = true; return }
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js'
-        script.onload  = () => { jsQrLoaded = true; resolve() }
-        script.onerror = reject
-        document.head.appendChild(script)
-    })
+	if (jsQrLoaded || window.jsQR) {
+		jsQrLoaded = true
+		return
+	}
+	return new Promise((resolve, reject) => {
+		const script = document.createElement('script')
+		script.src =
+			'https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js'
+		script.onload = () => {
+			jsQrLoaded = true
+			resolve()
+		}
+		script.onerror = reject
+		document.head.appendChild(script)
+	})
 }
 
 function showQrScanner(eventId, resolve, opts = {}) {
-    // Remove any existing overlay
-    document.getElementById('qr-overlay')?.remove()
+	// Remove any existing overlay
+	document.getElementById('qr-overlay')?.remove()
 
-    const overlay = document.createElement('div')
-    overlay.id = 'qr-overlay'
-    overlay.style.cssText = `
+	const overlay = document.createElement('div')
+	overlay.id = 'qr-overlay'
+	overlay.style.cssText = `
         position:fixed;inset:0;background:rgba(0,0,0,0.85);
         display:flex;flex-direction:column;align-items:center;
         justify-content:center;z-index:20000;
@@ -90,15 +107,15 @@ function showQrScanner(eventId, resolve, opts = {}) {
         padding:1.5rem;
     `
 
-    const accuracyNote = opts.reported_accuracy
-        ? `<p style="color:#fbbf24;font-size:0.8rem;margin:0 0 1rem;">
+	const accuracyNote = opts.reported_accuracy
+		? `<p style="color:#fbbf24;font-size:0.8rem;margin:0 0 1rem;">
              ⚠️ GPS accuracy (${opts.reported_accuracy}m) is too poor for verification.
            </p>`
-        : `<p style="color:#fbbf24;font-size:0.8rem;margin:0 0 1rem;">
+		: `<p style="color:#fbbf24;font-size:0.8rem;margin:0 0 1rem;">
              ⚠️ GPS unavailable at this location.
            </p>`
 
-    overlay.innerHTML = `
+	overlay.innerHTML = `
         <div style="
             background:#fff;border-radius:12px;
             padding:1.5rem;max-width:360px;width:100%;
@@ -149,122 +166,143 @@ function showQrScanner(eventId, resolve, opts = {}) {
         </style>
     `
 
-    document.body.appendChild(overlay)
+	document.body.appendChild(overlay)
 
-    const videoEl  = overlay.querySelector('#qr-video')
-    const canvasEl = overlay.querySelector('#qr-canvas')
-    const statusEl = overlay.querySelector('#qr-status')
-    const cancelBtn = overlay.querySelector('#qr-cancel')
+	const videoEl = overlay.querySelector('#qr-video')
+	const canvasEl = overlay.querySelector('#qr-canvas')
+	const statusEl = overlay.querySelector('#qr-status')
+	const cancelBtn = overlay.querySelector('#qr-cancel')
 
-    let stream = null
-    let animFrame = null
-    let done = false
+	let stream = null
+	let animFrame = null
+	let done = false
 
-    function cleanup() {
-        if (animFrame) cancelAnimationFrame(animFrame)
-        if (stream) stream.getTracks().forEach((t) => t.stop())
-        overlay.remove()
-    }
+	function cleanup() {
+		if (animFrame) cancelAnimationFrame(animFrame)
+		if (stream) stream.getTracks().forEach((t) => t.stop())
+		overlay.remove()
+	}
 
-    cancelBtn.addEventListener('click', () => {
-        if (done) return
-        done = true
-        cleanup()
-        resolve(null) // user cancelled
-    })
+	cancelBtn.addEventListener('click', () => {
+		if (done) return
+		done = true
+		cleanup()
+		resolve(null) // user cancelled
+	})
 
-    // Start camera + jsQR
-    async function startScanner() {
-        try {
-            await loadJsQr()
-        } catch {
-            statusEl.textContent = 'Could not load QR library. Check your connection.'
-            return
-        }
+	// Start camera + jsQR
+	async function startScanner() {
+		try {
+			await loadJsQr()
+		} catch {
+			statusEl.textContent =
+				'Could not load QR library. Check your connection.'
+			return
+		}
 
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' },
-            })
-            videoEl.srcObject = stream
-            await videoEl.play()
-            statusEl.textContent = 'Scanning… hold the QR code steady.'
-            scanFrame()
-        } catch (err) {
-            statusEl.textContent = `Camera error: ${err.message}`
-        }
-    }
+		try {
+			stream = await navigator.mediaDevices.getUserMedia({
+				video: { facingMode: 'environment' },
+			})
+			videoEl.srcObject = stream
+			await videoEl.play()
+			statusEl.textContent =
+				'Scanning… hold the QR code steady.'
+			scanFrame()
+		} catch (err) {
+			statusEl.textContent = `Camera error: ${err.message}`
+		}
+	}
 
-    function scanFrame() {
-        if (done) return
+	function scanFrame() {
+		if (done) return
 
-        if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
-            canvasEl.width  = videoEl.videoWidth
-            canvasEl.height = videoEl.videoHeight
-            const ctx = canvasEl.getContext('2d')
-            ctx.drawImage(videoEl, 0, 0)
-            const imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height)
-            const code = window.jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert',
-            })
+		if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+			canvasEl.width = videoEl.videoWidth
+			canvasEl.height = videoEl.videoHeight
+			const ctx = canvasEl.getContext('2d')
+			ctx.drawImage(videoEl, 0, 0)
+			const imageData = ctx.getImageData(
+				0,
+				0,
+				canvasEl.width,
+				canvasEl.height
+			)
+			const code = window.jsQR(
+				imageData.data,
+				imageData.width,
+				imageData.height,
+				{
+					inversionAttempts: 'dontInvert',
+				}
+			)
 
-            if (code) {
-                handleScannedCode(code.data)
-                return
-            }
-        }
+			if (code) {
+				handleScannedCode(code.data)
+				return
+			}
+		}
 
-        animFrame = requestAnimationFrame(scanFrame)
-    }
+		animFrame = requestAnimationFrame(scanFrame)
+	}
 
-    async function handleScannedCode(raw) {
-        if (done) return
-        done = true
+	async function handleScannedCode(raw) {
+		if (done) return
+		done = true
 
-        // Extract token — the QR encodes a URL like:
-        //   http://localhost:3000/pages/events.html?qr=<token>
-        // but we also handle a raw token string directly
-        let token = raw
-        try {
-            const url = new URL(raw)
-            token = url.searchParams.get('qr') || raw
-        } catch {
-            // raw wasn't a URL — treat it as the token itself
-        }
+		// Extract token — the QR encodes a URL like:
+		//   http://localhost:3000/pages/events.html?qr=<token>
+		// but we also handle a raw token string directly
+		let token = raw
+		try {
+			const url = new URL(raw)
+			token = url.searchParams.get('qr') || raw
+		} catch {
+			// raw wasn't a URL — treat it as the token itself
+		}
 
-        statusEl.textContent = 'QR detected — verifying…'
+		statusEl.textContent = 'QR detected — verifying…'
 
-        try {
-            const res = await fetch(`${API_BASE}/api/events/${eventId}/verify-qr`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token }),
-            })
-            const data = await res.json()
+		try {
+			const res = await fetch(
+				`${API_BASE}/api/events/${eventId}/verify-qr`,
+				{
+					method: 'POST',
+					credentials: 'include',
+					headers: {
+						'Content-Type':
+							'application/json',
+					},
+					body: JSON.stringify({ token }),
+				}
+			)
+			const data = await res.json()
 
-            if (!res.ok || !data.verified) {
-                statusEl.textContent = data.error || 'QR verification failed. Try again.'
-                done = false // allow retry
-                animFrame = requestAnimationFrame(scanFrame)
-                return
-            }
+			if (!res.ok || !data.verified) {
+				statusEl.textContent =
+					data.error ||
+					'QR verification failed. Try again.'
+				done = false // allow retry
+				animFrame = requestAnimationFrame(scanFrame)
+				return
+			}
 
-            statusEl.textContent = '✓ Verified!'
-            setTimeout(() => {
-                cleanup()
-                resolve({
-                    mode: 'qr',
-                    qr_verified: true,
-                    location_check_id: data.location_check_id,
-                })
-            }, 600)
-        } catch {
-            statusEl.textContent = 'Network error. Try again.'
-            done = false
-            animFrame = requestAnimationFrame(scanFrame)
-        }
-    }
+			statusEl.textContent = '✓ Verified!'
+			setTimeout(() => {
+				cleanup()
+				resolve({
+					mode: 'qr',
+					qr_verified: true,
+					location_check_id:
+						data.location_check_id,
+				})
+			}, 600)
+		} catch {
+			statusEl.textContent = 'Network error. Try again.'
+			done = false
+			animFrame = requestAnimationFrame(scanFrame)
+		}
+	}
 
-    startScanner()
+	startScanner()
 }

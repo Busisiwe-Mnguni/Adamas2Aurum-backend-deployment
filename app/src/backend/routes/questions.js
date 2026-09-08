@@ -13,7 +13,9 @@ router.use((req, res, next) => {
 function requireAuth(req, res, next) {
 	const userId = req.session?.user?.user_id || req.user?.user_id
 	if (!userId) {
-		return res.status(401).json({ error: 'Unauthorised — please log in' })
+		return res
+			.status(401)
+			.json({ error: 'Unauthorised — please log in' })
 	}
 	if (!req.user) req.user = req.session.user
 	next()
@@ -30,7 +32,9 @@ async function requireEventAuthor(req, res, next) {
 			[userId, ...allowedRoles]
 		)
 		if (!rows.length) {
-			return res.status(403).json({ error: 'Forbidden — event author role required' })
+			return res.status(403).json({
+				error: 'Forbidden — event author role required',
+			})
 		}
 		next()
 	} catch (err) {
@@ -54,7 +58,11 @@ function validateQuestion({ type, text, correctAnswer, options }) {
 		if (!Array.isArray(options) || options.length === 0) {
 			return 'options must be a non-empty array for MULTIPLE_CHOICE'
 		}
-		if (!options.some((opt) => String(opt) === String(correctAnswer))) {
+		if (
+			!options.some(
+				(opt) => String(opt) === String(correctAnswer)
+			)
+		) {
 			return 'correctAnswer must be one of the provided options'
 		}
 	}
@@ -113,7 +121,12 @@ router.post(
 	async (req, res) => {
 		const { type, text, correctAnswer, options } = req.body
 
-		const validationError = validateQuestion({ type, text, correctAnswer, options })
+		const validationError = validateQuestion({
+			type,
+			text,
+			correctAnswer,
+			options,
+		})
 		if (validationError) {
 			return res.status(400).json({ error: validationError })
 		}
@@ -124,7 +137,9 @@ router.post(
 			[req.params.eventId]
 		)
 		if (!events.length) {
-			return res.status(404).json({ error: 'Event not found' })
+			return res
+				.status(404)
+				.json({ error: 'Event not found' })
 		}
 
 		const conn = await pool.getConnection()
@@ -140,9 +155,14 @@ router.post(
 			const questionId = result.insertId
 
 			// Insert options into trivia_options
-			if (type === 'MULTIPLE_CHOICE' && Array.isArray(options)) {
+			if (
+				type === 'MULTIPLE_CHOICE' &&
+				Array.isArray(options)
+			) {
 				for (const opt of options) {
-					const isCorrect = String(opt) === String(correctAnswer)
+					const isCorrect =
+						String(opt) ===
+						String(correctAnswer)
 					await conn.query(
 						`INSERT INTO trivia_options (question_id, body, is_correct) VALUES (?, ?, ?)`,
 						[questionId, opt, isCorrect]
@@ -167,7 +187,10 @@ router.post(
 			}
 
 			await conn.commit()
-			res.status(201).json({ message: 'Question created', id: questionId })
+			res.status(201).json({
+				message: 'Question created',
+				id: questionId,
+			})
 		} catch (err) {
 			await conn.rollback()
 			res.status(500).json({ error: err.message })
@@ -188,7 +211,12 @@ router.put(
 	async (req, res) => {
 		const { type, text, correctAnswer, options } = req.body
 
-		const validationError = validateQuestion({ type, text, correctAnswer, options })
+		const validationError = validateQuestion({
+			type,
+			text,
+			correctAnswer,
+			options,
+		})
 		if (validationError) {
 			return res.status(400).json({ error: validationError })
 		}
@@ -198,7 +226,9 @@ router.put(
 			[req.params.id]
 		)
 		if (!existing.length) {
-			return res.status(404).json({ error: 'Question not found' })
+			return res
+				.status(404)
+				.json({ error: 'Question not found' })
 		}
 
 		const conn = await pool.getConnection()
@@ -217,9 +247,14 @@ router.put(
 				[req.params.id]
 			)
 
-			if (type === 'MULTIPLE_CHOICE' && Array.isArray(options)) {
+			if (
+				type === 'MULTIPLE_CHOICE' &&
+				Array.isArray(options)
+			) {
 				for (const opt of options) {
-					const isCorrect = String(opt) === String(correctAnswer)
+					const isCorrect =
+						String(opt) ===
+						String(correctAnswer)
 					await conn.query(
 						`INSERT INTO trivia_options (question_id, body, is_correct) VALUES (?, ?, ?)`,
 						[req.params.id, opt, isCorrect]
@@ -268,7 +303,9 @@ router.delete(
 				[req.params.id]
 			)
 			if (!result.affectedRows) {
-				return res.status(404).json({ error: 'Question not found' })
+				return res
+					.status(404)
+					.json({ error: 'Question not found' })
 			}
 			res.json({ message: 'Question deleted' })
 		} catch (err) {
