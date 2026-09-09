@@ -104,7 +104,15 @@ function broadcast_lobby_presence() {
 
 async function set_battle_finished(battle_id, reason, winner = null) {
 	if (battle_id === null) return
-	if (!['PENDING', 'ACTIVE', 'COMPLETED', 'FORFEITED', 'ABANDONED'].includes(reason))
+	if (
+		![
+			'PENDING',
+			'ACTIVE',
+			'COMPLETED',
+			'FORFEITED',
+			'ABANDONED',
+		].includes(reason)
+	)
 		reason = 'ABANDONED'
 
 	await pool.query(
