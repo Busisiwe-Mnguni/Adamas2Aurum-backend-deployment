@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS battles (
     player1_id    INT      NOT NULL,
     player2_id    INT,
     winner_id     INT,
-    status        ENUM('PENDING','ACTIVE','COMPLETED','ABANDONED') NOT NULL DEFAULT 'PENDING',
+    status        ENUM('PENDING','ACTIVE','COMPLETED','FORFEITED','ABANDONED') NOT NULL DEFAULT 'PENDING',
     started_at    DATETIME,
     ended_at      DATETIME,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

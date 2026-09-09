@@ -50,6 +50,8 @@ const elBattleOppCardsList = document.getElementById('opponent-cards')
 const elBattlePlayerCardsList = document.getElementById('player-cards')
 const elBattleLog = document.getElementById('battle-log')
 const elBattleActions = document.getElementById('action-buttons')
+const elBattleForfeit = document.getElementById('btn-forfeit')
+elBattleForfeit.addEventListener('click', () => forfeitBattle())
 
 const elResultView = document.getElementById('view-result')
 const elResultHeading = document.getElementById('result-heading')
@@ -91,6 +93,7 @@ function switchToOpponentSelectionView(deck) {
 	elListError.classList.add('hidden')
 	elResultView.classList.add('hidden')
 	elBattleView.classList.add('hidden')
+	elBattleForfeit.classList.add('hidden')
 	elOpponentSelectionView.classList.remove('hidden')
 }
 
@@ -99,6 +102,7 @@ function switchToResultView() {
 	elListError.classList.add('hidden')
 	elResultView.classList.remove('hidden')
 	elBattleView.classList.add('hidden')
+	elBattleForfeit.classList.add('hidden')
 	elOpponentSelectionView.classList.add('hidden')
 }
 
@@ -107,6 +111,7 @@ function switchToCardSelectionView() {
 	elListError.classList.add('hidden')
 	elResultView.classList.add('hidden')
 	elBattleView.classList.add('hidden')
+	elBattleForfeit.classList.add('hidden')
 	elOpponentSelectionView.classList.add('hidden')
 	resetDeck()
 	refreshDeck()
@@ -118,6 +123,7 @@ function switchToBattleView(deck) {
 	elListError.classList.add('hidden')
 	elResultView.classList.add('hidden')
 	elBattleView.classList.remove('hidden')
+	elBattleForfeit.classList.remove('hidden')
 	elOpponentSelectionView.classList.add('hidden')
 }
 
@@ -559,6 +565,15 @@ function refreshBattleView(battle_id, user_id, state) {
 	}
 }
 
+function forfeitBattle() {
+	if (!ws) return
+	ws.send(
+		JSON.stringify({
+			type: 'forfeit',
+		})
+	)
+}
+
 function connectToWebSocket() {
 	try {
 		let pingInterval
@@ -589,6 +604,7 @@ function connectToWebSocket() {
 									user.user_id
 							)
 						)
+						switchToOpponentSelectionView()
 						renderOpponents(
 							data.users.filter(
 								(u) =>
@@ -679,7 +695,6 @@ function connectToWebSocket() {
 						break
 
 					case 'match_results':
-						ws.close()
 						switchToResultView()
 						elResultHeading.textContent =
 							data.winner ===

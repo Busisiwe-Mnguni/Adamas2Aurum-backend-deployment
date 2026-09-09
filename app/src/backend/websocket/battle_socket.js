@@ -104,7 +104,7 @@ function broadcast_lobby_presence() {
 
 async function set_battle_finished(battle_id, reason, winner = null) {
 	if (battle_id === null) return
-	if (!['PENDING', 'ACTIVE', 'COMPLETED', 'ABANDONED'].includes(reason))
+	if (!['PENDING', 'ACTIVE', 'COMPLETED', 'FORFEITED', 'ABANDONED'].includes(reason))
 		reason = 'ABANDONED'
 
 	await pool.query(
@@ -744,6 +744,43 @@ battleWss.on('connection', (ws, request) => {
 						})
 					)
 				}
+			} else if (msg.type === 'forfeit') {
+				battle_id =
+					get_player_connection(user_id).battle_id
+				if (battle_id === null || battle_id === -1)
+					return ws.send(
+						JSON.stringify({
+							reject_type: msg.type,
+							type: 'error',
+							message: 'Join a battle first',
+						})
+					)
+				const state = get_battle_state(battle_id)
+
+				const winner =
+					state.player1_id === user_id
+						? state.player2_id
+						: state.player1_id
+				await set_battle_finished(
+					battle_id,
+					'FORFEITED',
+					winner
+				)
+				await persist_final_health(state)
+
+				const match_results_payload = JSON.stringify({
+					type: 'match_results',
+					winner,
+				})
+				await update_battle_players(
+					battle_id,
+					match_results_payload
+				)
+				clear_player_connection(state.player1_id)
+				clear_player_connection(state.player2_id)
+				clear_battle_state(battle_id)
+
+				broadcast_lobby_presence()
 			} else if (msg.type === 'attack') {
 				battle_id =
 					get_player_connection(user_id).battle_id
@@ -937,7 +974,6 @@ battleWss.on('connection', (ws, request) => {
 						winner
 					)
 					await persist_final_health(state)
-					clear_battle_state(battle_id)
 
 					const match_results_payload =
 						JSON.stringify({
@@ -954,6 +990,7 @@ battleWss.on('connection', (ws, request) => {
 					clear_player_connection(
 						state.player2_id
 					)
+					clear_battle_state(battle_id)
 
 					broadcast_lobby_presence()
 				}
