@@ -38,7 +38,8 @@ function get_player_connection(user_id) {
 }
 
 function clear_player_connection(user_id) {
-	active_players.delete(user_id)
+	if (user_id !== null || user_id !== undefined)
+		active_players.delete(user_id)
 }
 
 export function get_players_in_battle(battle_id) {
@@ -56,6 +57,19 @@ export function get_active_players_in_battle(battle_id) {
 	const players = get_players_in_battle(battle_id)
 	players.map((x) => get_player_connection(x)).filter((x) => x !== null)
 	return players
+}
+
+async function update_battle_players(battle_id, payload) {
+	const state = get_battle_state(battle_id)
+	if (!state) {
+		return
+	}
+
+	const p1 = get_player_connection(state.player1_id)
+	const p2 = get_player_connection(state.player2_id)
+
+	if (p1 && p1.ws.readyState === 1) p1.ws.send(payload)
+	if (p2 && p2.ws.readyState === 1) p2.ws.send(payload)
 }
 
 /* battle_id = null: connected to battle site and active in lobby
@@ -505,7 +519,6 @@ battleWss.on('connection', (ws, request) => {
 						type: 'state_update',
 						battle_id: old_battle_id,
 						state,
-						user_id,
 					})
 					ws.send(state_payload)
 				} else {
@@ -613,7 +626,6 @@ battleWss.on('connection', (ws, request) => {
 						battle_id: new_battle_id,
 						player1_id: msg.challenger_id,
 						player2_id: user_id,
-						user_id: user_id,
 					})
 
 					if (p1 && p1.ws.readyState === 1)
@@ -653,7 +665,6 @@ battleWss.on('connection', (ws, request) => {
 						JSON.stringify({
 							type: 'battle_started',
 							battle_id: new_battle_id,
-							user_id,
 							is_npc: true,
 						})
 					)
@@ -701,76 +712,25 @@ battleWss.on('connection', (ws, request) => {
 							type: 'deck_accepted',
 							message: 'Deck saved. Waiting for opponent...',
 						})
-					// Check if both decks are loaded before initializing game loop
-					var opponent =
-						get_active_players_in_battle(
-							player_info.battle_id
-						).filter(
-							(x) =>
-								x.user_id !=
-								request.user
-									.user_id
-						)
-					if (opponent.length === 0)
-						opponent = null
-					const decks_submitted =
-						await check_battle_decks(
-							player_info.battle_id,
-							request.user.user_id,
-							opponent === null
-								? null
-								: opponent[0]
-										.user_id
-						)
-					if (!decks_submitted)
-						return ws.send(
-							missing_deck_payload
-						)
 
 					const state = await load_battle_state(
 						player_info.battle_id
 					)
-
 					if (!state) {
-						// Waiting on second player to lock in deck
 						return ws.send(
 							missing_deck_payload
 						)
 					}
 
-					// Both players have submitted decks; initialize and sync battle state
-					const p1 = get_player_connection(
-						state.player1_id
+					const state_payload = JSON.stringify({
+						type: 'state_update',
+						battle_id: state.battle_id,
+						state,
+					})
+					await update_battle_players(
+						player_info.battle_id,
+						state_payload
 					)
-					const p2 = get_player_connection(
-						state.player2_id
-					)
-
-					const state_payload_p1 = JSON.stringify(
-						{
-							type: 'state_update',
-							battle_id: p1.battle_id,
-							state,
-							user_id: state.player1_id,
-						}
-					)
-
-					if (p1 && p1.ws.readyState === 1)
-						p1.ws.send(state_payload_p1)
-
-					if (p2) {
-						const state_payload_p2 =
-							JSON.stringify({
-								type: 'state_update',
-								battle_id: p2.battle_id,
-								state,
-								user_id: state.player2_id,
-							})
-						if (p2.ws.readyState === 1)
-							p2.ws.send(
-								state_payload_p2
-							)
-					}
 				} catch (err) {
 					console.error(
 						'Deck submission error:',
@@ -956,44 +916,19 @@ battleWss.on('connection', (ws, request) => {
 					}
 				}
 
-				const p1_conn = state.player1_id
-					? get_player_connection(
-							state.player1_id
-						)
-					: null
-				const p2_conn = state.player2_id
-					? get_player_connection(
-							state.player2_id
-						)
-					: null
-
-				if (p1_conn && p1_conn.ws.readyState === 1) {
-					p1_conn.ws.send(
-						JSON.stringify({
-							type: 'turn_result',
-							player_result,
-							opponent_result,
-							battle_id: p1_conn.battle_id,
-							state,
-							user_id: state.player1_id,
-							winner,
-						})
-					)
-				}
-
-				if (p2_conn && p2_conn.ws.readyState === 1) {
-					p2_conn.ws.send(
-						JSON.stringify({
-							type: 'turn_result',
-							player_result,
-							opponent_result,
-							battle_id: p2_conn.battle_id,
-							state,
-							user_id: state.player2_id,
-							winner,
-						})
-					)
-				}
+				const turn_payload = JSON.stringify({
+					type: 'turn_result',
+					player_result,
+					player_user_id: user_id,
+					opponent_result,
+					battle_id: state.battle_id,
+					state,
+					winner,
+				})
+				await update_battle_players(
+					state.battle_id,
+					turn_payload
+				)
 
 				if (winner !== -1) {
 					await set_battle_finished(
@@ -1008,32 +943,17 @@ battleWss.on('connection', (ws, request) => {
 						JSON.stringify({
 							type: 'match_results',
 							winner,
-							user_id,
 						})
-
-					if (
-						p1_conn &&
-						p1_conn.ws.readyState === 1
-					) {
-						p1_conn.ws.send(
-							match_results_payload
-						)
-						clear_player_connection(
-							state.player1_id
-						)
-					}
-
-					if (
-						p2_conn &&
-						p2_conn.ws.readyState === 1
-					) {
-						p2_conn.ws.send(
-							match_results_payload
-						)
-						clear_player_connection(
-							state.player2_id
-						)
-					}
+					await update_battle_players(
+						battle_id,
+						match_results_payload
+					)
+					clear_player_connection(
+						state.player1_id
+					)
+					clear_player_connection(
+						state.player2_id
+					)
 
 					broadcast_lobby_presence()
 				}
@@ -1080,10 +1000,9 @@ battleWss.on('connection', (ws, request) => {
 					) === undefined
 				)
 					return
-				if (
-					get_battle_state(player.battle_id) ===
-					null
-				) {
+
+				const state = get_battle_state(player.battle_id)
+				if (state === null) {
 					set_battle_finished(
 						player.battle_id,
 						'ABANDONED',
@@ -1091,6 +1010,7 @@ battleWss.on('connection', (ws, request) => {
 					)
 					return
 				}
+
 				const is_active = get_player_connection(
 					player.user_id
 				)
@@ -1100,6 +1020,18 @@ battleWss.on('connection', (ws, request) => {
 					)
 					return
 				}
+				const match_results_payload = JSON.stringify({
+					type: 'match_results',
+					winner:
+						state.player1_id ===
+						player.user_id
+							? state.player2_id
+							: state.player1_id,
+				})
+				await update_battle_players(
+					player.battle_id,
+					match_results_payload
+				)
 				set_battle_finished(
 					player.battle_id,
 					'ABANDONED',

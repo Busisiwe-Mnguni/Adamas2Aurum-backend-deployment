@@ -626,7 +626,7 @@ function connectToWebSocket() {
 					case 'state_update':
 						refreshBattleView(
 							data.battle_id,
-							data.user_id,
+							user.user_id,
 							data.state
 						)
 						switchToBattleView()
@@ -636,7 +636,7 @@ function connectToWebSocket() {
 						const player_cards =
 							data.state
 								.player1_id ===
-							data.user_id
+							user.user_id
 								? data.state
 										.cards
 										.player1
@@ -646,23 +646,34 @@ function connectToWebSocket() {
 						const opponent_cards =
 							data.state
 								.player1_id ===
-							data.user_id
+							user.user_id
 								? data.state
 										.cards
 										.player2
 								: data.state
 										.cards
 										.player1
-
-						refreshBattleLogs(
-							data.player_result,
-							player_cards,
-							data.opponent_result,
-							opponent_cards
-						)
+						if (
+							data.player_user_id ===
+							user.user_id
+						) {
+							refreshBattleLogs(
+								data.player_result,
+								player_cards,
+								data.opponent_result,
+								opponent_cards
+							)
+						} else {
+							refreshBattleLogs(
+								data.opponent_result,
+								player_cards,
+								data.player_result,
+								opponent_cards
+							)
+						}
 						refreshBattleView(
 							data.battle_id,
-							data.user_id,
+							user.user_id,
 							data.state
 						)
 						break
@@ -672,7 +683,7 @@ function connectToWebSocket() {
 						switchToResultView()
 						elResultHeading.textContent =
 							data.winner ===
-							data.user_id
+							user.user_id
 								? 'Victory'
 								: 'Defeat'
 						elResultDamageSuffered.textContent =
