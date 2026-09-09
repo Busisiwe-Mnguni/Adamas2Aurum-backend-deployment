@@ -87,6 +87,42 @@
 				class="state-msg error hidden"
 			></div>
 
+			<div id="view-opponent-select" class="hidden">
+				<div class="page-header">
+					<div>
+						<h1 class="page-title">
+							Select Opponent
+						</h1>
+						<p
+							class="page-subtitle"
+							id="opponent-count"
+						>
+							Choose a player to
+							challenge
+						</p>
+					</div>
+				</div>
+
+				<div id="opponent-loading" class="state-msg">
+					Loading available players…
+				</div>
+				<div
+					id="opponent-empty"
+					class="state-msg hidden"
+				>
+					No opponents currently available.
+				</div>
+				<div
+					id="opponent-error"
+					class="state-msg error hidden"
+				></div>
+
+				<ul
+					id="opponent-grid"
+					class="opponent-grid"
+				></ul>
+			</div>
+
 			<div id="view-deck-select" class="hidden">
 				<div class="page-header">
 					<div>

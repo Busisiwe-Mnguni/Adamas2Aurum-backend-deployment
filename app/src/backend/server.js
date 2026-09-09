@@ -13,7 +13,6 @@
  *   - /api/health endpoint
  */
 
-import './env.js'
 import express from 'express'
 import session from 'express-session'
 import mySQLSession from 'express-mysql-session'
@@ -26,7 +25,6 @@ import { toNodeHandler, fromNodeHeaders } from 'better-auth/node'
 
 import event_routes from './routes/events.js'
 import card_routes from './routes/cards.js'
-import battle_routes from './routes/battle.js'
 import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
 import question_routes from './routes/questions.js'
@@ -52,6 +50,8 @@ const allowed_origins = [
 	'http://localhost:3000',
 	'http://127.0.0.1:3000',
 ]
+if (process.env.FRONTEND_URL) allowed_origins.push(process.env.FRONTEND_URL)
+
 app.use(
 	cors({
 		origin: (origin, callback) => {
@@ -168,7 +168,6 @@ app.use('/api/events', qr_routes)
 app.use('/api/events', pool_routes)
 app.use('/api/events', event_routes)
 app.use('/api/cards', card_routes)
-app.use('/api/battles', battle_routes)
 app.use('/api/trivia', trivia_routes)
 // User Story 6 — question authoring. Mounted at /api so the single
 // router can serve both /api/events/:eventId/questions and /api/questions/:id.
