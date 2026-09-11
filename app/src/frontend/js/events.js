@@ -95,7 +95,7 @@ btnLogout.addEventListener('click', async () => {
 		method: 'POST',
 		credentials: 'include',
 	})
-	window.location.href = '../index.html'
+	window.location.href = '/'
 })
 
 // ── Geolocation ───────────────────────────────────────────────
@@ -285,7 +285,7 @@ let currentChallengeLocation = null
 
 window._challenge = async function (eventId) {
 	if (!currentUser) {
-		window.location.href = '../index.html'
+		window.location.href = '/'
 		return
 	}
 
