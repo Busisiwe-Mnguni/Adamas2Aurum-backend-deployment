@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0"
+		/>
+		<title>Leaderboard — Adamas2Aurum</title>
+
+		<link rel="stylesheet" href="/css/style.css" />
+		<link rel="stylesheet" href="/css/leaderboard.css" />
+	</head>
+	<body>
+		<header class="site-header">
+			<div class="header-inner">
+				<a class="logo" href="/">
+					<span class="logo-a">A</span>
+					<span class="logo-sep">→</span>
+					<span class="logo-a">A</span>
+					<span class="logo-sub">
+						Adamas to Aurum
+					</span>
+				</a>
+
+				<nav class="header-nav" id="header-nav">
+					<a
+						href="./events.html"
+						class="nav-link"
+					>
+						Events
+					</a>
+					<a
+						href="./collection.html"
+						class="nav-link"
+					>
+						Collection
+					</a>
+					<a
+						href="./battle.html"
+						class="nav-link"
+					>
+						Battle
+					</a>
+					<a
+						href="./leaderboard.html"
+						class="nav-link nav-link-active"
+					>
+						Leaderboard
+					</a>
+					<a
+						href="./console.html"
+						class="nav-link nav-link-admin hidden"
+						id="nav-console"
+					>
+						Console
+					</a>
+				</nav>
+
+				<div class="header-right">
+					<span
+						id="user-badge"
+						class="admin-badge hidden"
+					></span>
+					<button
+						id="btn-logout"
+						class="btn btn-sm btn-header hidden"
+					>
+						Logout
+					</button>
+					<a
+						id="btn-signin"
+						href="/"
+						class="btn btn-sm btn-header"
+					>
+						Sign In
+					</a>
+				</div>
+			</div>
+		</header>
+
+		<main class="main">
+			<div class="page-header">
+				<h1 class="page-title">Leaderboard</h1>
+				<p class="page-subtitle">
+					Every player ranked by points earned
+					from campus challenges.
+				</p>
+			</div>
+
+			<!-- Anonymous visitors see this soft prompt; the list
+			     below remains fully visible to them. -->
+			<div id="anon-banner" class="lb-anon-banner hidden">
+				<span>
+					You're browsing as a guest. Sign in to
+					see your own rank.
+				</span>
+				<a href="/" class="btn btn-sm btn-primary">
+					Sign In
+				</a>
+			</div>
+
+			<!-- Signed-in visitor's own rank card. -->
+			<section
+				id="my-rank-card"
+				class="lb-my-rank hidden"
+				aria-live="polite"
+			>
+				<div class="lb-my-rank-header">
+					<div class="lb-my-rank-title">
+						Your Rank
+					</div>
+					<div
+						id="my-rank-position"
+						class="lb-my-rank-position"
+					></div>
+				</div>
+				<div class="lb-my-rank-body">
+					<div class="lb-my-rank-points">
+						<span
+							id="my-rank-points"
+							class="lb-points-value"
+						></span>
+						<span class="lb-points-label">
+							points
+						</span>
+					</div>
+					<div
+						id="my-rank-meta"
+						class="lb-my-rank-meta"
+					></div>
+				</div>
+			</section>
+
+			<!-- Top-N table -->
+			<section class="lb-table-wrap">
+				<div
+					id="lb-state"
+					class="state-msg"
+					aria-live="polite"
+				>
+					Loading leaderboard…
+				</div>
+
+				<table
+					id="lb-table"
+					class="lb-table hidden"
+					aria-label="Global leaderboard"
+				>
+					<thead>
+						<tr>
+							<th
+								scope="col"
+								class="lb-col-rank"
+							>
+								#
+							</th>
+							<th scope="col">
+								Player
+							</th>
+							<th
+								scope="col"
+								class="lb-col-num"
+							>
+								Points
+							</th>
+							<th
+								scope="col"
+								class="lb-col-num lb-col-hide-sm"
+							>
+								W
+							</th>
+							<th
+								scope="col"
+								class="lb-col-num lb-col-hide-sm"
+							>
+								L
+							</th>
+						</tr>
+					</thead>
+					<tbody id="lb-tbody"></tbody>
+				</table>
+			</section>
+
+			<!-- Pagination -->
+			<div id="lb-pagination" class="lb-pagination hidden">
+				<button
+					id="lb-prev"
+					class="btn btn-ghost"
+					type="button"
+				>
+					← Prev
+				</button>
+				<span
+					id="lb-page-label"
+					class="lb-page-label"
+				></span>
+				<button
+					id="lb-next"
+					class="btn btn-ghost"
+					type="button"
+				>
+					Next →
+				</button>
+			</div>
+		</main>
+
+		<script type="module" src="/js/leaderboard.js"></script>
+	</body>
+</html>

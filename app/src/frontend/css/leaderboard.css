@@ -1,0 +1,217 @@
+/* ============================================================
+   User Story 7 — Leaderboard page styles.
+   Uses the design tokens already defined in style.css (:root).
+   This file adds nothing that overrides existing classes.
+   ============================================================ */
+
+.lb-anon-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	background: var(--accent-glow);
+	border: 1px solid var(--accent);
+	border-radius: var(--radius-lg);
+	padding: 0.75rem 1.25rem;
+	font-size: 0.875rem;
+	color: var(--accent);
+	margin-bottom: 1.25rem;
+}
+
+.lb-my-rank {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-left: 4px solid var(--accent);
+	border-radius: var(--radius-lg);
+	padding: 1.25rem 1.5rem;
+	margin-bottom: 1.75rem;
+	box-shadow: 0 2px 8px rgba(12, 36, 97, 0.06);
+}
+.lb-my-rank-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 0.5rem;
+}
+.lb-my-rank-title {
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.lb-my-rank-position {
+	font-family: var(--font-display);
+	font-size: 1.6rem;
+	font-weight: 800;
+	color: var(--accent);
+	line-height: 1;
+}
+.lb-my-rank-body {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	flex-wrap: wrap;
+}
+.lb-my-rank-points {
+	display: flex;
+	align-items: baseline;
+	gap: 0.4rem;
+}
+.lb-points-value {
+	font-family: var(--font-display);
+	font-size: 1.4rem;
+	font-weight: 700;
+	color: var(--text);
+}
+.lb-points-label {
+	font-size: 0.75rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.lb-my-rank-meta {
+	font-size: 0.85rem;
+	color: var(--text-dim);
+}
+
+.lb-table-wrap {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+}
+.lb-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.9rem;
+}
+.lb-table thead {
+	background: var(--surface-2);
+}
+.lb-table th {
+	text-align: left;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	padding: 0.75rem 1rem;
+	border-bottom: 1px solid var(--border);
+}
+.lb-table td {
+	padding: 0.65rem 1rem;
+	border-bottom: 1px solid var(--border);
+	color: var(--text);
+	vertical-align: middle;
+}
+.lb-table tbody tr:last-child td {
+	border-bottom: none;
+}
+.lb-table tbody tr:hover {
+	background: var(--surface-2);
+}
+.lb-row-me {
+	background: var(--accent-glow);
+}
+.lb-row-me:hover {
+	background: var(--accent-glow);
+}
+
+.lb-col-rank {
+	width: 60px;
+	text-align: center;
+}
+.lb-col-num {
+	width: 80px;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+.lb-points {
+	font-weight: 600;
+}
+
+.lb-rank {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	font-size: 0.8rem;
+	font-weight: 700;
+	background: var(--surface-2);
+	color: var(--text-dim);
+	border: 1px solid var(--border);
+}
+.lb-rank-gold {
+	background: #fde68a;
+	color: #78350f;
+	border-color: #f59e0b;
+}
+.lb-rank-silver {
+	background: #e5e7eb;
+	color: #374151;
+	border-color: #9ca3af;
+}
+.lb-rank-bronze {
+	background: #fcd9b6;
+	color: #7c2d12;
+	border-color: #c2410c;
+}
+
+.lb-player {
+	display: flex;
+	align-items: center;
+	gap: 0.65rem;
+}
+.lb-avatar {
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	background: var(--accent);
+	color: #fff;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	font-size: 0.85rem;
+	flex-shrink: 0;
+}
+.lb-player-name {
+	font-weight: 500;
+}
+.lb-you-pill {
+	font-size: 0.65rem;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	background: var(--accent);
+	color: #fff;
+	padding: 0.15rem 0.5rem;
+	border-radius: 99px;
+}
+
+.lb-pagination {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	margin-top: 1.25rem;
+}
+.lb-page-label {
+	font-size: 0.85rem;
+	color: var(--text-dim);
+	font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+	.lb-col-hide-sm {
+		display: none;
+	}
+	.lb-my-rank-position {
+		font-size: 1.3rem;
+	}
+}
