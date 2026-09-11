@@ -12,4 +12,5 @@ app/src/backend/data/
 app/src/backend/data/
 public/
 .qoder/
+app/src/backend/cookies.txt
 coverage/
