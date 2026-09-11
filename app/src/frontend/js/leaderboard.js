@@ -96,7 +96,7 @@ function renderAuthUI() {
 		} catch {
 			/* ignore */
 		}
-		window.location.href = '../index.html'
+		window.location.href = '/'
 	})
 }
 
