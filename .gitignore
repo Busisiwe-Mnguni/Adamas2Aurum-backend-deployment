@@ -12,3 +12,4 @@ app/src/backend/data/
 app/src/backend/data/
 public/
 .qoder/
+coverage/
