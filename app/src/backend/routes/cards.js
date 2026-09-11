@@ -1,4 +1,5 @@
 import express from 'express'
+import { RARITY_POINTS } from '../utils/rarity_points.js'
 
 import pool from '../utils/db.js'
 import { error, success } from '../utils/response.js'
@@ -296,7 +297,96 @@ router.put('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 		res.status(500).json({ error: err.message })
 	}
 })
+// ── SELL DUPLICATE CARD(S) FOR POINTS ──
 
+/**
+ * User story 8: duplicates can be converted into points.
+ *
+ * A player can never sell their last copy of a card.
+ * Only duplicate copies can be sold.
+ */
+router.post('/sell', requireAuth, async (req, res) => {
+	const { card_id, quantity } = req.body
+	const user_id = req.user.user_id
+
+	if (!card_id || !Number.isInteger(quantity) || quantity < 1) {
+		return res.status(400).json({
+			error: 'card_id and a positive integer quantity are required',
+		})
+	}
+
+	const conn = await pool.getConnection()
+
+	try {
+		await conn.beginTransaction()
+
+		const [rows] = await conn.query(
+			`SELECT uc.user_card_id, uc.quantity, c.rarity
+               FROM user_cards uc
+               JOIN cards c ON c.card_id = uc.card_id
+              WHERE uc.user_id = ? AND uc.card_id = ?
+              FOR UPDATE`,
+			[user_id, card_id]
+		)
+
+		if (!rows.length) {
+			await conn.rollback()
+
+			return res.status(404).json({
+				error: "You don't own this card.",
+			})
+		}
+
+		const owned = rows[0]
+
+		if (quantity >= owned.quantity) {
+			await conn.rollback()
+
+			return res.status(400).json({
+				error: `You only have ${owned.quantity} of this card — you can sell at most ${owned.quantity - 1} (duplicates only, can't sell your last copy).`,
+			})
+		}
+
+		const pointsEarned =
+			(RARITY_POINTS[owned.rarity] || 0) * quantity
+
+		await conn.query(
+			`UPDATE user_cards
+                SET quantity = quantity - ?
+              WHERE user_card_id = ?`,
+			[quantity, owned.user_card_id]
+		)
+
+		await conn.query(
+			`UPDATE users
+                SET points = points + ?
+              WHERE user_id = ?`,
+			[pointsEarned, user_id]
+		)
+
+		await conn.query(
+			`INSERT INTO point_transactions
+                (user_id, delta, reason, reference_id)
+             VALUES (?, ?, 'CARD_SOLD', ?)`,
+			[user_id, pointsEarned, card_id]
+		)
+
+		await conn.commit()
+
+		res.json({
+			success: true,
+			card_id,
+			quantity_sold: quantity,
+			points_earned: pointsEarned,
+			remaining_quantity: owned.quantity - quantity,
+		})
+	} catch (err) {
+		await conn.rollback()
+		res.status(500).json({ error: err.message })
+	} finally {
+		conn.release()
+	}
+})
 router.delete('/:id', requireAuth, requireCardAuthor, async (req, res) => {
 	try {
 		const [result] = await pool.query(

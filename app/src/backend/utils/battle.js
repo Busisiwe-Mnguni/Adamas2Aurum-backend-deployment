@@ -4,27 +4,35 @@ export const TURN_TIMEOUT_MS = 10 * 1000
 
 export async function valid_user_cards(user, deck) {
 	if (!Array.isArray(deck) || deck.length != 5) return false
-	var values = []
-	const placeholders = deck
-		.map((x) => {
-			values.push(x.card_id)
-			return '?'
-		})
-		.join(',')
-	values.push(user.user_id)
 
-	try {
-		const [rows, fields] = await pool.query(
-			`SELECT COUNT(DISTINCT uc.card_id) AS count FROM user_cards uc WHERE uc.card_id IN (${placeholders}) AND uc.user_id = ?`,
-			values
-		)
+	const card_ids = deck.map((c) => c.card_id)
+	const placeholders = card_ids.map(() => '?').join(',')
+	const values = [...card_ids, user.user_id]
 
-		if (rows.length == 0 || rows[0].count != deck.length)
-			return false
-		else return true
-	} catch {
-		return false
-	}
+	// Fetch rarity alongside ownership — needed for the deck constraint
+	// below, not just the ownership check.
+	const [rows] = await pool.query(
+		`SELECT uc.card_id, c.rarity
+           FROM user_cards uc
+           JOIN cards c ON c.card_id = uc.card_id
+          WHERE uc.card_id IN (${placeholders}) AND uc.user_id = ?`,
+		values
+	)
+
+	// Ownership check — every submitted card_id must resolve back to a row
+	// this player owns. (Equivalent to the old COUNT(DISTINCT ...) check,
+	// since the frontend already prevents duplicate card_ids in one deck.)
+	if (rows.length !== card_ids.length) return false
+
+	// Deck constraint (user story 8): at most 1 LEGENDARY card per deck —
+	// stops a player from stacking an all-Legendary deck just because they
+	// happen to own that many.
+	const legendaryCount = rows.filter(
+		(r) => r.rarity === 'LEGENDARY'
+	).length
+	if (legendaryCount > 1) return false
+
+	return true
 }
 
 export async function get_active_battle(user_id) {

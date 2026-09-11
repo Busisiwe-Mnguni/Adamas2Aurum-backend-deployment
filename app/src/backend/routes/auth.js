@@ -174,7 +174,7 @@ router.get('/me', async (req, res) => {
 // LOGOUT ROUTE
 router.post('/logout', (req, res) => {
 	req.session.destroy(() => {
-		res.clearCookie('connect.sid')
+		res.clearCookie('a2a-session-key')
 		res.json({ message: 'Logged out' })
 	})
 })
