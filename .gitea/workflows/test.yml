@@ -23,5 +23,8 @@ jobs:
                         - name: Install Dependencies
                           run: npm ci
 
+                        - name: Install Backend Dependencies
+                          run: npm ci --prefix app/src/backend
+
                         - name: Run Tests
                           run: npm test
