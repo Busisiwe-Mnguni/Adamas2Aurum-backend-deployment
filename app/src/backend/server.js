@@ -214,6 +214,10 @@ app.use('/js', express.static(path.join(frontendDir, 'js')))
 app.use(express.static(path.join(frontendDir, 'public')))
 
 // Main map page
+app.get('/index.html', (_req, res) => {
+	res.sendFile(path.join(frontendDir, 'index.html'))
+})
+
 app.get('/', (_req, res) => {
 	res.sendFile(path.join(frontendDir, 'index.html'))
 })
