@@ -30,6 +30,7 @@ import trivia_routes from './routes/trivia.js'
 import question_routes from './routes/questions.js'
 import pool_routes from './routes/event_pool.js'
 import leaderboard_routes from './routes/leaderboard.js'
+import sync_routes from './routes/sync.js'
 
 import pool from './utils/db.js'
 import { auth } from './src/auth.js'
@@ -177,6 +178,10 @@ app.use('/api', question_routes)
 // User Story 7 — global points leaderboard. Public read; the "/me"
 // sub-route is the only part that requires a session.
 app.use('/api/leaderboard', leaderboard_routes)
+
+// User Story 2 (Sprint 2) — offline attempt sync and deferred verification.
+// Mounted under /api/trivia so all trivia-related endpoints share a namespace.
+app.use('/api/trivia', sync_routes)
 
 app.get('/api/health', async (req, res) => {
 	try {
