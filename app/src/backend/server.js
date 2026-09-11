@@ -29,6 +29,7 @@ import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
 import question_routes from './routes/questions.js'
 import pool_routes from './routes/event_pool.js'
+import leaderboard_routes from './routes/leaderboard.js'
 
 import pool from './utils/db.js'
 import { auth } from './src/auth.js'
@@ -173,6 +174,10 @@ app.use('/api/trivia', trivia_routes)
 // router can serve both /api/events/:eventId/questions and /api/questions/:id.
 app.use('/api', question_routes)
 
+// User Story 7 — global points leaderboard. Public read; the "/me"
+// sub-route is the only part that requires a session.
+app.use('/api/leaderboard', leaderboard_routes)
+
 app.get('/api/health', async (req, res) => {
 	try {
 		const [rows] = await pool.query('SHOW TABLES')
@@ -223,6 +228,9 @@ app.get('/pages/events.html', (_req, res) => {
 })
 app.get('/pages/battle.html', (_req, res) => {
 	res.sendFile(path.join(pagesDir, 'battle.html'))
+})
+app.get('/pages/leaderboard.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'leaderboard.html'))
 })
 
 // ---------------------------------------------------------------------------
