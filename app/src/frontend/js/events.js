@@ -71,7 +71,7 @@ btnLogout?.addEventListener('click', async () => {
 		method: 'POST',
 		credentials: 'include',
 	})
-	window.location.href = '../index.html'
+	window.location.href = '/'
 })
 
 // ── Player location (same avatar as the main map) ───────────────
@@ -469,7 +469,7 @@ function addSidebarCard(ev, inRange, lng, lat) {
 // ── Challenge handler ─────────────────────────────────────────
 window._challenge = async function (eventId) {
 	if (!currentUser) {
-		window.location.href = '../index.html'
+		window.location.href = '/'
 		return
 	}
 

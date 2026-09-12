@@ -63,6 +63,7 @@ router.post('/login', async (req, res) => {
 		req.session.user = {
 			user_id: user.user_id,
 			name: user.name,
+			username: user.name,
 			email: user.email,
 		}
 
@@ -124,6 +125,7 @@ router.post('/register', async (req, res) => {
 		req.session.user = {
 			user_id: userId,
 			name: name.trim(),
+			username: name.trim(),
 			email: userEmail,
 		}
 
@@ -172,7 +174,7 @@ router.get('/me', async (req, res) => {
 // LOGOUT ROUTE
 router.post('/logout', (req, res) => {
 	req.session.destroy(() => {
-		res.clearCookie('connect.sid')
+		res.clearCookie('a2a-session-key')
 		res.json({ message: 'Logged out' })
 	})
 })

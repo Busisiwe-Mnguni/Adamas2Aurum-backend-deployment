@@ -44,6 +44,7 @@
 		"start:backend": "npm run start --prefix app/src/backend",
 		"start:frontend": "serve app/src/frontend -l 8055",
 		"test": "node --experimental-vm-modules node_modules/.bin/jest",
+		"test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
 		"test:backend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects backend",
 		"test:frontend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects frontend",
 		"test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",

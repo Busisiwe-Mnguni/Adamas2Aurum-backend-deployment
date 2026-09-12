@@ -25,11 +25,12 @@ import { toNodeHandler, fromNodeHeaders } from 'better-auth/node'
 
 import event_routes from './routes/events.js'
 import card_routes from './routes/cards.js'
-import battle_routes from './routes/battle.js'
 import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
 import question_routes from './routes/questions.js'
 import pool_routes from './routes/event_pool.js'
+import leaderboard_routes from './routes/leaderboard.js'
+import sync_routes from './routes/sync.js'
 
 import pool from './utils/db.js'
 import { auth } from './src/auth.js'
@@ -51,6 +52,8 @@ const allowed_origins = [
 	'http://localhost:3000',
 	'http://127.0.0.1:3000',
 ]
+if (process.env.FRONTEND_URL) allowed_origins.push(process.env.FRONTEND_URL)
+
 app.use(
 	cors({
 		origin: (origin, callback) => {
@@ -167,11 +170,18 @@ app.use('/api/events', qr_routes)
 app.use('/api/events', pool_routes)
 app.use('/api/events', event_routes)
 app.use('/api/cards', card_routes)
-app.use('/api/battles', battle_routes)
 app.use('/api/trivia', trivia_routes)
 // User Story 6 — question authoring. Mounted at /api so the single
 // router can serve both /api/events/:eventId/questions and /api/questions/:id.
 app.use('/api', question_routes)
+
+// User Story 7 — global points leaderboard. Public read; the "/me"
+// sub-route is the only part that requires a session.
+app.use('/api/leaderboard', leaderboard_routes)
+
+// User Story 2 (Sprint 2) — offline attempt sync and deferred verification.
+// Mounted under /api/trivia so all trivia-related endpoints share a namespace.
+app.use('/api/trivia', sync_routes)
 
 app.get('/api/health', async (req, res) => {
 	try {
@@ -204,6 +214,10 @@ app.use('/js', express.static(path.join(frontendDir, 'js')))
 app.use(express.static(path.join(frontendDir, 'public')))
 
 // Main map page
+app.get('/index.html', (_req, res) => {
+	res.sendFile(path.join(frontendDir, 'index.html'))
+})
+
 app.get('/', (_req, res) => {
 	res.sendFile(path.join(frontendDir, 'index.html'))
 })
@@ -223,6 +237,9 @@ app.get('/pages/events.html', (_req, res) => {
 })
 app.get('/pages/battle.html', (_req, res) => {
 	res.sendFile(path.join(pagesDir, 'battle.html'))
+})
+app.get('/pages/leaderboard.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'leaderboard.html'))
 })
 
 // ---------------------------------------------------------------------------
