@@ -1,4 +1,11 @@
 import { API_BASE } from './constants.js'
+import { updateAuthNav } from './auth-helpers.js'
+import { startChromeDayNightCycle } from './campus-style.js'
+
+// No live map on this page — drive the shared `body.night` chrome theme
+// from the same day/night check as the map. The admin console never does
+// this, so it stays light.
+startChromeDayNightCycle()
 
 const PAGE_SIZE = 50
 
@@ -17,9 +24,6 @@ const elMyRankPoints = document.getElementById('my-rank-points')
 const elMyRankMeta = document.getElementById('my-rank-meta')
 
 const elAnonBanner = document.getElementById('anon-banner')
-const elUserBadge = document.getElementById('user-badge')
-const elBtnLogout = document.getElementById('btn-logout')
-const elBtnSignin = document.getElementById('btn-signin')
 
 // ── State ────────────────────────────────────────────────────
 let currentOffset = 0
@@ -49,9 +53,11 @@ function initialsAvatar(name) {
 }
 
 // ── Auth check ───────────────────────────────────────────────
+// The board itself is public; auth only drives the shared header
+// (avatar menu, player tabs) and the "your rank" card. Never redirect.
 async function checkAuth() {
 	try {
-		const res = await fetch(`${API_BASE}/api/me`, {
+		const res = await fetch(`${API_BASE}/api/auth/me`, {
 			credentials: 'include',
 		})
 		if (!res.ok) throw new Error()
@@ -63,41 +69,12 @@ async function checkAuth() {
 }
 
 function renderAuthUI() {
+	updateAuthNav(currentUser)
 	if (currentUser) {
 		elAnonBanner?.classList.add('hidden')
-		elBtnSignin?.classList.add('hidden')
-		elBtnLogout?.classList.remove('hidden')
-		if (elUserBadge) {
-			elUserBadge.textContent = currentUser.name || ''
-			elUserBadge.classList.remove('hidden')
-		}
-		// Anyone with an authoring role sees the Console link.
-		if (
-			currentUser.role === 'SUPER_ADMIN' ||
-			currentUser.role === 'EVENT_AUTHOR'
-		) {
-			document.getElementById(
-				'nav-console'
-			)?.classList.remove('hidden')
-		}
 	} else {
 		elAnonBanner?.classList.remove('hidden')
-		elBtnSignin?.classList.remove('hidden')
-		elBtnLogout?.classList.add('hidden')
-		elUserBadge?.classList.add('hidden')
 	}
-
-	elBtnLogout?.addEventListener('click', async () => {
-		try {
-			await fetch(`${API_BASE}/api/auth/logout`, {
-				method: 'POST',
-				credentials: 'include',
-			})
-		} catch {
-			/* ignore */
-		}
-		window.location.href = '/'
-	})
 }
 
 // ── Leaderboard list ─────────────────────────────────────────

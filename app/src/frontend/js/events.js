@@ -53,17 +53,29 @@ map.addControl(
 let currentUser = null
 
 async function checkAuth() {
+	let res
 	try {
-		const res = await fetch(`${AUTH_API}/me`, {
+		res = await fetch(`${AUTH_API}/me`, {
 			credentials: 'include',
 		})
-		if (!res.ok) throw new Error()
-		currentUser = await res.json()
-		updateAuthNav(currentUser)
 	} catch {
+		// Backend unreachable — leave the nav alone and say so on the
+		// map instead of silently treating the player as logged out.
+		currentUser = null
+		elLoading.classList.add('hidden')
+		elError.textContent =
+			'Could not reach the server — the map below may be stale. Refresh to retry.'
+		elError.classList.remove('hidden')
+		return
+	}
+	if (res.status === 401) {
 		currentUser = null
 		updateAuthNav(null)
+		return
 	}
+	if (!res.ok) return
+	currentUser = await res.json()
+	updateAuthNav(currentUser)
 }
 
 btnLogout?.addEventListener('click', async () => {
@@ -469,8 +481,13 @@ function addSidebarCard(ev, inRange, lng, lat) {
 // ── Challenge handler ─────────────────────────────────────────
 window._challenge = async function (eventId) {
 	if (!currentUser) {
-		window.location.href = '/'
-		return
+		// The session check may have failed on a network blip — retry
+		// once before treating the player as logged out.
+		await checkAuth()
+		if (!currentUser) {
+			window.location.href = '/'
+			return
+		}
 	}
 
 	const location = await get_location_for_challenge(eventId)

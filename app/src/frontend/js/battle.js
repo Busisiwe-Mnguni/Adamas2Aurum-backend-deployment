@@ -14,6 +14,7 @@ import { startChromeDayNightCycle } from './campus-style.js'
 startChromeDayNightCycle()
 
 var ws = null
+let wsRetryCount = 0
 var user = null
 
 const AUTH_API = `${API_BASE}/api/auth`
@@ -586,6 +587,8 @@ function connectToWebSocket() {
 		ws = new WebSocket(`${API_BASE_WS}/ws/battle`)
 
 		ws.onopen = () => {
+			wsRetryCount = 0
+			elListError.classList.add('hidden')
 			pingInterval = setInterval(() => {
 				ws.send(JSON.stringify({ type: 'ping' }))
 			}, 25000) // ping every 25 seconds
@@ -755,11 +758,26 @@ function connectToWebSocket() {
 		ws.onclose = () => {
 			if (pingInterval) clearInterval(pingInterval)
 			console.log('WebSocket disconnected')
-			window.location.href = '../index.html'
+			// A dropped socket is not a logout — stay on the page and
+			// retry a few times instead of dumping the player onto the map.
+			wsRetryCount += 1
+			if (wsRetryCount > 3) {
+				elListError.textContent =
+					'Lost connection to the battle server. Refresh the page to reconnect.'
+				elListError.classList.remove('hidden')
+				return
+			}
+			elListError.textContent =
+				'Connection to the battle server dropped — retrying…'
+			elListError.classList.remove('hidden')
+			setTimeout(() => {
+				ws = connectToWebSocket()
+			}, 1500 * wsRetryCount)
 		}
 		ws.onerror = (error) => {
+			// Logged only — onclose follows and owns the retry. Never
+			// redirect: a socket error is not an auth failure.
 			console.error('WebSocket error:', error)
-			window.location.href = '../index.html'
 		}
 
 		return ws
@@ -928,21 +946,35 @@ function submitDeck(deck) {
 }
 
 async function checkAccess() {
+	let res
 	try {
-		const res = await fetch(`${AUTH_API}/me`, {
+		res = await fetch(`${AUTH_API}/me`, {
 			credentials: 'include',
 		})
-		if (!res.ok) throw new Error('Not authenticated')
-		user = await res.json()
-
-		updateAuthNav(user)
-		elBattleLog.replaceChildren()
-
-		ws = connectToWebSocket()
-		switchToOpponentSelectionView()
 	} catch {
-		window.location.href = '../index.html'
+		// Backend unreachable — not the same as logged out. Stay on the
+		// page and say so instead of dumping the player onto the map.
+		elListError.textContent =
+			'Could not reach the server — check your connection, then refresh.'
+		elListError.classList.remove('hidden')
+		return
 	}
+	if (res.status === 401) {
+		window.location.href = '../index.html'
+		return
+	}
+	if (!res.ok) {
+		elListError.textContent = `Could not verify your session (server responded with ${res.status}).`
+		elListError.classList.remove('hidden')
+		return
+	}
+	user = await res.json()
+
+	updateAuthNav(user)
+	elBattleLog.replaceChildren()
+
+	ws = connectToWebSocket()
+	switchToOpponentSelectionView()
 }
 
 checkAccess()

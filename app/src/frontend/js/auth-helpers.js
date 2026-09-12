@@ -41,9 +41,12 @@ export function updateAuthNav(user) {
 	const btnLogout = document.getElementById('btn-logout')
 	const btnSignin = document.getElementById('btn-signin')
 	const navConsole = document.getElementById('nav-console')
-	const playerLinks = ['nav-events', 'nav-collection', 'nav-battle'].map(
-		(id) => document.getElementById(id)
-	)
+	const playerLinks = [
+		'nav-events',
+		'nav-collection',
+		'nav-battle',
+		'nav-leaderboard',
+	].map((id) => document.getElementById(id))
 
 	if (user) {
 		if (badge) badge.classList.add('hidden')

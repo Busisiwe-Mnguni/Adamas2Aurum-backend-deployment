@@ -33,11 +33,34 @@ btnLogout.addEventListener('click', async () => {
 })
 
 async function checkAccess() {
+	let res
 	try {
-		const res = await fetch(`${AUTH_API}/me`, {
+		res = await fetch(`${AUTH_API}/me`, {
 			credentials: 'include',
 		})
-		if (!res.ok) throw new Error('Not authenticated')
+	} catch {
+		// Backend unreachable — not the same as logged out. Stay on the
+		// page and say so instead of dumping the player onto the map.
+		elContent.classList.remove('hidden')
+		elLoading.classList.add('hidden')
+		elError.textContent =
+			'Could not reach the server — check your connection, then refresh.'
+		elError.classList.remove('hidden')
+		return
+	}
+	if (res.status === 401) {
+		// Single login entry point: send unauthenticated users to the landing page.
+		window.location.href = '../index.html'
+		return
+	}
+	if (!res.ok) {
+		elContent.classList.remove('hidden')
+		elLoading.classList.add('hidden')
+		elError.textContent = `Could not verify your session (server responded with ${res.status}).`
+		elError.classList.remove('hidden')
+		return
+	}
+	try {
 		const user = await res.json()
 
 		updateAuthNav(user)
@@ -45,7 +68,6 @@ async function checkAccess() {
 
 		loadCollection()
 	} catch {
-		// Single login entry point: send unauthenticated users to the landing page.
 		window.location.href = '../index.html'
 	}
 }
