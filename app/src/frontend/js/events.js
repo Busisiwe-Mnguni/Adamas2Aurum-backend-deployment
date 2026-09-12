@@ -1,7 +1,7 @@
 import { API_BASE } from './constants.js'
 import { get_player_location } from './geolocation.js'
 import { distance } from './general.js'
-import { updateAuthNav } from './auth-helpers.js'
+import { updateAuthNav, logout } from './auth-helpers.js'
 import { get_location_for_challenge } from './qr-scanner.js'
 import {
 	createCampusStyle,
@@ -78,13 +78,7 @@ async function checkAuth() {
 	updateAuthNav(currentUser)
 }
 
-btnLogout?.addEventListener('click', async () => {
-	await fetch(`${AUTH_API}/logout`, {
-		method: 'POST',
-		credentials: 'include',
-	})
-	window.location.href = '/'
-})
+btnLogout?.addEventListener('click', logout)
 
 // ── Player location (same avatar as the main map) ───────────────
 let playerMarker = null
@@ -94,6 +88,9 @@ let playerLatLng = null
 let playerAccuracyMeters = 0
 let playerHeading = 0
 let walkTimer = null
+let followMode = true
+let hasCenteredInitial = false
+let geoWatchId = null
 
 function metersPerPixel(lat, zoom) {
 	return (
@@ -154,9 +151,19 @@ function distanceMeters(a, b) {
 }
 
 function startGeolocation() {
-	if (!('geolocation' in navigator)) return
+	if (!('geolocation' in navigator)) {
+		elError.textContent =
+			'Geolocation is not supported by your browser.'
+		elError.classList.remove('hidden')
+		return
+	}
 
-	navigator.geolocation.watchPosition(
+	if (geoWatchId !== null) {
+		navigator.geolocation.clearWatch(geoWatchId)
+		geoWatchId = null
+	}
+
+	geoWatchId = navigator.geolocation.watchPosition(
 		(pos) => {
 			const prev = playerLatLng
 			playerLatLng = [
@@ -194,14 +201,40 @@ function startGeolocation() {
 				playerMarker.setLngLat(playerLatLng)
 			}
 			updateAccuracyCircle()
-			refreshStopGlow()
+
+			// First GPS fix: center on player position
+			if (!hasCenteredInitial) {
+				hasCenteredInitial = true
+				map.flyTo({
+					center: playerLatLng,
+					zoom: Math.max(map.getZoom(), 18.5),
+					pitch: CAMPUS_CAMERA.pitch,
+					bearing: CAMPUS_CAMERA.bearing,
+					duration: 900,
+				})
+			} else if (followMode) {
+				map.easeTo({
+					center: playerLatLng,
+					duration: 400,
+				})
+			}
+
+			refreshAllStopsProximity()
 		},
-		(err) => console.warn('Geolocation:', err.message),
-		{ enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+		(err) => {
+			console.warn('Geolocation:', err.message)
+			if (err.code === 1 /* PERMISSION_DENIED */) {
+				elError.textContent =
+					'Location permission blocked — allow location to view nearby stops and play.'
+				elError.classList.remove('hidden')
+			}
+		},
+		{ enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
 	)
 }
 
 btnRecenter?.addEventListener('click', () => {
+	followMode = true
 	if (playerLatLng) {
 		map.flyTo({
 			center: playerLatLng,
@@ -243,16 +276,69 @@ function makeStopMarker(ev, inRange) {
 	return el
 }
 
-// Scale/glow each stop by live proximity. Applied to the INNER bob
-// element — MapLibre owns the outer marker element's transform.
-function refreshStopGlow() {
+// Scale/glow each stop by live proximity and update inRange state dynamically.
+function refreshAllStopsProximity() {
 	if (!playerLatLng) return
-	for (const { el, lng, lat } of stopRefs) {
-		const d = distanceMeters(playerLatLng, [lng, lat])
+	const onCampus = isInsideCampus(playerLatLng[0], playerLatLng[1])
+
+	for (const ref of stopRefs) {
+		const d = distanceMeters(playerLatLng, [ref.lng, ref.lat])
 		const t = Math.max(0, Math.min(1, 1 - (d - 40) / 210))
-		el.style.transform = `scale(${(1 + 0.4 * t).toFixed(3)})`
-		el.style.setProperty('--pg', t.toFixed(3))
+		ref.bobEl.style.transform = `scale(${(1 + 0.4 * t).toFixed(3)})`
+		ref.bobEl.style.setProperty('--pg', t.toFixed(3))
+
+		const inRange = d <= (ref.ev.radius_meters || 60)
+		if (ref.inRange !== inRange) {
+			ref.inRange = inRange
+			ref.el.classList.toggle('gym', inRange)
+			if (ref.cubeSpan) {
+				ref.cubeSpan.textContent = inRange ? '⚡' : '🏛️'
+			}
+			const card = elSidebar.querySelector(
+				`.sidebar-event[data-id="${ref.ev.event_id}"]`
+			)
+			if (card) {
+				const pill = card.querySelector(
+					'.sidebar-event-meta .meta-pill'
+				)
+				if (pill) {
+					pill.className = `meta-pill${inRange ? ' active' : ''}`
+					pill.textContent = inRange
+						? '✓ In range'
+						: 'Out of range'
+				}
+			}
+		}
+
+		if (activePopup && activePopup === ref.popup) {
+			activePopup.setHTML(
+				buildPopupHTML(ref.ev, inRange, onCampus)
+			)
+		}
 	}
+}
+
+function openStopPopup(ref) {
+	const onCampus = playerLatLng
+		? isInsideCampus(playerLatLng[0], playerLatLng[1])
+		: false
+	const d = playerLatLng
+		? distanceMeters(playerLatLng, [ref.lng, ref.lat])
+		: Infinity
+	const inRange = d <= (ref.ev.radius_meters || 60)
+
+	ref.popup.setHTML(buildPopupHTML(ref.ev, inRange, onCampus))
+	activePopup?.remove()
+	ref.popup.setLngLat([ref.lng, ref.lat]).addTo(map)
+	activePopup = ref.popup
+
+	// Highlight sidebar card
+	document.querySelectorAll('.sidebar-event').forEach((c) =>
+		c.classList.remove('active')
+	)
+	document.querySelector(
+		`.sidebar-event[data-id="${ref.ev.event_id}"]`
+	)?.classList.add('active')
 }
 
 function circleCoords(lng, lat, radiusMeters, steps = 48) {
@@ -365,12 +451,16 @@ async function loadEvents() {
 			return
 		}
 
-		// Try player location for range check
-		let playerLoc = null
-		try {
-			playerLoc = await get_player_location()
-		} catch {
-			/* fine */
+		// Try player location for range check: prefer live coordinates if available
+		let playerLoc = playerLatLng
+			? [playerLatLng[1], playerLatLng[0]]
+			: null
+		if (!playerLoc) {
+			try {
+				playerLoc = await get_player_location()
+			} catch {
+				/* fine */
+			}
 		}
 
 		// Campus gate for taps: off-campus (or no fix) players see the
@@ -406,34 +496,31 @@ async function loadEvents() {
 			})
 				.setLngLat([lng, lat])
 				.addTo(map)
-			stopRefs.push({
-				marker,
-				el: el.querySelector('.pokestop-bob'),
-				lng,
-				lat,
-			})
 
-			// Popup
 			const popup = new maplibregl.Popup({
 				offset: 25,
 				closeButton: true,
-			}).setHTML(buildPopupHTML(ev, inRange, onCampus))
+			})
+
+			const ref = {
+				marker,
+				popup,
+				el,
+				bobEl: el.querySelector('.pokestop-bob'),
+				cubeSpan: el.querySelector('.stop-cube span'),
+				ev,
+				lng,
+				lat,
+				inRange,
+			}
+			stopRefs.push(ref)
 
 			el.addEventListener('click', (e) => {
 				// Stop this reaching the map: MapLibre closes popups on
 				// any map click (closeOnClick), so without this the popup
 				// opens and shuts in the same tick and the tap looks dead.
 				e.stopPropagation()
-				activePopup?.remove()
-				popup.setLngLat([lng, lat]).addTo(map)
-				activePopup = popup
-				// Highlight sidebar card
-				document.querySelectorAll(
-					'.sidebar-event'
-				).forEach((c) => c.classList.remove('active'))
-				document.querySelector(
-					`.sidebar-event[data-id="${ev.event_id}"]`
-				)?.classList.add('active')
+				openStopPopup(ref)
 			})
 
 			activeMarkers.push(marker)
@@ -441,7 +528,7 @@ async function loadEvents() {
 		}
 
 		renderProximityCircles(events)
-		refreshStopGlow()
+		refreshAllStopsProximity()
 	} catch (err) {
 		elLoading.classList.add('hidden')
 		elError.textContent = `Could not load events — ${err.message}`
@@ -457,11 +544,7 @@ function addSidebarCard(ev, inRange, lng, lat) {
 	card.innerHTML = `
 		<div class="sidebar-event-title">${ev.title}</div>
 		<div class="sidebar-event-meta">
-			${
-				inRange
-					? `<span class="meta-pill active">✓ In range</span>`
-					: `<span class="meta-pill">Out of range</span>`
-			}
+			<span class="meta-pill${inRange ? ' active' : ''}">${inRange ? '✓ In range' : 'Out of range'}</span>
 			<span class="meta-pill gold">⚡ ${ev.point_reward} pts</span>
 			<span class="meta-pill">📍 ${ev.radius_meters}m</span>
 		</div>
@@ -473,6 +556,8 @@ function addSidebarCard(ev, inRange, lng, lat) {
 			c.classList.remove('active')
 		)
 		card.classList.add('active')
+		const ref = stopRefs.find((r) => r.ev.event_id === ev.event_id)
+		if (ref) openStopPopup(ref)
 	})
 
 	elSidebar.appendChild(card)
@@ -490,8 +575,40 @@ window._challenge = async function (eventId) {
 		}
 	}
 
-	const location = await get_location_for_challenge(eventId)
-	if (!location) return
+	const btn = document.querySelector('.popup-challenge-btn')
+	if (btn) {
+		btn.disabled = true
+		btn.textContent = 'Verifying location…'
+	}
+
+	let location = null
+	try {
+		// If live GPS tracking already has an accurate fix (<= 50m), use it directly
+		if (
+			playerLatLng &&
+			playerAccuracyMeters > 0 &&
+			playerAccuracyMeters <= 50
+		) {
+			location = {
+				mode: 'gps',
+				lat: playerLatLng[1],
+				lng: playerLatLng[0],
+				accuracy: Math.round(playerAccuracyMeters),
+			}
+		} else {
+			location = await get_location_for_challenge(eventId)
+		}
+	} catch {
+		location = null
+	}
+
+	if (!location) {
+		if (btn) {
+			btn.disabled = false
+			btn.textContent = '⚡ Attempt Challenge'
+		}
+		return
+	}
 
 	const locationParams =
 		location.mode === 'gps'
@@ -505,7 +622,7 @@ window._challenge = async function (eventId) {
 		)
 
 		if (res.status === 401) {
-			window.location.href = '../index.html'
+			window.location.href = '/'
 			return
 		}
 
@@ -530,6 +647,11 @@ window._challenge = async function (eventId) {
 		showTriviaModal(eventId, data)
 	} catch {
 		alert('Error connecting to the challenge server.')
+	} finally {
+		if (btn) {
+			btn.disabled = false
+			btn.textContent = '⚡ Attempt Challenge'
+		}
 	}
 }
 
@@ -726,7 +848,10 @@ function showResultModal(data) {
 				</div>
 			</div>`
 		document.body.appendChild(overlay)
-		overlay.querySelector('#result-close').addEventListener('click', () => overlay.remove())
+		overlay.querySelector('#result-close').addEventListener(
+			'click',
+			() => overlay.remove()
+		)
 		overlay.addEventListener('click', (e) => {
 			if (e.target === overlay) overlay.remove()
 		})
@@ -857,6 +982,16 @@ map.on('load', () => {
 	loadEvents()
 })
 map.on('zoom', updateAccuracyCircle)
+map.on('dragstart', () => {
+	followMode = false
+})
+
+window.addEventListener('beforeunload', () => {
+	if (geoWatchId !== null && 'geolocation' in navigator) {
+		navigator.geolocation.clearWatch(geoWatchId)
+		geoWatchId = null
+	}
+})
 
 setInterval(loadEvents, 30000)
 document.addEventListener('visibilitychange', () => {

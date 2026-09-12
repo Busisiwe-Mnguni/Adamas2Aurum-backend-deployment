@@ -1,5 +1,5 @@
 import { API_BASE } from './constants.js'
-import { updateAuthNav } from './auth-helpers.js'
+import { updateAuthNav, logout } from './auth-helpers.js'
 import { startChromeDayNightCycle } from './campus-style.js'
 
 // No live map on this page — drive the shared `body.night` chrome theme
@@ -24,6 +24,8 @@ const elMyRankPoints = document.getElementById('my-rank-points')
 const elMyRankMeta = document.getElementById('my-rank-meta')
 
 const elAnonBanner = document.getElementById('anon-banner')
+const btnLogout = document.getElementById('btn-logout')
+btnLogout?.addEventListener('click', logout)
 
 // ── State ────────────────────────────────────────────────────
 let currentOffset = 0

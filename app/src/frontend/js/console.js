@@ -7,7 +7,7 @@ import {
 	buildCardBody,
 } from './utils.js'
 import { API_BASE } from './constants.js'
-import { updateAuthNav, isAdmin } from './auth-helpers.js'
+import { updateAuthNav, isAdmin, logout } from './auth-helpers.js'
 
 const AUTH_API = `${API_BASE}/api/auth`
 const CARDS_API = `${API_BASE}/api/cards`
@@ -162,20 +162,8 @@ function resetCardForm() {
 }
 
 // ── AUTH ──
-async function doLogout() {
-	try {
-		await fetch(`${AUTH_API}/logout`, {
-			method: 'POST',
-			credentials: 'include',
-		})
-	} catch (err) {
-		console.warn('Logout error:', err)
-	}
-	window.location.href = '../index.html'
-}
-
-btnLogout.addEventListener('click', doLogout)
-btnLogoutDenied.addEventListener('click', doLogout)
+btnLogout?.addEventListener('click', logout)
+btnLogoutDenied?.addEventListener('click', logout)
 
 async function checkAccess() {
 	try {

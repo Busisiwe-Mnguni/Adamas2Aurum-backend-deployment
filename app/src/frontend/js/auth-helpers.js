@@ -112,27 +112,24 @@ function notify(msg) {
 	setTimeout(() => el.remove(), 2600)
 }
 
-async function logout() {
-	// Prefer the page's own logout flow (each page wires #btn-logout with
-	// its correct session teardown); fall back to the plain API call.
-	const pageBtn = document.getElementById('btn-logout')
-	if (pageBtn) {
-		pageBtn.click()
-		return
-	}
+export async function logout() {
 	try {
-		await fetch(`${API_BASE}/api/auth/logout`, {
-			method: 'POST',
-			credentials: 'include',
-		})
-	} catch {
-		/* still drop the local session view below */
+		await Promise.allSettled([
+			fetch(`${API_BASE}/api/auth/logout`, {
+				method: 'POST',
+				credentials: 'include',
+			}),
+			fetch(`${API_BASE}/api/auth/sign-out`, {
+				method: 'POST',
+				credentials: 'include',
+			}),
+		])
+	} catch (err) {
+		console.warn('Logout error:', err)
+	} finally {
+		removeAccountMenu()
+		window.location.href = '/'
 	}
-	removeAccountMenu()
-	window.location.href = new URL(
-		'../index.html',
-		window.location.href
-	).toString()
 }
 
 function menuSubLabel(user) {
@@ -153,7 +150,9 @@ function menuSubLabel(user) {
 			? role
 					.replace(/_/g, ' ')
 					.toLowerCase()
-					.replace(/\b\w/g, (c) => c.toUpperCase())
+					.replace(/\b\w/g, (c) =>
+						c.toUpperCase()
+					)
 			: 'Admin'
 	}
 	return ''
@@ -161,15 +160,12 @@ function menuSubLabel(user) {
 
 function closeMenu(wrap) {
 	wrap?.querySelector('.acct-menu')?.remove()
-	wrap
-		?.querySelector('.acct-avatar')
-		?.setAttribute('aria-expanded', 'false')
+	wrap?.querySelector('.acct-avatar')?.setAttribute(
+		'aria-expanded',
+		'false'
+	)
 	if (closeMenu._outside) {
-		document.removeEventListener(
-			'click',
-			closeMenu._outside,
-			true
-		)
+		document.removeEventListener('click', closeMenu._outside, true)
 		closeMenu._outside = null
 	}
 }
@@ -218,9 +214,21 @@ function ensureAccountMenu(user) {
 
 	const sub = menuSubLabel(user)
 	const items = [
-		{ icon: 'pencil', label: 'Edit username', soon: 'Username editing is coming soon.' },
-		{ icon: 'key', label: 'Change password', soon: 'Password changes are coming soon.' },
-		{ icon: 'settings', label: 'Settings', soon: 'Settings are coming soon.' },
+		{
+			icon: 'pencil',
+			label: 'Edit username',
+			soon: 'Username editing is coming soon.',
+		},
+		{
+			icon: 'key',
+			label: 'Change password',
+			soon: 'Password changes are coming soon.',
+		},
+		{
+			icon: 'settings',
+			label: 'Settings',
+			soon: 'Settings are coming soon.',
+		},
 		{ divider: true },
 		{ icon: 'log-out', label: 'Logout', action: logout },
 		{
@@ -275,8 +283,7 @@ function ensureAccountMenu(user) {
 				el.disabled = true
 				if (item.title) el.title = item.title
 			}
-			el.innerHTML =
-				`<span class="acct-menu-icon">${svgIcon(item.icon)}</span><span></span>`
+			el.innerHTML = `<span class="acct-menu-icon">${svgIcon(item.icon)}</span><span></span>`
 			el.lastChild.textContent = item.label
 			el.addEventListener('click', () => {
 				if (item.action) {

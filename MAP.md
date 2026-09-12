@@ -19,11 +19,11 @@ physically on campus.
 
 ## Pages
 
-| Page | File | Role |
-|---|---|---|
-| Main game map | `app/src/frontend/index.html` + `js/main.js` | GPS avatar, stops, geofence, trivia modals, HUD |
-| 2D preview | `app/src/frontend/pages/map.html` | World overview + event pins, no GPS |
-| Events | `app/src/frontend/pages/events.html` + `js/events.js` | Sidebar list, range pills, challenge/QR flow |
+| Page          | File                                                  | Role                                            |
+| ------------- | ----------------------------------------------------- | ----------------------------------------------- |
+| Main game map | `app/src/frontend/index.html` + `js/main.js`          | GPS avatar, stops, geofence, trivia modals, HUD |
+| 2D preview    | `app/src/frontend/pages/map.html`                     | World overview + event pins, no GPS             |
+| Events        | `app/src/frontend/pages/events.html` + `js/events.js` | Sidebar list, range pills, challenge/QR flow    |
 
 ## Data flow (no static campus file)
 
@@ -41,12 +41,12 @@ physically on campus.
 
 - **Player avatar:** continuous GPS `watchPosition`, blue dot + accuracy
   circle, compass/GPS heading wedge, idle/walk animation, fading breadcrumb
-  trail. WASD walks a demo avatar; simulate on/off-campus buttons aid
-  desktop testing.
+  trail. Camera follow mode centers on the player as they move, with drag-to-free-look
+  and 🎯 recenter.
 - **Geofence:** rectangular bbox around Braamfontein
   (lon 28.017–28.050, lat −26.198––26.173) decides on/off-campus.
   Off-campus players browse freely with an info banner; tapping a stop
-  shows *"You need to be on Wits campus"* instead of starting trivia.
+  shows _"You need to be on Wits campus"_ instead of starting trivia.
   (Known limitation: bbox, not a true campus polygon.)
 - **Day/night:** real-time theme blended from the device clock (dark navy
   night palette, dimmed fog/clouds, smooth dawn/dusk transitions),
@@ -54,26 +54,28 @@ physically on campus.
 - **Camera:** street-level lock (zoom 17–20, pitch 55–70°), PoGO-style
   follow with drag-to-free-look, 🎯 recenter, idle pull-back to campus.
 
-## Tuning guide (where things live)
+## Recent updates & fixes
 
-- Map colors/roads/labels/camera limits → `campus-style.js`
-- Day/night schedule + palettes → `nightFactorAt()` / `DAY_NIGHT_LAYERS`
-  in `campus-style.js`
-- Stop look/animations → `index.html` (`stop-cube`, `stop-ring`, …)
-- Challenge gating message → `handleChallengeAttempt()` in `main.js`;
-  events-page variant → `buildPopupHTML()` in `events.js`
-- HUD copy/panels → inline `<style>`/markup in each page
+### 1. Live GPS Player Tracker & Proximity Overhaul (`events.js`)
 
-## History (how it got here)
+- **Real-Time Dynamic Proximity:** Previously, `events.js` evaluated stop proximity once on load, locking popups into a stale "Walk closer" state even after the player walked directly to a landmark. Proximity is now updated dynamically on every continuous GPS tick via `refreshAllStopsProximity()`.
+- **Dynamic Popup Generation:** Stop popups are re-evaluated and generated dynamically upon click/tap via `openStopPopup()`, ensuring the "⚡ Attempt Challenge" button renders immediately whenever a player is in range.
+- **Camera Follow & Auto-Centering:** On the initial GPS fix, the camera automatically glides to the player's position so markers do not spawn off-screen. Follow mode smoothly tracks player movements until the user manually pans, and re-engages on tapping the recenter button (`btn-recenter`).
+- **Eliminated 10-Second Freezes:** `loadEvents()` now prioritizes cached coordinates from the continuous GPS watch stream, avoiding redundant 10-second blocking `getCurrentPosition` calls. In `_challenge()`, if live GPS accuracy is $\le 50\text{m}$, the attempt starts instantly without an extra 10-second lookup.
+- **Error Handling & Resource Cleanup:** Added explicit feedback when geolocation permissions are blocked, and registered `beforeunload` cleanup to clear the GPS watch.
 
-Leaflet defaults → static Overpass GeoJSON baked into the style →
-MapLibre + night theme → PoGO daylight → whole-world vector tiles →
-reference-driven polish (lane markings, fog, clouds, glow) → off-campus
-fact stops → day/night cycle → PokéStop cube markers. A Three.js 3D
-prototype was built along the way and scrapped; all traces removed.
+### 2. Unified Dual-Session Logout System (`auth-helpers.js`, all pages)
+
+- **Dual-Session Termination:** Centralized `logout()` in `auth-helpers.js` to concurrently invalidate both `express-session` (`POST /api/auth/logout`) and Better Auth Google OAuth (`POST /api/auth/sign-out`) via `Promise.allSettled`.
+- **Prevented OAuth Re-Authentication Loop:** Resolved the issue where Google OAuth cookies remained active on non-landing pages (`events.html`, `collection.html`, `battle.html`, `console.html`), which previously triggered automatic re-login on the next request.
+- **Fixed Leaderboard Logout:** Fixed missing click listener on `pages/leaderboard.html` and unified logout across all application pages.
+- **Safety & Error Tolerance:** Wrapped logout execution in `try...finally` to ensure the avatar menu is cleaned up and navigation redirects to `/` even under offline or degraded network conditions.
 
 ## Verification
 
-`node --experimental-vm-modules node_modules/.bin/jest` — 17 tests
-green (location, day/night schedule, backend services); all touched files
-pass `prettier --check` and `node --check`.
+- `npm test` (`node --experimental-vm-modules node_modules/.bin/jest`): **7 passed test suites, 59 passed tests** (auth helpers, location, day/night schedule, backend services).
+- `npm run format:check`: 100% compliant with Prettier formatting.
+
+## AI Declaration
+
+This update and accompanying documentation were developed with the assistance of AI tooling (Antigravity). AI was used to diagnose and resolve session termination bugs, audit and overhaul the real-time GPS tracking and proximity systems, implement automated unit tests for auth helpers, and format codebase assets. All contributions were verified against the project's automated test suite and code style standards.

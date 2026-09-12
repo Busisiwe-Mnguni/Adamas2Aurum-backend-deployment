@@ -523,12 +523,37 @@ battleWss.on('connection', (ws, request) => {
 						await load_battle_state(
 							old_battle_id
 						)
-					const state_payload = JSON.stringify({
-						type: 'state_update',
-						battle_id: old_battle_id,
-						state,
-					})
-					ws.send(state_payload)
+					if (state) {
+						const state_payload =
+							JSON.stringify({
+								type: 'state_update',
+								battle_id: old_battle_id,
+								state,
+							})
+						ws.send(state_payload)
+					} else {
+						const myDeckSubmitted =
+							await player_has_submitted_deck(
+								old_battle_id,
+								user_id
+							)
+						if (!myDeckSubmitted) {
+							ws.send(
+								JSON.stringify({
+									type: 'battle_started',
+									battle_id: old_battle_id,
+								})
+							)
+						} else {
+							ws.send(
+								JSON.stringify({
+									type: 'deck_accepted',
+									battle_id: old_battle_id,
+									message: 'Deck saved. Waiting for opponent...',
+								})
+							)
+						}
+					}
 				} else {
 					broadcast_lobby_presence()
 				}

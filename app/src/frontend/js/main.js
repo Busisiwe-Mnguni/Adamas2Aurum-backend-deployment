@@ -7,7 +7,7 @@ import {
 } from './auth-client.js'
 import { API_BASE } from './constants.js'
 import { get_player_location } from './geolocation.js'
-import { redirectAfterLogin, updateAuthNav } from './auth-helpers.js'
+import { redirectAfterLogin, updateAuthNav, logout } from './auth-helpers.js'
 import {
 	createCampusStyle,
 	CAMPUS_CAMERA,
@@ -746,16 +746,7 @@ async function checkAuthSession() {
 }
 
 async function handleLogout() {
-	try {
-		// Clear both Better Auth session and express-session bridge
-		await clearBridgeSession()
-		await baSignOut()
-	} catch (err) {
-		console.error('Logout error:', err)
-	}
-	// Return to the landing page so the user can log in again from the single
-	// login entry point.
-	window.location.href = '/'
+	await logout()
 }
 
 /**
@@ -1193,7 +1184,8 @@ async function initializeApp() {
 				stopMarkers.length = 0
 				const buildings = await fetchCampusEvents()
 				buildings.forEach((bld) => {
-					const pinElement = createBuildingPinElement(bld)
+					const pinElement =
+						createBuildingPinElement(bld)
 					const popup = new maplibregl.Popup({
 						offset: 25,
 					}).setHTML(buildPopupContent(bld))

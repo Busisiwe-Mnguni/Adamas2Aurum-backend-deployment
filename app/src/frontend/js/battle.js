@@ -5,7 +5,7 @@ import {
 	buildCardBody,
 } from './utils.js'
 import { API_BASE, API_BASE_WS } from './constants.js'
-import { updateAuthNav } from './auth-helpers.js'
+import { updateAuthNav, logout } from './auth-helpers.js'
 import { startChromeDayNightCycle } from './campus-style.js'
 
 // No live map on this page — drive the shared `body.night` chrome theme
@@ -85,15 +85,7 @@ const battleDeck = Array.from({ length: BATTLE_DECK_NO_CARDS }, (_, index) => {
 	}
 })
 
-async function doLogout() {
-	await fetch(`${AUTH_API}/logout`, {
-		method: 'POST',
-		credentials: 'include',
-	})
-	window.location.href = '../index.html'
-}
-
-btnLogout.addEventListener('click', doLogout)
+btnLogout?.addEventListener('click', logout)
 
 function switchToOpponentSelectionView(deck) {
 	elCardSelectionView.classList.add('hidden')
@@ -532,16 +524,23 @@ function refreshBattleLogs(
 }
 
 function refreshBattleView(battle_id, user_id, state) {
-	elBattleTurnNumber.textContent = state.turn_number
+	if (!state || !state.cards) {
+		console.warn(
+			'refreshBattleView called with invalid state:',
+			state
+		)
+		return
+	}
+	elBattleTurnNumber.textContent = state.turn_number ?? 1
 	elBattlePlayerTurn.textContent =
 		state.turn === user_id ? 'Your turn' : "Opponent's turn"
 	var player_cards, opponent_cards
 	if (state.player1_id === user_id) {
-		player_cards = state.cards.player1
-		opponent_cards = state.cards.player2
+		player_cards = state.cards.player1 || []
+		opponent_cards = state.cards.player2 || []
 	} else {
-		player_cards = state.cards.player2
-		opponent_cards = state.cards.player1
+		player_cards = state.cards.player2 || []
+		opponent_cards = state.cards.player1 || []
 	}
 	elBattlePlayerCardsList.replaceChildren()
 
@@ -649,6 +648,13 @@ function connectToWebSocket() {
 						)
 						break
 					case 'state_update':
+						if (!data.state) {
+							console.warn(
+								'Received state_update with invalid state:',
+								data
+							)
+							break
+						}
 						refreshBattleView(
 							data.battle_id,
 							user.user_id,
@@ -658,6 +664,16 @@ function connectToWebSocket() {
 						break
 
 					case 'turn_result':
+						if (
+							!data.state ||
+							!data.state.cards
+						) {
+							console.warn(
+								'Received turn_result with invalid state:',
+								data
+							)
+							break
+						}
 						const player_cards =
 							data.state
 								.player1_id ===
