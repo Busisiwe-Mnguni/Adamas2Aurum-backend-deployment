@@ -3,6 +3,7 @@ import {
 	EVENTS_API,
 	showToast,
 	toDatetimeLocal,
+	toUtcIso,
 	buildCardBody,
 } from './utils.js'
 import { API_BASE } from './constants.js'
@@ -484,8 +485,8 @@ eventForm.addEventListener('submit', async (e) => {
 		repeat_interval: f('f-interval').value
 			? parseInt(f('f-interval').value, 10)
 			: null,
-		starts_at: f('f-starts').value || null,
-		ends_at: f('f-ends').value || null,
+		starts_at: toUtcIso(f('f-starts').value),
+		ends_at: toUtcIso(f('f-ends').value),
 		is_active: f('f-active').checked,
 	}
 

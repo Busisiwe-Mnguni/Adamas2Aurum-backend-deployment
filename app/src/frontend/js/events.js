@@ -8,8 +8,11 @@ import {
 	CAMPUS_CAMERA,
 	CAMPUS_MIN_ZOOM,
 	CAMPUS_MAX_ZOOM,
+	CAMPUS_MIN_PITCH,
+	CAMPUS_MAX_PITCH,
 	isInsideCampus,
 	addGroundTexture,
+	startDayNightCycle,
 } from './campus-style.js'
 
 const AUTH_API = `${API_BASE}/api/auth`
@@ -31,15 +34,18 @@ const map = new maplibregl.Map({
 	style: createCampusStyle(),
 	center: CAMPUS_CAMERA.center,
 	zoom: CAMPUS_CAMERA.zoom,
-	pitch: 0, // flat for the events page — more PoGO-like
-	bearing: 0,
-	minZoom: 2,
+	pitch: CAMPUS_CAMERA.pitch,
+	bearing: CAMPUS_CAMERA.bearing,
+	minZoom: CAMPUS_MIN_ZOOM,
 	maxZoom: CAMPUS_MAX_ZOOM,
+	// Same as main map: v3 clamps pitch to 60 unless told otherwise.
+	minPitch: CAMPUS_MIN_PITCH,
+	maxPitch: CAMPUS_MAX_PITCH,
 	attributionControl: { compact: true },
 })
 
 map.addControl(
-	new maplibregl.NavigationControl({ showCompass: false }),
+	new maplibregl.NavigationControl({ visualizePitch: true }),
 	'bottom-right'
 )
 
@@ -68,32 +74,115 @@ btnLogout?.addEventListener('click', async () => {
 	window.location.href = '../index.html'
 })
 
-// ── Player location ───────────────────────────────────────────
+// ── Player location (same avatar as the main map) ───────────────
 let playerMarker = null
+let playerDotEl = null
+let playerAccuracyEl = null
 let playerLatLng = null
+let playerAccuracyMeters = 0
+let playerHeading = 0
+let walkTimer = null
+
+function metersPerPixel(lat, zoom) {
+	return (
+		(156543.03392 * Math.cos((lat * Math.PI) / 180)) /
+		Math.pow(2, zoom)
+	)
+}
+
+function updateAccuracyCircle() {
+	if (!playerAccuracyEl || !map || !playerLatLng) return
+	const px = playerAccuracyMeters
+		? Math.min(
+				220,
+				Math.max(
+					18,
+					(playerAccuracyMeters /
+						metersPerPixel(
+							playerLatLng[1],
+							map.getZoom()
+						)) *
+						2
+				)
+			)
+		: 44
+	playerAccuracyEl.style.width = `${px}px`
+	playerAccuracyEl.style.height = `${px}px`
+}
+
+function setHeading(deg) {
+	playerHeading = ((deg % 360) + 360) % 360
+	const wedge = playerDotEl?.querySelector('.pogo-wedge')
+	if (wedge) wedge.style.transform = `rotate(${playerHeading}deg)`
+}
+
+function setWalking(on) {
+	const dot = playerDotEl?.querySelector('.pogo-dot')
+	if (!dot) return
+	dot.classList.toggle('walking', on)
+	dot.classList.toggle('idle', !on)
+	if (on) {
+		clearTimeout(walkTimer)
+		walkTimer = setTimeout(() => setWalking(false), 2500)
+	}
+}
+
+function bearingBetween(a, b) {
+	const kx = 111320 * Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180)
+	const dx = (b[0] - a[0]) * kx
+	const dy = (b[1] - a[1]) * 110540
+	return (Math.atan2(dx, dy) * 180) / Math.PI
+}
+
+function distanceMeters(a, b) {
+	const kx = 111320 * Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180)
+	const dx = (a[0] - b[0]) * kx
+	const dy = (a[1] - b[1]) * 110540
+	return Math.hypot(dx, dy)
+}
 
 function startGeolocation() {
 	if (!('geolocation' in navigator)) return
 
 	navigator.geolocation.watchPosition(
 		(pos) => {
+			const prev = playerLatLng
 			playerLatLng = [
 				pos.coords.longitude,
 				pos.coords.latitude,
 			]
+			playerAccuracyMeters = pos.coords.accuracy ?? 0
 
 			if (!playerMarker) {
 				const el = document.createElement('div')
-				el.className = 'player-marker'
+				el.className = 'pogo-player'
+				el.innerHTML = `<div class="pogo-accuracy"></div><div class="pogo-wedge"></div><div class="pogo-dot idle"></div>`
+				playerDotEl = el
+				playerAccuracyEl =
+					el.querySelector('.pogo-accuracy')
 				playerMarker = new maplibregl.Marker({
 					element: el,
-					anchor: 'center',
 				})
 					.setLngLat(playerLatLng)
 					.addTo(map)
+				setHeading(playerHeading)
 			} else {
+				if (
+					prev &&
+					distanceMeters(prev, playerLatLng) > 2
+				) {
+					setHeading(
+						bearingBetween(
+							prev,
+							playerLatLng
+						)
+					)
+					setWalking(true)
+				}
 				playerMarker.setLngLat(playerLatLng)
 			}
+			updateAccuracyCircle()
+			refreshStopGlow()
 		},
 		(err) => console.warn('Geolocation:', err.message),
 		{ enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
@@ -102,7 +191,13 @@ function startGeolocation() {
 
 btnRecenter?.addEventListener('click', () => {
 	if (playerLatLng) {
-		map.flyTo({ center: playerLatLng, zoom: 17, duration: 800 })
+		map.flyTo({
+			center: playerLatLng,
+			zoom: Math.max(map.getZoom(), 18.5),
+			pitch: CAMPUS_CAMERA.pitch,
+			bearing: 0,
+			duration: 800,
+		})
 	} else {
 		map.flyTo({
 			center: CAMPUS_CAMERA.center,
@@ -115,10 +210,12 @@ btnRecenter?.addEventListener('click', () => {
 // ── Event markers ─────────────────────────────────────────────
 let activeMarkers = []
 let activePopup = null
+const stopRefs = []
 
 function clearMarkers() {
 	activeMarkers.forEach((m) => m.remove())
 	activeMarkers = []
+	stopRefs.length = 0
 	// Keep sidebar header, remove event cards
 	const cards = elSidebar.querySelectorAll('.sidebar-event')
 	cards.forEach((c) => c.remove())
@@ -126,19 +223,87 @@ function clearMarkers() {
 
 function makeStopMarker(ev, inRange) {
 	const el = document.createElement('div')
-	el.className = 'pokestop-wrap'
-
-	// Beam height based on in-range
-	const beamH = inRange ? '36px' : '20px'
-
-	el.innerHTML = `
-		<div class="pokestop-beam" style="height:${beamH};"></div>
-		<div class="pokestop-ring ${inRange ? '' : 'out-of-range'}"></div>
-		<div class="pokestop-orb ${inRange ? 'in-range' : 'out-of-range'}">
-			🏛️
-		</div>
-	`
+	el.className = `pokestop${inRange ? ' gym' : ''}`
+	el.title = ev.title
+	// Same floating-cube structure as the main map. .pokestop-bob carries
+	// the JS proximity scale; cube/ring animate independently via CSS.
+	el.innerHTML = `<div class="pokestop-bob"><div class="stop-cube"><span>${inRange ? '⚡' : '🏛️'}</span></div><div class="stop-pole"></div><div class="stop-ring"></div></div>`
 	return el
+}
+
+// Scale/glow each stop by live proximity. Applied to the INNER bob
+// element — MapLibre owns the outer marker element's transform.
+function refreshStopGlow() {
+	if (!playerLatLng) return
+	for (const { el, lng, lat } of stopRefs) {
+		const d = distanceMeters(playerLatLng, [lng, lat])
+		const t = Math.max(0, Math.min(1, 1 - (d - 40) / 210))
+		el.style.transform = `scale(${(1 + 0.4 * t).toFixed(3)})`
+		el.style.setProperty('--pg', t.toFixed(3))
+	}
+}
+
+function circleCoords(lng, lat, radiusMeters, steps = 48) {
+	const pts = []
+	const kx = 111320 * Math.cos((lat * Math.PI) / 180)
+	for (let i = 0; i <= steps; i++) {
+		const a = (i / steps) * Math.PI * 2
+		pts.push([
+			lng + (Math.cos(a) * radiusMeters) / kx,
+			lat + (Math.sin(a) * radiusMeters) / 110540,
+		])
+	}
+	return pts
+}
+
+// Translucent trigger-radius discs under each stop (same as main map).
+function renderProximityCircles(events) {
+	if (!map || map.getSource('event-radii')) return
+	const features = events
+		.filter((ev) => {
+			const lng = parseFloat(ev.longitude)
+			const lat = parseFloat(ev.latitude)
+			return !isNaN(lng) && !isNaN(lat)
+		})
+		.map((ev) => ({
+			type: 'Feature',
+			properties: {},
+			geometry: {
+				type: 'Polygon',
+				coordinates: [
+					circleCoords(
+						parseFloat(ev.longitude),
+						parseFloat(ev.latitude),
+						ev.radius_meters || 60
+					),
+				],
+			},
+		}))
+	if (!features.length) return
+	map.addSource('event-radii', {
+		type: 'geojson',
+		data: { type: 'FeatureCollection', features },
+	})
+	map.addLayer({
+		id: 'event-radii-fill',
+		type: 'fill',
+		source: 'event-radii',
+		paint: {
+			'fill-color': '#2F9DF0',
+			'fill-opacity': 0.1,
+		},
+	})
+	map.addLayer({
+		id: 'event-radii-line',
+		type: 'line',
+		source: 'event-radii',
+		paint: {
+			'line-color': '#2F9DF0',
+			'line-width': 1.5,
+			'line-opacity': 0.35,
+			'line-dasharray': [4, 3],
+		},
+	})
 }
 
 function buildPopupHTML(ev, inRange, onCampus = false) {
@@ -229,14 +394,24 @@ async function loadEvents() {
 			})
 				.setLngLat([lng, lat])
 				.addTo(map)
+			stopRefs.push({
+				marker,
+				el: el.querySelector('.pokestop-bob'),
+				lng,
+				lat,
+			})
 
 			// Popup
 			const popup = new maplibregl.Popup({
-				offset: 20,
+				offset: 25,
 				closeButton: true,
 			}).setHTML(buildPopupHTML(ev, inRange, onCampus))
 
-			el.addEventListener('click', () => {
+			el.addEventListener('click', (e) => {
+				// Stop this reaching the map: MapLibre closes popups on
+				// any map click (closeOnClick), so without this the popup
+				// opens and shuts in the same tick and the tap looks dead.
+				e.stopPropagation()
 				activePopup?.remove()
 				popup.setLngLat([lng, lat]).addTo(map)
 				activePopup = popup
@@ -252,6 +427,9 @@ async function loadEvents() {
 			activeMarkers.push(marker)
 			addSidebarCard(ev, inRange, lng, lat)
 		}
+
+		renderProximityCircles(events)
+		refreshStopGlow()
 	} catch (err) {
 		elLoading.classList.add('hidden')
 		elError.textContent = `Could not load events — ${err.message}`
@@ -468,16 +646,31 @@ window._submitAnswer = async function (
 	}
 
 	try {
+		// Always attach coordinates: prefer the live watch position, fall
+		// back to a fresh one-shot fix. Without them the backend 400s
+		// ('Location is required to submit an answer.').
+		let lat = playerLatLng ? playerLatLng[1] : null
+		let lng = playerLatLng ? playerLatLng[0] : null
+		if (lat === null) {
+			try {
+				;[lat, lng] = await get_player_location()
+			} catch {
+				/* backend will 400 with a clear message */
+			}
+		}
+		const body = {
+			event_id: eventId,
+			question_id: questionId,
+			selected_option_id: optionId,
+			answer_time_ms: answerTimeMs ?? 1500,
+		}
+		if (lat !== null) body.claimed_lat = lat
+		if (lng !== null) body.claimed_lng = lng
 		const res = await fetch(`${API_BASE}/api/trivia/submit`, {
 			method: 'POST',
 			credentials: 'include',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				event_id: eventId,
-				question_id: questionId,
-				selected_option_id: optionId,
-				answer_time_ms: answerTimeMs ?? 1500,
-			}),
+			body: JSON.stringify(body),
 		})
 		if (res.status === 401) {
 			window.location.href = '../index.html'
@@ -493,6 +686,35 @@ window._submitAnswer = async function (
 
 function showResultModal(data) {
 	document.getElementById('result-overlay')?.remove()
+
+	// Backend rejection (e.g. 400 'Location is required…') arrives as
+	// { error } with no grading fields — show the real message instead of
+	// a misleading 'Not quite!'.
+	if (data && data.error && data.is_correct === undefined) {
+		const overlay = document.createElement('div')
+		overlay.id = 'result-overlay'
+		overlay.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.5);
+			display:flex;align-items:center;justify-content:center;z-index:10001;`
+		overlay.innerHTML = `
+			<div style="background:var(--surface);border:1px solid var(--border);
+				border-radius:var(--radius-lg);max-width:400px;width:90%;
+				box-shadow:0 8px 30px rgba(0,0,0,0.18);font-family:var(--font-body);overflow:hidden;">
+				<div style="background:#fef2f2;border-bottom:1px solid #fca5a5;padding:1.1rem 1.25rem;text-align:center;">
+					<div style="font-size:2rem;">⚠️</div>
+					<div style="font-weight:800;font-size:1.05rem;color:#991b1b;">Couldn't submit</div>
+				</div>
+				<div style="padding:1.25rem;text-align:center;">
+					<p style="font-size:0.9rem;color:var(--text);margin:0 0 1rem;">${data.error}</p>
+					<button id="result-close" class="btn btn-primary" style="width:100%;">Continue</button>
+				</div>
+			</div>`
+		document.body.appendChild(overlay)
+		overlay.querySelector('#result-close').addEventListener('click', () => overlay.remove())
+		overlay.addEventListener('click', (e) => {
+			if (e.target === overlay) overlay.remove()
+		})
+		return
+	}
 
 	const {
 		is_correct,
@@ -614,8 +836,10 @@ startGeolocation()
 // Wait for map to load before adding markers
 map.on('load', () => {
 	addGroundTexture(map)
+	startDayNightCycle(map)
 	loadEvents()
 })
+map.on('zoom', updateAccuracyCircle)
 
 setInterval(loadEvents, 30000)
 document.addEventListener('visibilitychange', () => {

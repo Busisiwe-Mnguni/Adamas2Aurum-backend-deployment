@@ -12,3 +12,6 @@ app/src/backend/data/
 app/src/backend/data/
 public/
 .qoder/
+app/src/backend/campus.geojson
+HANDOFF.md
+app/src/frontend/package-lock.json

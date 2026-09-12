@@ -37,13 +37,29 @@ export function formatDT(iso) {
 }
 
 //Convert ISO to datetime-local input value
+// The input shows LOCAL wall time; toISOString() is UTC, so build the
+// value from local getters instead (using toISOString here silently
+// shifted every save by the UTC offset).
 export function toDatetimeLocal(iso) {
 	if (!iso) return ''
 	try {
-		return new Date(iso).toISOString().slice(0, 16)
+		const d = new Date(iso)
+		if (isNaN(d)) return ''
+		const p = (n) => String(n).padStart(2, '0')
+		return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 	} catch {
 		return ''
 	}
+}
+
+// Convert a datetime-local input value (LOCAL wall time) to a UTC ISO
+// string for the API. The backend stores UTC and filters against
+// UTC_TIMESTAMP(), so sending the naive wall time would shift the
+// window by the author's UTC offset.
+export function toUtcIso(localValue) {
+	if (!localValue) return null
+	const d = new Date(localValue)
+	return isNaN(d) ? null : d.toISOString()
 }
 
 // Build shared event card body

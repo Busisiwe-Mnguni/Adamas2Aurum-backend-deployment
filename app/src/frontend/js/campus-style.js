@@ -463,7 +463,8 @@ export function nightFactorAt(date) {
 // Apply the blended theme to a live map + page chrome. Returns the factor.
 // Missing layers (e.g. ground-noise before it's added) are skipped, so this
 // is safe to call on every tick. Fog/cloud night variants live in CSS under
-// `body.night`; this just flips the class.
+// `body.night`; the class flip itself is shared with map-less pages via
+// applyChromeTheme below.
 export function applyMapTheme(map, date = new Date()) {
 	const t = nightFactorAt(date)
 	for (const { id, paint } of DAY_NIGHT_LAYERS) {
@@ -478,9 +479,7 @@ export function applyMapTheme(map, date = new Date()) {
 			)
 		}
 	}
-	if (typeof document !== 'undefined') {
-		document.body.classList.toggle('night', t > 0.5)
-	}
+	applyChromeTheme(date)
 	return t
 }
 
@@ -488,6 +487,32 @@ export function applyMapTheme(map, date = new Date()) {
 export function startDayNightCycle(map, intervalMs = 60000) {
 	applyMapTheme(map)
 	const id = setInterval(() => applyMapTheme(map), intervalMs)
+	return () => clearInterval(id)
+}
+
+// ---------------------------------------------------------------------------
+// Shared page-chrome theme state. Map-less player pages (Collection, Battle)
+// have no live map, so they drive the same `body.night` class directly from
+// the same nightFactorAt check above — one detection logic, one threshold,
+// one class for the whole player-facing app. The map keeps calling
+// applyMapTheme (which delegates here); these pages call
+// startChromeDayNightCycle instead. Instant swap, same as the map.
+// The admin console never starts either cycle, so it stays light.
+// ---------------------------------------------------------------------------
+
+// Flip `body.night` from real local time. Returns the night factor.
+export function applyChromeTheme(date = new Date()) {
+	const t = nightFactorAt(date)
+	if (typeof document !== 'undefined') {
+		document.body.classList.toggle('night', t > 0.5)
+	}
+	return t
+}
+
+// Re-applies the chrome theme on the same cadence as the map cycle.
+export function startChromeDayNightCycle(intervalMs = 60000) {
+	applyChromeTheme()
+	const id = setInterval(() => applyChromeTheme(), intervalMs)
 	return () => clearInterval(id)
 }
 

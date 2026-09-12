@@ -13,7 +13,6 @@
  *   - /api/health endpoint
  */
 
-import './env.js'
 import express from 'express'
 import session from 'express-session'
 import mySQLSession from 'express-mysql-session'

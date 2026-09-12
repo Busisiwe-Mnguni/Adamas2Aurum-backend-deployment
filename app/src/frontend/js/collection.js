@@ -1,5 +1,11 @@
 import { API_BASE } from './constants.js'
 import { updateAuthNav } from './auth-helpers.js'
+import { startChromeDayNightCycle } from './campus-style.js'
+
+// No live map on this page — drive the shared `body.night` chrome theme
+// from the same day/night check as the map. The admin console never does
+// this, so it stays light.
+startChromeDayNightCycle()
 
 const AUTH_API = `${API_BASE}/api/auth`
 const CARDS_API = `${API_BASE}/api/cards`
