@@ -9,11 +9,10 @@
 		<title>A2A — Campus Events</title>
 
 		<link
+			href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css"
 			rel="stylesheet"
-			href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-			integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-			crossorigin=""
 		/>
+		<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 		<link rel="stylesheet" href="../css/style.css" />
 
 		<style>
@@ -37,18 +36,23 @@
 				height: 100%;
 			}
 
-			/* ── Sidebar ───────────────────────────────────── */
+			/* ── Sidebar ─────────────────────────────────────── */
 			.map-sidebar {
 				position: absolute;
 				top: 1rem;
 				left: 1rem;
-				width: 280px;
+				width: 270px;
 				max-height: calc(100% - 2rem);
 				overflow-y: auto;
 				z-index: 1000;
 				display: flex;
 				flex-direction: column;
 				gap: 0.5rem;
+				pointer-events: none; /* let map clicks through */
+			}
+
+			.map-sidebar > * {
+				pointer-events: auto;
 			}
 
 			.sidebar-header {
@@ -60,6 +64,7 @@
 				font-weight: 700;
 				letter-spacing: 0.08em;
 				text-transform: uppercase;
+				box-shadow: 0 2px 8px rgba(12, 36, 97, 0.25);
 			}
 
 			.sidebar-event {
@@ -71,13 +76,13 @@
 				transition:
 					border-color var(--transition),
 					box-shadow var(--transition);
+				box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 			}
 
 			.sidebar-event:hover {
 				border-color: var(--accent);
 				box-shadow: 0 2px 8px var(--accent-glow);
 			}
-
 			.sidebar-event.active {
 				border-color: var(--accent);
 				background: var(--accent-glow);
@@ -96,16 +101,170 @@
 				gap: 0.3rem;
 			}
 
-			/* ── Popups ────────────────────────────────────── */
-			.leaflet-popup-content-wrapper {
-				border-radius: var(--radius) !important;
-				box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
-				border: 1px solid var(--border) !important;
+			/* ── Pokéstop marker ─────────────────────────────── */
+			.pokestop-wrap {
+				position: relative;
+				width: 44px;
+				height: 64px;
+				cursor: pointer;
+				perspective: 140px;
 			}
 
-			.leaflet-popup-content {
-				margin: 14px 16px !important;
-				font-family: var(--font-body) !important;
+			/* The beam pillar */
+			.pokestop-beam {
+				position: absolute;
+				left: 50%;
+				transform: translateX(-50%);
+				bottom: 16px;
+				width: 4px;
+				border-radius: 2px;
+				background: linear-gradient(
+					to top,
+					rgba(47, 157, 240, 0),
+					rgba(47, 157, 240, 0.9)
+				);
+				animation: beam-pulse 2s ease-in-out infinite;
+			}
+
+			/* Floating cube (was an orb) */
+			.pokestop-orb {
+				position: absolute;
+				bottom: 16px;
+				left: 50%;
+				transform: translateX(-50%);
+				width: 32px;
+				height: 32px;
+				border-radius: 9px;
+				border: 3px solid #fff;
+				box-shadow:
+					0 0 12px 4px rgba(47, 157, 240, 0.6),
+					0 4px 10px rgba(0, 0, 0, 0.35);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 14px;
+				animation: orb-float 3s ease-in-out infinite;
+				transition: transform 0.2s;
+			}
+
+			.pokestop-orb.in-range {
+				background: radial-gradient(
+					circle at 35% 30%,
+					#60cfff,
+					#2f9df0 70%
+				);
+				box-shadow:
+					0 0 16px 6px rgba(47, 157, 240, 0.8),
+					0 4px 10px rgba(0, 0, 0, 0.35);
+				animation:
+					orb-float 3s ease-in-out infinite,
+					orb-glow 1.5s ease-in-out infinite
+						alternate;
+			}
+
+			.pokestop-orb.out-of-range {
+				background: radial-gradient(
+					circle at 35% 30%,
+					#b0bec5,
+					#78909c 70%
+				);
+				box-shadow:
+					0 0 8px 2px rgba(120, 144, 156, 0.4),
+					0 4px 10px rgba(0, 0, 0, 0.3);
+				opacity: 0.7;
+			}
+
+			/* Rotating ring */
+			.pokestop-ring {
+				position: absolute;
+				bottom: 10px;
+				left: 50%;
+				transform: translateX(-50%);
+				width: 44px;
+				height: 8px;
+				border-radius: 50%;
+				border: 2px solid rgba(47, 157, 240, 0.6);
+				animation: ring-spin 4s linear infinite;
+			}
+
+			.pokestop-ring.out-of-range {
+				border-color: rgba(120, 144, 156, 0.4);
+				animation: none;
+			}
+
+			@keyframes orb-float {
+				0%,
+				100% {
+					transform: translateX(-50%)
+						translateY(0) rotateY(-22deg);
+				}
+				50% {
+					transform: translateX(-50%)
+						translateY(-6px) rotateY(22deg);
+				}
+			}
+
+			@keyframes orb-glow {
+				from {
+					box-shadow:
+						0 0 12px 4px
+							rgba(47, 157, 240, 0.6),
+						0 4px 10px rgba(0, 0, 0, 0.35);
+				}
+				to {
+					box-shadow:
+						0 0 22px 10px
+							rgba(47, 157, 240, 0.9),
+						0 4px 10px rgba(0, 0, 0, 0.35);
+				}
+			}
+
+			@keyframes beam-pulse {
+				0%,
+				100% {
+					opacity: 0.5;
+					height: 20px;
+				}
+				50% {
+					opacity: 1;
+					height: 32px;
+				}
+			}
+
+			@keyframes ring-spin {
+				from {
+					transform: translateX(-50%)
+						rotateX(70deg) rotate(0deg);
+				}
+				to {
+					transform: translateX(-50%)
+						rotateX(70deg) rotate(360deg);
+				}
+			}
+
+			/* ── Player marker ───────────────────────────────── */
+			.player-marker {
+				width: 20px;
+				height: 20px;
+				border-radius: 50%;
+				background: radial-gradient(
+					circle at 35% 30%,
+					#6ee7f7,
+					#0ea5e9
+				);
+				border: 3px solid #fff;
+				box-shadow:
+					0 0 0 6px rgba(14, 165, 233, 0.25),
+					0 2px 6px rgba(0, 0, 0, 0.3);
+			}
+
+			/* ── Popup ───────────────────────────────────────── */
+			.maplibregl-popup-content {
+				border-radius: var(--radius) !important;
+				box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+				border: 1px solid var(--border) !important;
+				padding: 14px 16px !important;
+				min-width: 220px;
 			}
 
 			.popup-title {
@@ -127,7 +286,7 @@
 				display: flex;
 				flex-wrap: wrap;
 				gap: 0.3rem;
-				margin-bottom: 0.6rem;
+				margin-bottom: 0.5rem;
 			}
 
 			.popup-challenge-btn {
@@ -157,7 +316,7 @@
 				text-align: center;
 			}
 
-			/* ── Loading overlay ───────────────────────────── */
+			/* ── Loading overlay ─────────────────────────────── */
 			.map-overlay {
 				position: absolute;
 				top: 50%;
@@ -173,16 +332,56 @@
 				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 			}
 
-			/* ── Pulse animation for player dot ────────────── */
-			@keyframes pulse-ring {
-				0% {
-					transform: scale(0.8);
-					opacity: 0.7;
-				}
-				100% {
-					transform: scale(2.2);
-					opacity: 0;
-				}
+			/* ── Nav links ───────────────────────────────────── */
+			.header-nav {
+				display: flex;
+				gap: 0.25rem;
+			}
+
+			.nav-link {
+				padding: 0.3rem 0.75rem;
+				border-radius: var(--radius);
+				font-size: 0.825rem;
+				font-weight: 500;
+				color: rgba(255, 255, 255, 0.75);
+				text-decoration: none;
+				transition:
+					background var(--transition),
+					color var(--transition);
+			}
+
+			.nav-link:hover {
+				background: rgba(255, 255, 255, 0.12);
+				color: #fff;
+			}
+			.nav-link-active {
+				background: rgba(255, 255, 255, 0.18);
+				color: #fff !important;
+				font-weight: 600;
+			}
+
+			/* ── Recenter button ─────────────────────────────── */
+			.btn-recenter {
+				position: absolute;
+				bottom: 5rem;
+				right: 1rem;
+				z-index: 1000;
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 50%;
+				width: 42px;
+				height: 42px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 1.1rem;
+				cursor: pointer;
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+				transition: box-shadow var(--transition);
+			}
+
+			.btn-recenter:hover {
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 			}
 		</style>
 	</head>
@@ -198,52 +397,68 @@
 					</span>
 				</a>
 
-				<nav class="header-nav" id="header-nav">
+				<nav class="header-nav">
 					<a
 						href="events.html"
-						class="nav-link nav-link-active hidden"
-						id="nav-events"
+						class="nav-link nav-link-active"
 					>
 						Events
 					</a>
 					<a
 						href="collection.html"
-						class="nav-link hidden"
-						id="nav-collection"
+						class="nav-link"
 					>
 						Collection
-					</a>
-					<a
-						href="battle.html"
-						class="nav-link hidden"
-						id="nav-battle"
-					>
-						Battle
-					</a>
-					<a
-						href="console.html"
-						class="nav-link nav-link-admin hidden"
-						id="nav-console"
-					>
-						Console
 					</a>
 				</nav>
 
 				<div class="header-right">
 					<span
 						id="user-badge"
-						class="admin-badge hidden"
+						class="admin-badge"
+						style="display: none"
 					></span>
 					<button
 						id="btn-logout"
-						class="btn btn-sm btn-header hidden"
+						class="btn btn-sm"
+						style="
+							display: none;
+							background: rgba(
+								255,
+								255,
+								255,
+								0.15
+							);
+							color: #fff;
+							border-color: rgba(
+								255,
+								255,
+								255,
+								0.3
+							);
+						"
 					>
 						Logout
 					</button>
 					<a
 						id="btn-signin"
 						href="../index.html"
-						class="btn btn-sm btn-header"
+						class="btn btn-sm"
+						style="
+							background: rgba(
+								255,
+								255,
+								255,
+								0.15
+							);
+							color: #fff;
+							border-color: rgba(
+								255,
+								255,
+								255,
+								0.3
+							);
+						"
 					>
 						Sign In
 					</a>
@@ -260,17 +475,20 @@
 				</div>
 			</div>
 
+			<button
+				class="btn-recenter"
+				id="btn-recenter"
+				title="Centre on my location"
+			>
+				📍
+			</button>
+
 			<div id="map-loading" class="map-overlay">
 				Loading events…
 			</div>
 			<div id="map-error" class="map-overlay hidden"></div>
 		</div>
 
-		<script
-			src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-			integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-			crossorigin=""
-		></script>
 		<script type="module" src="../js/events.js"></script>
 	</body>
 </html>
