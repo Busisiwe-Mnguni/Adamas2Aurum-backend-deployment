@@ -108,7 +108,10 @@ function isEventCompleted(eventId) {
 function markEventCompleted(eventId) {
 	completedEventIds.add(String(eventId))
 	try {
-		localStorage.setItem(COMPLETED_EVENTS_KEY, JSON.stringify([...completedEventIds]))
+		localStorage.setItem(
+			COMPLETED_EVENTS_KEY,
+			JSON.stringify([...completedEventIds])
+		)
 	} catch {
 		// localStorage unavailable
 	}
@@ -121,7 +124,9 @@ let suggestedOrder = []
 let nextSuggestedEventId = null
 
 function refreshNextSuggested() {
-	const nextUp = suggestedOrder.find((ev) => !isEventCompleted(ev.event_id))
+	const nextUp = suggestedOrder.find(
+		(ev) => !isEventCompleted(ev.event_id)
+	)
 	nextSuggestedEventId = nextUp ? String(nextUp.event_id) : null
 	applyNextSuggestedMarker()
 }
@@ -130,7 +135,8 @@ function applyNextSuggestedMarker() {
 	for (const stop of stopMarkers) {
 		stop.pinEl.classList.toggle(
 			'next-suggested',
-			nextSuggestedEventId !== null && String(stop.id) === nextSuggestedEventId
+			nextSuggestedEventId !== null &&
+				String(stop.id) === nextSuggestedEventId
 		)
 	}
 }
@@ -141,7 +147,9 @@ function flyToNextSuggested() {
 	if (!map || nextSuggestedEventId === null) return
 	if (nextSuggestedEventId === lastFlownNextSuggestedId) return
 
-	const stop = suggestedOrder.find((ev) => String(ev.event_id) === nextSuggestedEventId)
+	const stop = suggestedOrder.find(
+		(ev) => String(ev.event_id) === nextSuggestedEventId
+	)
 	if (!stop) return
 	const lng = parseFloat(stop.longitude)
 	const lat = parseFloat(stop.latitude)
@@ -173,7 +181,7 @@ async function fetchCampusEvents() {
 			latitude: coords[0],
 			longitude: coords[1],
 		}
-		const {order} = suggestEventOrder(dbEvents, loc)
+		const { order } = suggestEventOrder(dbEvents, loc)
 		suggestedOrder = order
 		refreshNextSuggested()
 		if (Array.isArray(dbEvents) && dbEvents.length > 0) {

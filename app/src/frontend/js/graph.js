@@ -45,10 +45,7 @@ function buildGraph(nodes) {
 		graph[a.id] = {}
 		for (const b of nodes) {
 			if (a.id === b.id) continue
-			graph[a.id][b.id] = distance(
-				a,
-				b
-			)
+			graph[a.id][b.id] = distance(a, b)
 		}
 	}
 	return graph
@@ -105,10 +102,10 @@ export function suggestEventOrder(events, playerLocation) {
 		const event = eventsById.get(id)
 		const lat = parseFloat(event.latitude)
 		const lon = parseFloat(event.longitude)
-		const legDistance = distance(
-			currentPos,
-			{latitude: lat, longitude: lon}
-		)
+		const legDistance = distance(currentPos, {
+			latitude: lat,
+			longitude: lon,
+		})
 		order.push({
 			...event,
 			distance_from_previous_meters: Math.round(legDistance),
