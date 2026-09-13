@@ -15,7 +15,6 @@
 		/>
 		<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
 		<link rel="stylesheet" href="/css/account-menu.css" />
-
 		<style>
 			* {
 				box-sizing: border-box;
@@ -975,6 +974,37 @@
 			}
 			.auth-panel.active {
 				display: block;
+			}
+
+			.pokestop.next-suggested {
+				z-index: 20 !important;
+			}
+			.pokestop.next-suggested::before {
+				content: '';
+				position: absolute;
+				left: 50%;
+				top: 50%;
+				width: 70px;
+				height: 70px;
+				transform: translate(-50%, -50%);
+				border: 2px solid rgba(255, 179, 0, 0.85);
+				background: rgba(255, 179, 0, 0.12);
+				border-radius: 50%;
+				animation: next-suggested-halo 1.6s ease-out
+					infinite;
+				pointer-events: none;
+			}
+			@keyframes next-suggested-halo {
+				0% {
+					transform: translate(-50%, -50%)
+						scale(0.6);
+					opacity: 0.9;
+				}
+				100% {
+					transform: translate(-50%, -50%)
+						scale(1.6);
+					opacity: 0;
+				}
 			}
 		</style>
 	</head>

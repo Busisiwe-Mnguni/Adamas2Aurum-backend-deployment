@@ -7,6 +7,7 @@ import {
 } from './auth-client.js'
 import { API_BASE } from './constants.js'
 import { get_player_location } from './geolocation.js'
+import { suggestEventOrder } from './graph.js'
 import { redirectAfterLogin, updateAuthNav, logout } from './auth-helpers.js'
 import {
 	createCampusStyle,
@@ -27,6 +28,7 @@ let playerMarker = null
 let playerDotEl = null
 let playerAccuracyEl = null
 
+const originalGeolocationGetPos = navigator?.geolocation?.getCurrentPosition
 let playerCoords = [...CAMPUS_HOME]
 let playerAccuracyMeters = 0
 let followMode = true
@@ -83,6 +85,79 @@ function escapeHtml(str) {
 // new question clears any prior interval.
 let activeTriviaTimer = null
 
+/*
+ * Completed events tracking
+ */
+const COMPLETED_EVENTS_KEY = 'wits-quest:completed-events'
+
+function loadCompletedEventIds() {
+	try {
+		const raw = localStorage.getItem(COMPLETED_EVENTS_KEY)
+		return new Set(raw ? JSON.parse(raw) : [])
+	} catch {
+		return new Set()
+	}
+}
+
+const completedEventIds = loadCompletedEventIds()
+
+function isEventCompleted(eventId) {
+	return completedEventIds.has(String(eventId))
+}
+
+function markEventCompleted(eventId) {
+	completedEventIds.add(String(eventId))
+	try {
+		localStorage.setItem(COMPLETED_EVENTS_KEY, JSON.stringify([...completedEventIds]))
+	} catch {
+		// localStorage unavailable
+	}
+}
+
+/*
+ * Suggested route
+ */
+let suggestedOrder = []
+let nextSuggestedEventId = null
+
+function refreshNextSuggested() {
+	const nextUp = suggestedOrder.find((ev) => !isEventCompleted(ev.event_id))
+	nextSuggestedEventId = nextUp ? String(nextUp.event_id) : null
+	applyNextSuggestedMarker()
+}
+
+function applyNextSuggestedMarker() {
+	for (const stop of stopMarkers) {
+		stop.pinEl.classList.toggle(
+			'next-suggested',
+			nextSuggestedEventId !== null && String(stop.id) === nextSuggestedEventId
+		)
+	}
+}
+
+let lastFlownNextSuggestedId = null
+
+function flyToNextSuggested() {
+	if (!map || nextSuggestedEventId === null) return
+	if (nextSuggestedEventId === lastFlownNextSuggestedId) return
+
+	const stop = suggestedOrder.find((ev) => String(ev.event_id) === nextSuggestedEventId)
+	if (!stop) return
+	const lng = parseFloat(stop.longitude)
+	const lat = parseFloat(stop.latitude)
+	if (!Number.isFinite(lng) || !Number.isFinite(lat)) return
+
+	lastFlownNextSuggestedId = nextSuggestedEventId
+	followMode = false
+	setStatusChip('demo', 'Showing next stop — 🎯 to follow GPS')
+	map.flyTo({
+		center: [lng, lat],
+		zoom: Math.max(map.getZoom(), 17.5),
+		pitch: 60,
+		duration: 1200,
+	})
+}
+
 /**
  * ACCURATE WITS BRAAMFONTEIN CAMPUS BUILDINGS
  */
@@ -91,48 +166,42 @@ async function fetchCampusEvents() {
 		const res = await fetch(`${API_BASE}/api/events`, {
 			cache: 'no-store',
 		})
-		if (res.ok) {
-			const dbEvents = await res.json()
-			if (Array.isArray(dbEvents) && dbEvents.length > 0) {
-				return dbEvents
-					.map((event) => ({
-						id: event.event_id,
-						name: event.title,
-						campus:
-							event.campus ||
-							'Wits Campus',
-						category:
-							event.category ||
-							'General',
-						description:
-							event.description || '',
-						coordinates: [
-							parseFloat(
-								event.longitude
-							),
-							parseFloat(
-								event.latitude
-							),
-						],
-						radius_meters:
-							event.radius_meters,
-						hasChallenge:
-							event.point_reward >
-								0 ||
-							event.hasChallenge,
-					}))
-					.filter(
-						(bld) =>
-							Number.isFinite(
-								bld
-									.coordinates[0]
-							) &&
-							Number.isFinite(
-								bld
-									.coordinates[1]
-							)
-					)
-			}
+		if (!res.ok) return []
+		const dbEvents = await res.json()
+		const coords = await get_player_location() // returns [latitude, longitude]
+		const loc = {
+			latitude: coords[0],
+			longitude: coords[1],
+		}
+		const {order} = suggestEventOrder(dbEvents, loc)
+		suggestedOrder = order
+		refreshNextSuggested()
+		if (Array.isArray(dbEvents) && dbEvents.length > 0) {
+			return dbEvents
+				.map((event) => ({
+					id: event.event_id,
+					name: event.title,
+					campus: event.campus || 'Wits Campus',
+					category: event.category || 'General',
+					description: event.description || '',
+					coordinates: [
+						parseFloat(event.longitude),
+						parseFloat(event.latitude),
+					],
+					radius_meters: event.radius_meters,
+					hasChallenge:
+						event.point_reward > 0 ||
+						event.hasChallenge,
+				}))
+				.filter(
+					(bld) =>
+						Number.isFinite(
+							bld.coordinates[0]
+						) &&
+						Number.isFinite(
+							bld.coordinates[1]
+						)
+				)
 		}
 	} catch (err) {
 		console.warn('Backend API offline, no events to show:', err)
@@ -671,6 +740,8 @@ function setupGeoPanel() {
 				)
 				return
 			}
+			navigator.geolocation.getCurrentPosition =
+				originalGeolocationGetPos
 			followMode = true
 			setStatusChip(
 				'locating',
@@ -690,6 +761,17 @@ function setupGeoPanel() {
 			handleGpsFix(SIM_ON_CAMPUS[0], SIM_ON_CAMPUS[1], {
 				source: 'simulated',
 			})
+			navigator.geolocation.getCurrentPosition = (
+				handle,
+				handleError
+			) => {
+				handle({
+					coords: {
+						latitude: playerCoords[1],
+						longitude: playerCoords[0],
+					},
+				})
+			}
 		}
 	)
 	document.getElementById('btn-sim-offcampus')?.addEventListener(
@@ -702,6 +784,17 @@ function setupGeoPanel() {
 			handleGpsFix(SIM_OFF_CAMPUS[0], SIM_OFF_CAMPUS[1], {
 				source: 'simulated',
 			})
+			navigator.geolocation.getCurrentPosition = (
+				handle,
+				handleError
+			) => {
+				handle({
+					coords: {
+						latitude: playerCoords[1],
+						longitude: playerCoords[0],
+					},
+				})
+			}
 		}
 	)
 }
@@ -1050,6 +1143,9 @@ window.submitTriviaAnswer = async function (
 				statusIcon = '✅'
 				statusText = 'Correct!'
 				statusColor = '#16a34a'
+				markEventCompleted(eventId)
+				refreshNextSuggested()
+				flyToNextSuggested()
 			} else {
 				statusIcon = '❌'
 				statusText = 'Incorrect.'
@@ -1202,10 +1298,13 @@ async function initializeApp() {
 						el: pinElement.querySelector(
 							'.pokestop-bob'
 						),
+						pinEl: pinElement,
+						id: bld.id,
 						lng: bld.coordinates[0],
 						lat: bld.coordinates[1],
 					})
 				})
+				applyNextSuggestedMarker()
 				renderProximityCircles(buildings)
 				refreshStopGlow()
 				refreshFactStops()
