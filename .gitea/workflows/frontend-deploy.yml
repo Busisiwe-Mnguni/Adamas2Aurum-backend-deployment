@@ -1,40 +1,41 @@
 name: Deploy Frontend to Cloudflare Pages
 
 on:
-        push:
-                branches:
-                        - main
+  push:
+    branches:
+      - main
 
 jobs:
-        frontend-deploy:
-                runs-on: ubuntu-latest
-                steps:
-                        - name: Checkout repository
-                          uses: actions/checkout@v4
-                          with:
-                                  fetch-depth: 0
+  frontend-deploy:
+    runs-on: ubuntu-latest
+    if: ${{ vars.ENABLE_FRONTEND_DEPLOY == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-                        - name: Setup Node.js
-                          uses: actions/setup-node@v4
-                          with:
-                                  node-version: 20
-                                  cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-                        - name: Point frontend at the production backend
-                          run: bash ./switch-env.sh render app/src/frontend
-                          env:
-                                  BACKEND_RENDER_URL: ${{ secrets.BACKEND_RENDER_URL }}
+      - name: Point frontend at the production backend
+        run: bash ./switch-env.sh render app/src/frontend
+        env:
+          BACKEND_RENDER_URL: ${{ secrets.BACKEND_RENDER_URL }}
 
-                        - name: Verify no localhost references remain
-                          run: |
-                                  if grep -rl "localhost:3000" app/src/frontend --include="*.js"; then
-                                          echo "::error::Found leftover localhost references after the URL swap - aborting deploy."
-                                          exit 1
-                                  fi
+      - name: Verify no localhost references remain
+        run: |
+          if grep -rl "localhost:3000" app/src/frontend --include="*.js"; then
+            echo "::error::Found leftover localhost references after the URL swap - aborting deploy."
+            exit 1
+          fi
 
-                        - name: Deploy to Cloudflare Pages
-                          run: npx wrangler deploy --assets=./app/src/frontend --name website --no-bundle --compatibility-date "$(date -u +%Y-%m-%d)"
-                          env:
-                                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-                                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-                                  CLOUDFLARE_CI: true
+      - name: Deploy to Cloudflare Pages
+        run: npx wrangler deploy --assets=./app/src/frontend --name website --no-bundle --compatibility-date "$(date -u +%Y-%m-%d)"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_CI: true
