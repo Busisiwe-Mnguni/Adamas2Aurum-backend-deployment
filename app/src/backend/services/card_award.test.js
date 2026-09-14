@@ -18,12 +18,19 @@
 import { jest } from "@jest/globals";
 
 import {
+<<<<<<< HEAD
     canAwardCard,
     getEventCard,
     awardCardIfEligible,
 } from "./card_award.js";
+=======
+	canAwardCard,
+	getEventCardForSpeed,
+	awardCardIfEligible,
+} from './card_award.js'
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
-// A sample card row as the JOIN in getEventCard would return it.
+// A sample card row as the JOIN in getEventCardForSpeed would return it.
 const SAMPLE_CARD = {
     card_id: 1,
     name: "Barney Barnato",
@@ -42,7 +49,7 @@ const SAMPLE_CARD = {
  *
  * @param {object} opts
  * @param {boolean} opts.priorWin   whether a prior correct attempt exists
- * @param {object|null} opts.card   the card getEventCard returns (null = none)
+ * @param {object|null} opts.card   the card getEventCardForSpeed returns (null = none)
  * @param {boolean} opts.dupOnInsert  simulate a concurrent INSERT losing
  *                                   the UNIQUE-backstop race (ER_DUP_ENTRY)
  */
@@ -56,6 +63,7 @@ function makeConn({ priorWin = false, card = null, dupOnInsert = false } = {}) {
             // single-space prefixes checked below.
             const q = String(sql).trim().toLowerCase().replace(/\s+/g, " ");
 
+<<<<<<< HEAD
             // canAwardCard: SELECT 1 FROM trivia_attempts ... is_correct = TRUE
             if (q.startsWith("select 1 from trivia_attempts")) {
                 return [priorWin ? [{ 1: 1 }] : []];
@@ -90,6 +98,46 @@ function makeConn({ priorWin = false, card = null, dupOnInsert = false } = {}) {
         }),
     };
     return conn;
+=======
+			// canAwardCard: SELECT 1 FROM trivia_attempts ... is_correct = TRUE
+			if (q.startsWith('select 1 from trivia_attempts')) {
+				return [priorWin ? [{ 1: 1 }] : []]
+			}
+			// getEventCardForSpeed: SELECT c.card_id ... FROM event_card_pool ...
+			if (q.startsWith('select c.card_id')) {
+				return [card ? [card] : []]
+			}
+			// award ledger insert — the UNIQUE(user_id, event_id) backstop
+			if (q.startsWith('insert into event_card_awards')) {
+				calls.awardInsert++
+				if (dupOnInsert) {
+					const err = new Error(
+						"Duplicate entry '1-1' for key 'uq_eca'"
+					)
+					err.code = 'ER_DUP_ENTRY'
+					throw err
+				}
+				return [{ insertId: 1, affectedRows: 1 }]
+			}
+			// inventory upsert
+			if (q.startsWith('insert into user_cards')) {
+				calls.userCardsUpsert++
+				return [{ affectedRows: 1 }]
+			}
+			// copies_awarded increment
+			if (
+				q.startsWith(
+					'update event_card_pool set copies_awarded'
+				)
+			) {
+				calls.copiesUpdate++
+				return [{ affectedRows: 1 }]
+			}
+			return [[]]
+		}),
+	}
+	return conn
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 // ------------------------------------------------------------
@@ -117,8 +165,9 @@ describe("canAwardCard", () => {
 });
 
 // ------------------------------------------------------------
-// getEventCard — which card the event awards
+// getEventCardForSpeed — which card the event awards
 // ------------------------------------------------------------
+<<<<<<< HEAD
 describe("getEventCard", () => {
     test("returns the first pool card that still has copies available", async () => {
         const conn = makeConn({ card: SAMPLE_CARD });
@@ -135,6 +184,76 @@ describe("getEventCard", () => {
         expect(await getEventCard(conn, 1)).toBeNull();
     });
 });
+=======
+describe('getEventCardForSpeed', () => {
+	test('returns the first pool card that still has copies available', async () => {
+		const conn = makeConn({ card: SAMPLE_CARD })
+		const card = await getEventCardForSpeed(conn, 1)
+		expect(card).toMatchObject({
+			card_id: 1,
+			name: 'Barney Barnato',
+			rarity: 'RARE',
+		})
+	})
+
+	test('returns null when the event has no awardable card configured', async () => {
+		const conn = makeConn({ card: null })
+		expect(await getEventCardForSpeed(conn, 1)).toBeNull()
+	})
+
+	test('faster answers land in a rarer bracket than slower ones', async () => {
+		// Two pool cards, sorted rarest-first inside getEventCardForSpeed:
+		//   index 0 = LEGENDARY (rarest)
+		//   index 1 = COMMON    (commonest)
+		// elapsed_fraction = 0   → index 0 (rarest)
+		// elapsed_fraction ≈ 1   → index 1 (commonest)
+		const legendary = {
+			...SAMPLE_CARD,
+			card_id: 1,
+			name: 'Legendary Card',
+			rarity: 'LEGENDARY',
+			pool_id: 1,
+		}
+		const common = {
+			...SAMPLE_CARD,
+			card_id: 2,
+			name: 'Common Card',
+			rarity: 'COMMON',
+			pool_id: 2,
+		}
+
+		const makeBracketConn = () => ({
+			query: jest.fn(async (sql) => {
+				const q = String(sql)
+					.trim()
+					.toLowerCase()
+					.replace(/\s+/g, ' ')
+				if (q.startsWith('select c.card_id')) {
+					// The service's ORDER BY puts LEGENDARY first.
+					return [[legendary, common]]
+				}
+				return [[]]
+			}),
+		})
+
+		// Fast answer (fraction 0) → index 0 → LEGENDARY
+		const fastCard = await getEventCardForSpeed(
+			makeBracketConn(),
+			1,
+			0
+		)
+		expect(fastCard.rarity).toBe('LEGENDARY')
+
+		// Slow answer (fraction 0.999) → index 1 → COMMON
+		const slowCard = await getEventCardForSpeed(
+			makeBracketConn(),
+			1,
+			0.999
+		)
+		expect(slowCard.rarity).toBe('COMMON')
+	})
+})
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 // ------------------------------------------------------------
 // awardCardIfEligible — the atomic check-and-award, all four

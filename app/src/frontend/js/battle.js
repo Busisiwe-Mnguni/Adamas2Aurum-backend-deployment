@@ -1,4 +1,5 @@
 import {
+<<<<<<< HEAD
     EVENTS_API,
     showToast,
     toDatetimeLocal,
@@ -8,18 +9,67 @@ import { API_BASE, API_BASE_WS } from "./constants.js";
 import { updateAuthNav } from "./auth-helpers.js";
 
 var ws = null;
+=======
+	EVENTS_API,
+	showToast,
+	toDatetimeLocal,
+	buildCardBody,
+} from './utils.js'
+import { API_BASE, API_BASE_WS } from './constants.js'
+import { updateAuthNav, logout } from './auth-helpers.js'
+import { startChromeDayNightCycle } from './campus-style.js'
+
+// No live map on this page — drive the shared `body.night` chrome theme
+// from the same day/night check as the map. The admin console never does
+// this, so it stays light.
+startChromeDayNightCycle()
+
+var ws = null
+let wsRetryCount = 0
+var user = null
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 const AUTH_API = `${API_BASE}/api/auth`;
 
+<<<<<<< HEAD
 const elCardSelectionView = document.getElementById("view-deck-select");
 const elCardCollection = document.getElementById("collection-grid");
 const elCardCollectionLoading = document.getElementById("deck-loading");
 const elCardCollectionEmpty = document.getElementById("deck-empty");
+=======
+const BATTLE_DECK_NO_CARDS = 5
+
+;(async function createSlots() {
+	const deck_slots = document.getElementById('deck-slots')
+	deck_slots.replaceChildren()
+
+	const slotsHTML = Array.from(
+		{ length: BATTLE_DECK_NO_CARDS },
+		(_, index) => {
+			const slotIndex = index + 1
+			return `<div class="deck-slot" data-slot="${slotIndex}"><span class="deck-slot-num">${slotIndex}</span></div>`
+		}
+	).join('')
+
+	deck_slots.innerHTML = slotsHTML
+})()
+
+const elOpponentSelectionView = document.getElementById('view-opponent-select')
+const elOpponentGrid = document.getElementById('opponent-grid')
+const elOpponentLoading = document.getElementById('opponent-loading')
+const elOpponentEmpty = document.getElementById('opponent-empty')
+
+const elCardSelectionView = document.getElementById('view-deck-select')
+const elCardCollection = document.getElementById('collection-grid')
+const elCardCollectionLoading = document.getElementById('deck-loading')
+const elCardCollectionEmpty = document.getElementById('deck-empty')
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 const elBattleDeckSelection = document.getElementById("deck-slots");
 const elBattleDeckCount = document.getElementById("deck-count");
 const elBattleStart = document.getElementById("btn-start-battle");
 
+<<<<<<< HEAD
 const elBattleView = document.getElementById("view-battle");
 const elBattlePlayerTurn = document.getElementById("turn-indicator");
 const elBattleTurnNumber = document.getElementById("turn-number");
@@ -27,6 +77,17 @@ const elBattleOppCardsList = document.getElementById("opponent-cards");
 const elBattlePlayerCardsList = document.getElementById("player-cards");
 const elBattleLog = document.getElementById("battle-log");
 const elBattleActions = document.getElementById("action-buttons");
+=======
+const elBattleView = document.getElementById('view-battle')
+const elBattlePlayerTurn = document.getElementById('turn-indicator')
+const elBattleTurnNumber = document.getElementById('turn-number')
+const elBattleOppCardsList = document.getElementById('opponent-cards')
+const elBattlePlayerCardsList = document.getElementById('player-cards')
+const elBattleLog = document.getElementById('battle-log')
+const elBattleActions = document.getElementById('action-buttons')
+const elBattleForfeit = document.getElementById('btn-forfeit')
+elBattleForfeit.addEventListener('click', () => forfeitBattle())
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 const elResultView = document.getElementById("view-result");
 const elResultHeading = document.getElementById("result-heading");
@@ -38,6 +99,7 @@ const elListError = document.getElementById("list-error");
 
 const btnLogout = document.getElementById("btn-logout");
 
+<<<<<<< HEAD
 var battleDeckCount = 0;
 const battleDeck = [
     {
@@ -121,6 +183,125 @@ function switchToBattleView(deck) {
     elListError.classList.add("hidden");
     elResultView.classList.add("hidden");
     elBattleView.classList.remove("hidden");
+=======
+var battleDeckCount = 0
+const battleDeck = Array.from({ length: BATTLE_DECK_NO_CARDS }, (_, index) => {
+	const slotIndex = index + 1
+	return {
+		element: document.querySelector(
+			`#deck-slots .deck-slot[data-slot="${slotIndex}"]`
+		),
+		span: document.querySelector(
+			`#deck-slots .deck-slot[data-slot="${slotIndex}"] span`
+		),
+		card: null,
+		cardElement: null,
+	}
+})
+
+btnLogout?.addEventListener('click', logout)
+
+function switchToOpponentSelectionView(deck) {
+	elCardSelectionView.classList.add('hidden')
+	elListError.classList.add('hidden')
+	elResultView.classList.add('hidden')
+	elBattleView.classList.add('hidden')
+	elBattleForfeit.classList.add('hidden')
+	elOpponentSelectionView.classList.remove('hidden')
+}
+
+function switchToResultView() {
+	elCardSelectionView.classList.add('hidden')
+	elListError.classList.add('hidden')
+	elResultView.classList.remove('hidden')
+	elBattleView.classList.add('hidden')
+	elBattleForfeit.classList.add('hidden')
+	elOpponentSelectionView.classList.add('hidden')
+}
+
+function switchToCardSelectionView() {
+	elCardSelectionView.classList.remove('hidden')
+	elListError.classList.add('hidden')
+	elResultView.classList.add('hidden')
+	elBattleView.classList.add('hidden')
+	elBattleForfeit.classList.add('hidden')
+	elOpponentSelectionView.classList.add('hidden')
+	resetDeck()
+	refreshDeck()
+	loadSelectionEvents()
+}
+
+function switchToBattleView(deck) {
+	elCardSelectionView.classList.add('hidden')
+	elListError.classList.add('hidden')
+	elResultView.classList.add('hidden')
+	elBattleView.classList.remove('hidden')
+	elBattleForfeit.classList.remove('hidden')
+	elOpponentSelectionView.classList.add('hidden')
+}
+
+/**
+ * Renders opponent cards into the opponent grid container.
+ * @param {Array<Object>} opponents - Array of user objects [{ user_id, name, avatar_url, points }]
+ * @param {Function} onSelectOpponent - Callback triggered with the selected user_id
+ */
+function renderOpponents(opponents, onSelectOpponent) {
+	const grid = elOpponentGrid
+	if (!grid) return
+	elOpponentLoading.classList.remove('hidden')
+
+	grid.replaceChildren()
+
+	if (!opponents) {
+		elOpponentLoading.classList.add('hidden')
+		elOpponentEmpty.classList.remove('hidden')
+		return
+	}
+	opponents.push({
+		user_id: null,
+		name: 'NPC',
+		avatar_url: 'https://www.magnific.com/free-photos-vectors/placeholder-profile',
+		points: 0,
+	})
+
+	elOpponentLoading.classList.add('hidden')
+	elOpponentEmpty.classList.add('hidden')
+
+	opponents.forEach((u) => {
+		const li = document.createElement('li')
+		li.className = 'opponent-card'
+
+		const avatarSrc =
+			u.avatar_url ||
+			'https://www.magnific.com/free-photos-vectors/placeholder-profile'
+
+		li.innerHTML = `
+            <img src="${avatarSrc}" alt="${u.name}'s avatar" class="opponent-avatar" />
+            <h3 class="opponent-name">${u.name}</h3>
+            <span class="opponent-points-badge">${(u.points || 0).toLocaleString()} PTS</span>
+            <button class="btn btn-primary btn-challenge" data-user-id="${u.user_id}">
+                Challenge
+            </button>
+        `
+
+		const challengeBtn = li.querySelector('.btn-challenge')
+		challengeBtn.addEventListener('click', () => {
+			if (typeof onSelectOpponent === 'function') {
+				onSelectOpponent(u.user_id)
+			}
+		})
+
+		grid.appendChild(li)
+	})
+}
+
+async function getOpponents(handler) {
+	try {
+	} catch (err) {
+		console.error(err)
+		return null
+	}
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 function createBattleCard(card) {
@@ -230,6 +411,7 @@ function actionEvent(event) {
 
     const attackerSlot = parseInt(attacker.getAttribute("data-slot"), 10);
 
+<<<<<<< HEAD
     // 1. Instant execution for self-target actions
     if (ACTION_TARGETS.SELF.includes(action)) {
         sendAttack(attackerSlot, attackerSlot, action);
@@ -240,6 +422,16 @@ function actionEvent(event) {
     // 2. Set pending targeting mode
     pendingAction = action;
     pendingAttackerSlot = attackerSlot;
+=======
+	if (ACTION_TARGETS.SELF.includes(action)) {
+		sendAttack(attackerSlot, attackerSlot, action)
+		clearSelectionState()
+		return
+	}
+
+	pendingAction = action
+	pendingAttackerSlot = attackerSlot
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
     if (ACTION_TARGETS.OPPONENT.includes(action)) {
         pendingTargetType = "OPPONENT";
@@ -257,9 +449,17 @@ function onCardClick(event) {
     const isPlayerCard = cardElement.closest("#player-cards") !== null;
     const isOpponentCard = cardElement.closest("#opponent-cards") !== null;
 
+<<<<<<< HEAD
     // --- TARGET INTERCEPTION ---
     if (pendingTargetType) {
         const clickedSlot = parseInt(cardElement.getAttribute("data-slot"), 10);
+=======
+	if (pendingTargetType) {
+		const clickedSlot = parseInt(
+			cardElement.getAttribute('data-slot'),
+			10
+		)
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
         if (pendingTargetType === "OPPONENT" && isOpponentCard) {
             sendAttack(pendingAttackerSlot, clickedSlot, pendingAction);
@@ -449,6 +649,7 @@ function refreshBattleLogs(
 }
 
 function refreshBattleView(battle_id, user_id, state) {
+<<<<<<< HEAD
     elBattleTurnNumber.textContent = state.turn_number;
     elBattlePlayerTurn.textContent =
         state.turn === user_id ? "Your turn" : "Opponent's turn";
@@ -461,6 +662,27 @@ function refreshBattleView(battle_id, user_id, state) {
         opponent_cards = state.cards.player1;
     }
     elBattlePlayerCardsList.replaceChildren();
+=======
+	if (!state || !state.cards) {
+		console.warn(
+			'refreshBattleView called with invalid state:',
+			state
+		)
+		return
+	}
+	elBattleTurnNumber.textContent = state.turn_number ?? 1
+	elBattlePlayerTurn.textContent =
+		state.turn === user_id ? 'Your turn' : "Opponent's turn"
+	var player_cards, opponent_cards
+	if (state.player1_id === user_id) {
+		player_cards = state.cards.player1 || []
+		opponent_cards = state.cards.player2 || []
+	} else {
+		player_cards = state.cards.player2 || []
+		opponent_cards = state.cards.player1 || []
+	}
+	elBattlePlayerCardsList.replaceChildren()
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
     function selectCard(event) {
         const cardElement = event.currentTarget;
@@ -489,6 +711,7 @@ function refreshBattleView(battle_id, user_id, state) {
     }
 }
 
+<<<<<<< HEAD
 function connectToWebSocket(battle_id) {
     try {
         let pingInterval;
@@ -550,6 +773,232 @@ function connectToWebSocket(battle_id) {
         ws.onerror = (error) => {
             console.error("WebSocket error:", error);
         };
+=======
+function forfeitBattle() {
+	if (!ws) return
+	ws.send(
+		JSON.stringify({
+			type: 'forfeit',
+		})
+	)
+}
+
+function connectToWebSocket() {
+	try {
+		let pingInterval
+		ws = new WebSocket(`${API_BASE_WS}/ws/battle`)
+
+		ws.onopen = () => {
+			wsRetryCount = 0
+			elListError.classList.add('hidden')
+			pingInterval = setInterval(() => {
+				ws.send(JSON.stringify({ type: 'ping' }))
+			}, 25000) // ping every 25 seconds
+			ws.send(
+				JSON.stringify({
+					type: 'join_lobby',
+				})
+			)
+		}
+		ws.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data)
+				if (data.type === 'pong') return
+				console.log(data)
+
+				switch (data.type) {
+					case 'lobby_users':
+						console.log(
+							data.users.filter(
+								(u) =>
+									u.user_id !=
+									user.user_id
+							)
+						)
+						switchToOpponentSelectionView()
+						renderOpponents(
+							data.users.filter(
+								(u) =>
+									u.user_id !=
+									user.user_id
+							),
+							(user_id) => {
+								challengePlayer(
+									user_id
+								)
+							}
+						)
+						break
+					case 'incoming_challenge':
+						const ans = confirm(
+							`Would you like to accept the challenge from "${data.from_username}" (${data.from_user_id})?`
+						)
+						ws.send(
+							JSON.stringify({
+								type: 'accept_challenge',
+								accept: ans,
+								challenger_id:
+									data.from_user_id,
+							})
+						)
+						break
+					case 'battle_started':
+						switchToCardSelectionView()
+						break
+					case 'deck_accepted':
+						alert(
+							'Deck accepted and waiting for opponent...'
+						)
+						break
+					case 'state_update':
+						if (!data.state) {
+							console.warn(
+								'Received state_update with invalid state:',
+								data
+							)
+							break
+						}
+						refreshBattleView(
+							data.battle_id,
+							user.user_id,
+							data.state
+						)
+						switchToBattleView()
+						break
+
+					case 'turn_result':
+						if (
+							!data.state ||
+							!data.state.cards
+						) {
+							console.warn(
+								'Received turn_result with invalid state:',
+								data
+							)
+							break
+						}
+						const player_cards =
+							data.state
+								.player1_id ===
+							user.user_id
+								? data.state
+										.cards
+										.player1
+								: data.state
+										.cards
+										.player2
+						const opponent_cards =
+							data.state
+								.player1_id ===
+							user.user_id
+								? data.state
+										.cards
+										.player2
+								: data.state
+										.cards
+										.player1
+						if (
+							data.player_user_id ===
+							user.user_id
+						) {
+							refreshBattleLogs(
+								data.player_result,
+								player_cards,
+								data.opponent_result,
+								opponent_cards
+							)
+						} else {
+							refreshBattleLogs(
+								data.opponent_result,
+								player_cards,
+								data.player_result,
+								opponent_cards
+							)
+						}
+						refreshBattleView(
+							data.battle_id,
+							user.user_id,
+							data.state
+						)
+						break
+
+					case 'match_results':
+						switchToResultView()
+						elResultHeading.textContent =
+							data.winner ===
+							user.user_id
+								? 'Victory'
+								: 'Defeat'
+						elResultDamageSuffered.textContent =
+							data.damage_suffered ||
+							0
+						elResultDamageInflicted.textContent =
+							data.damage_inflicted ||
+							0
+						break
+					case 'error':
+						if (
+							data.reject_type ==
+							'start_npc_battle'
+						) {
+							console.log(
+								data.message
+							)
+							switchToOpponentSelectionView()
+						}
+
+						if (
+							data.reject_type ==
+							'submit_deck'
+						) {
+							console.log(
+								data.message
+							)
+							switchToCardSelectionView()
+						}
+						if (
+							data.reject_type ==
+							'challenge_player'
+						) {
+							console.log(
+								data.message
+							)
+							switchToOpponentSelectionView()
+						}
+						break
+				}
+			} catch (err) {
+				console.error(
+					'Failed to parse incoming WebSocket message:',
+					err
+				)
+			}
+		}
+		ws.onclose = () => {
+			if (pingInterval) clearInterval(pingInterval)
+			console.log('WebSocket disconnected')
+			// A dropped socket is not a logout — stay on the page and
+			// retry a few times instead of dumping the player onto the map.
+			wsRetryCount += 1
+			if (wsRetryCount > 3) {
+				elListError.textContent =
+					'Lost connection to the battle server. Refresh the page to reconnect.'
+				elListError.classList.remove('hidden')
+				return
+			}
+			elListError.textContent =
+				'Connection to the battle server dropped — retrying…'
+			elListError.classList.remove('hidden')
+			setTimeout(() => {
+				ws = connectToWebSocket()
+			}, 1500 * wsRetryCount)
+		}
+		ws.onerror = (error) => {
+			// Logged only — onclose follows and owns the retry. Never
+			// redirect: a socket error is not an auth failure.
+			console.error('WebSocket error:', error)
+		}
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
         return ws;
     } catch (err) {
@@ -581,6 +1030,7 @@ async function verifyBattleEligibility(deck) {
     }
 }
 
+<<<<<<< HEAD
 async function buildDeck(deck) {
     try {
         const res = await fetch(`${API_BASE}/api/battles/build-battle-deck`, {
@@ -637,6 +1087,26 @@ async function startBattle(deck) {
     } catch {}
 }
 
+=======
+async function challengePlayer(targetOpponentId = null) {
+	// Send deck and match init frame directly over WS
+	if (targetOpponentId === null) {
+		ws.send(
+			JSON.stringify({
+				type: 'start_npc_battle',
+			})
+		)
+	} else {
+		ws.send(
+			JSON.stringify({
+				type: 'challenge_player',
+				target_user_id: targetOpponentId,
+			})
+		)
+	}
+}
+
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 function alignDeck() {
     var space = 0;
     for (const [idx, deckCard] of battleDeck.entries()) {
@@ -655,7 +1125,16 @@ function alignDeck() {
     }
 }
 
+function resetDeck() {
+	battleDeckCount = 0
+	for (const deckCard of battleDeck) {
+		deckCard.card = null
+	}
+	refreshDeck()
+}
+
 function refreshDeck() {
+<<<<<<< HEAD
     battleDeckCount = 0;
     for (const deckCard of battleDeck) {
         if (deckCard.card == null) {
@@ -684,6 +1163,40 @@ function refreshDeck() {
     elBattleDeckCount.textContent = battleDeckCount;
     if (battleDeckCount == 5) elBattleStart.disabled = false;
     else elBattleStart.disabled = true;
+=======
+	battleDeckCount = 0
+	for (const deckCard of battleDeck) {
+		if (deckCard.card == null) {
+			deckCard.span.classList.remove('hidden')
+			if (deckCard.cardElement != null) {
+				deckCard.cardElement.remove()
+				deckCard.cardElement = null
+			}
+			continue
+		}
+		if (deckCard.cardElement == null) {
+			deckCard.cardElement = createBattleCard(deckCard.card)
+			deckCard.cardElement
+				.querySelector('.battle-card-health-bar')
+				.remove()
+			deckCard.cardElement.addEventListener('click', () => {
+				deckCard.cardElement.remove()
+				deckCard.card = null
+				deckCard.cardElement = null
+				deckCard.span.classList.remove('hidden')
+				alignDeck()
+				refreshDeck()
+			})
+		}
+		deckCard.span.classList.add('hidden')
+		deckCard.element.appendChild(deckCard.cardElement)
+		battleDeckCount += 1
+	}
+	elBattleDeckCount.textContent = battleDeckCount
+	if (battleDeckCount == BATTLE_DECK_NO_CARDS)
+		elBattleStart.disabled = false
+	else elBattleStart.disabled = true
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 function addToDeck(card) {
@@ -702,6 +1215,7 @@ function addToDeck(card) {
 }
 
 async function loadSelectionEvents() {
+<<<<<<< HEAD
     elListError.classList.add("hidden");
     try {
         const res = await fetch(`${API_BASE}/api/cards/get-all`, {
@@ -715,6 +1229,24 @@ async function loadSelectionEvents() {
 
         elCardCollectionLoading.classList.add("hidden");
         if (data.length == 0) elCardCollectionEmpty.classList.remove("hidden");
+=======
+	elListError.classList.add('hidden')
+	try {
+		elCardCollectionLoading.classList.remove('hidden')
+		const res = await fetch(`${API_BASE}/api/cards/get-all`, {
+			credentials: 'include',
+		})
+		const data = await res.json()
+		if (!res.ok) {
+			console.error(data.error)
+			throw new Error(`Server responded with ${res.status}`)
+		}
+
+		elCardCollectionLoading.classList.add('hidden')
+		elCardCollection.replaceChildren()
+		if (data.length == 0)
+			elCardCollectionEmpty.classList.remove('hidden')
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
         for (const card of data) {
             const li = createBattleCard(card);
@@ -723,6 +1255,7 @@ async function loadSelectionEvents() {
             li.addEventListener("click", (el) => addToDeck(card));
         }
 
+<<<<<<< HEAD
         elBattleStart.addEventListener("click", () =>
             startBattle(battleDeck.map((x) => x.card)),
         );
@@ -730,9 +1263,23 @@ async function loadSelectionEvents() {
         elListError.textContent = `Could not load events — ${err.message}`;
         elListError.classList.remove("hidden");
     }
+=======
+		elBattleStart.addEventListener('click', () =>
+			submitDeck(battleDeck.map((x) => x.card))
+		)
+	} catch (err) {
+		elListError.textContent = `Could not load events — ${err.message}`
+		elListError.classList.remove('hidden')
+	}
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
+}
+
+function submitDeck(deck) {
+	ws.send(JSON.stringify({ type: 'submit_deck', deck }))
 }
 
 async function checkAccess() {
+<<<<<<< HEAD
     try {
         const res1 = await fetch(`${AUTH_API}/me`, {
             credentials: "include",
@@ -760,6 +1307,37 @@ async function checkAccess() {
     } catch {
         window.location.href = "../index.html";
     }
+=======
+	let res
+	try {
+		res = await fetch(`${AUTH_API}/me`, {
+			credentials: 'include',
+		})
+	} catch {
+		// Backend unreachable — not the same as logged out. Stay on the
+		// page and say so instead of dumping the player onto the map.
+		elListError.textContent =
+			'Could not reach the server — check your connection, then refresh.'
+		elListError.classList.remove('hidden')
+		return
+	}
+	if (res.status === 401) {
+		window.location.href = '../index.html'
+		return
+	}
+	if (!res.ok) {
+		elListError.textContent = `Could not verify your session (server responded with ${res.status}).`
+		elListError.classList.remove('hidden')
+		return
+	}
+	user = await res.json()
+
+	updateAuthNav(user)
+	elBattleLog.replaceChildren()
+
+	ws = connectToWebSocket()
+	switchToOpponentSelectionView()
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 checkAccess();

@@ -53,12 +53,13 @@ router.post("/login", async (req, res) => {
             return res.status(401).json({ error: "Invalid credentials" });
         }
 
-        // Store session
-        req.session.user = {
-            user_id: user.user_id,
-            name: user.name,
-            email: user.email,
-        };
+		// Store session
+		req.session.user = {
+			user_id: user.user_id,
+			name: user.name,
+			username: user.name,
+			email: user.email,
+		}
 
         const [roleRows] = await pool.query(
             "SELECT role FROM admin_roles WHERE user_id = ?",
@@ -113,11 +114,12 @@ router.post("/register", async (req, res) => {
             [userId, hashedPin],
         );
 
-        req.session.user = {
-            user_id: userId,
-            name: name.trim(),
-            email: userEmail,
-        };
+		req.session.user = {
+			user_id: userId,
+			name: name.trim(),
+			username: name.trim(),
+			email: userEmail,
+		}
 
         const [roleRows] = await pool.query(
             "SELECT role FROM admin_roles WHERE user_id = ?",
@@ -162,11 +164,11 @@ router.get("/me", async (req, res) => {
 });
 
 // LOGOUT ROUTE
-router.post("/logout", (req, res) => {
-    req.session.destroy(() => {
-        res.clearCookie("connect.sid");
-        res.json({ message: "Logged out" });
-    });
-});
+router.post('/logout', (req, res) => {
+	req.session.destroy(() => {
+		res.clearCookie('a2a-session-key')
+		res.json({ message: 'Logged out' })
+	})
+})
 
 export default router;

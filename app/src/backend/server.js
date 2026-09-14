@@ -3,11 +3,11 @@
  *
  * Integrates Better Auth (from feat/user-story-1-auth) with the existing
  * team infrastructure. A bridge middleware maps Better Auth sessions to
- * express-session so that existing routes (events, trivia, sync) keep working
+ * express-session so that existing routes (events, trivia) keep working
  * without modification.
  *
  * All existing functionality preserved:
- *   - event_routes, trivia_routes, sync_routes, auth_routes (PIN-based, kept for compat)
+ *   - event_routes, trivia_routes, auth_routes (PIN-based, kept for compat)
  *   - initialize_database (schema.sql with CREATE TABLE IF NOT EXISTS)
  *   - seed_database (only when SEED_DB=true)
  *   - /api/health endpoint
@@ -23,6 +23,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 
+<<<<<<< HEAD
 import event_routes from "./routes/events.js";
 import card_routes from "./routes/cards.js";
 import battle_routes from "./routes/battle.js";
@@ -31,17 +32,34 @@ import trivia_routes from "./routes/trivia.js";
 import question_routes from "./routes/questions.js";
 import sync_routes from "./routes/sync.js";
 import profile_routes from "./routes/profile.js";
+=======
+import event_routes from './routes/events.js'
+import card_routes from './routes/cards.js'
+import auth_routes from './routes/auth.js'
+import trivia_routes from './routes/trivia.js'
+import question_routes from './routes/questions.js'
+import pool_routes from './routes/event_pool.js'
+import leaderboard_routes from './routes/leaderboard.js'
+import sync_routes from './routes/sync.js'
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 import pool from "./utils/db.js";
 import { auth } from "./src/auth.js";
 import { execute_sql_script } from "./utils/sql_utils.js";
 import { setup_websocket_router } from "./websocket/socket_router.js";
 
+<<<<<<< HEAD
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+=======
+import qr_routes from './routes/qr.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+<<<<<<< HEAD
 app.use(express.json());
 
 var allowed_origins = [
@@ -52,6 +70,17 @@ var allowed_origins = [
     "http://127.0.0.1:3000",
 ];
 if (process.env.FRONTEND_URL) allowed_origins.push(process.env.FRONTEND_URL);
+=======
+app.use(express.json())
+const allowed_origins = [
+	'http://localhost:8055',
+	'http://localhost:5173',
+	'http://127.0.0.1:5173',
+	'http://localhost:3000',
+	'http://127.0.0.1:3000',
+]
+if (process.env.FRONTEND_URL) allowed_origins.push(process.env.FRONTEND_URL)
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 app.use(
     cors({
@@ -77,6 +106,7 @@ const sessionStore = new MySQLStore(
 );
 
 const session_middleware = session({
+<<<<<<< HEAD
     key: "a2a-session-key",
     secret: process.env.SESSION_SECRET || "a2a-dev-secret",
     store: sessionStore,
@@ -96,6 +126,20 @@ const session_middleware = session({
 app.use(session_middleware);
 
 // Map default req.user from express-session if present
+=======
+	key: 'a2a-session-key',
+	secret: process.env.SESSION_SECRET || 'a2a-dev-secret',
+	store: sessionStore,
+	resave: false,
+	saveUninitialized: false,
+	cookie: {
+		httpOnly: true,
+		secure: false,
+		maxAge: 1000 * 60 * 60 * 24, // 24 hours
+	},
+})
+app.use(session_middleware)
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 app.use((req, res, next) => {
     req.user = req.session?.user || null;
     next();
@@ -103,6 +147,7 @@ app.use((req, res, next) => {
 
 const PIN_AUTH_PATHS = ["/login", "/register", "/logout", "/me"];
 
+<<<<<<< HEAD
 // Better Auth endpoint passthrough
 app.use("/api/auth", (req, res, next) => {
     if (PIN_AUTH_PATHS.includes(req.path)) {
@@ -110,15 +155,21 @@ app.use("/api/auth", (req, res, next) => {
     }
     toNodeHandler(auth)(req, res, next);
 });
+=======
+app.use('/api/auth', (req, res, next) => {
+	if (PIN_AUTH_PATHS.includes(req.path)) {
+		return next() // skip Better Auth → falls through to auth_routes below
+	}
+	toNodeHandler(auth)(req, res, next)
+})
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 app.use("/api/auth", auth_routes);
 
-// ---------------------------------------------------------------------------
-// BRIDGE MIDDLEWARE & SESSION RESOLUTION
-// Resolves session from EITHER PIN auth OR Better Auth (Google OAuth)
-// BEFORE downstream route processing. Populates both req.user and req.session.user.
-// ---------------------------------------------------------------------------
+// ── SESSION RESOLUTION MIDDLEWARE ──
+// Populates req.user from EITHER our custom session OR Better Auth's session.
 app.use(async (req, res, next) => {
+<<<<<<< HEAD
     // 1. Custom session (username + PIN)
     if (req.session?.user?.user_id) {
         try {
@@ -230,14 +281,95 @@ app.post("/api/auth-bridge/logout", (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Get current authenticated user (used by frontend checkAuthSession)
-//
-// CONFLICT RESOLUTION NOTE: neither original side was quite right alone —
-// req.user is populated by the bridge middleware above for BOTH PIN and
-// Better Auth sessions, while req.session.user is only guaranteed for PIN
-// sessions. Checking both (matching the same pattern already used by
-// requireAuth() in routes/trivia.js and routes/sync.js) covers either path.
+=======
+	// 1. Custom session (username + PIN)
+	if (req.session?.user?.user_id) {
+		try {
+			const [users] = await pool.query(
+				'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
+				[req.session.user.user_id]
+			)
+			if (users.length) req.user = users[0]
+		} catch (err) {
+			console.warn(
+				'Custom session resolve error:',
+				err.message
+			)
+		}
+		return next()
+	}
+
+	// 2. Better Auth session (Google OAuth)
+	try {
+		const bSession = await auth.api.getSession({
+			headers: fromNodeHeaders(req.headers),
+		})
+		if (bSession?.user) {
+			const [users] = await pool.query(
+				'SELECT user_id, name, email, avatar_url, points FROM users WHERE email = ?',
+				[bSession.user.email]
+			)
+			if (users.length) {
+				req.user = users[0]
+			} else {
+				// First-time Google user — sync into our users table
+				const [result] = await pool.query(
+					`INSERT INTO users (provider_id, email, name, avatar_url, points)
+           VALUES (?, ?, ?, ?, 0)`,
+					[
+						`betterauth:${bSession.user.id}`,
+						bSession.user.email,
+						bSession.user.name,
+						bSession.user.image,
+					]
+				)
+				const [newUsers] = await pool.query(
+					'SELECT user_id, name, email, avatar_url, points FROM users WHERE user_id = ?',
+					[result.insertId]
+				)
+				req.user = newUsers[0]
+			}
+			// Keep the express-session cookie in sync so existing code that reads
+			// req.session.user.user_id continues to work for Google-OAuth users.
+			req.session.user = req.user
+		}
+	} catch (err) {
+		// Silently continue for unauthenticated requests
+	}
+	next()
+})
+
+app.use('/api/events', qr_routes)
+app.use('/api/events', pool_routes)
+app.use('/api/events', event_routes)
+app.use('/api/cards', card_routes)
+app.use('/api/trivia', trivia_routes)
+// User Story 6 — question authoring. Mounted at /api so the single
+// router can serve both /api/events/:eventId/questions and /api/questions/:id.
+app.use('/api', question_routes)
+
+// User Story 7 — global points leaderboard. Public read; the "/me"
+// sub-route is the only part that requires a session.
+app.use('/api/leaderboard', leaderboard_routes)
+
+// User Story 2 (Sprint 2) — offline attempt sync and deferred verification.
+// Mounted under /api/trivia so all trivia-related endpoints share a namespace.
+app.use('/api/trivia', sync_routes)
+
+app.get('/api/health', async (req, res) => {
+	try {
+		const [rows] = await pool.query('SHOW TABLES')
+		res.json({ success: true, tables: rows })
+	} catch (error) {
+		res.status(500).json({ success: false, error: error.message })
+	}
+})
+
 // ---------------------------------------------------------------------------
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
+// Get current authenticated user (used by frontend checkAuthSession)
+// ---------------------------------------------------------------------------
+<<<<<<< HEAD
 app.get("/api/me", async (req, res) => {
     const userId = req.session?.user?.user_id || req.user?.user_id;
     if (!userId) {
@@ -245,6 +377,14 @@ app.get("/api/me", async (req, res) => {
     }
     res.json(req.user || req.session.user);
 });
+=======
+app.get('/api/me', async (req, res) => {
+	if (!req.user?.user_id) {
+		return res.status(401).json({ error: 'Not authenticated' })
+	}
+	res.json(req.user)
+})
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 // ---------------------------------------------------------------------------
 // Static file serving — backend serves the frontend so everything runs
@@ -258,6 +398,7 @@ app.use("/js", express.static(path.join(frontendDir, "js")));
 app.use(express.static(path.join(frontendDir, "public")));
 
 // Main map page
+<<<<<<< HEAD
 app.get("/", (_req, res) => {
     res.sendFile(path.join(frontendDir, "index.html"));
 });
@@ -284,6 +425,35 @@ app.get("/pages/map.html", (_req, res) => {
 app.get("/pages/battle.html", (_req, res) => {
     res.sendFile(path.join(pagesDir, "battle.html"));
 });
+=======
+app.get('/index.html', (_req, res) => {
+	res.sendFile(path.join(frontendDir, 'index.html'))
+})
+
+app.get('/', (_req, res) => {
+	res.sendFile(path.join(frontendDir, 'index.html'))
+})
+
+// Other HTML pages
+app.get('/pages/auth.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'auth.html'))
+})
+app.get('/pages/collection.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'collection.html'))
+})
+app.get('/pages/console.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'console.html'))
+})
+app.get('/pages/events.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'events.html'))
+})
+app.get('/pages/battle.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'battle.html'))
+})
+app.get('/pages/leaderboard.html', (_req, res) => {
+	res.sendFile(path.join(pagesDir, 'leaderboard.html'))
+})
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 // ---------------------------------------------------------------------------
 // Database initialization (unchanged from dev)
@@ -295,9 +465,21 @@ async function initialize_database() {
 }
 
 async function seed_database() {
+<<<<<<< HEAD
     // Destructive: TRUNCATEs and re-inserts all seed data. Must NOT run
     // automatically on startup. Run explicitly instead: `npm run db:seed`
     await execute_sql_script(pool, "./db/seed.sql");
+=======
+	// Destructive: TRUNCATEs and re-inserts all seed data. This must NOT run
+	// automatically on every `npm run dev`, since the DB is shared across the
+	// whole team — one teammate starting their backend would silently wipe
+	// out data another teammate is actively testing against (this is what
+	// caused login to intermittently fail with "Invalid credentials" even
+	// though the seeded PIN was correct).
+	//
+	// Run explicitly instead: `npm run db:seed`
+	await execute_sql_script(pool, './db/seed.sql')
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 async function clear_database() {
@@ -305,6 +487,7 @@ async function clear_database() {
 }
 
 async function view_database() {
+<<<<<<< HEAD
     console.log(await pool.query("SELECT NOW() as currentTime;"));
     console.log(await pool.query("SHOW DATABASES;"));
     console.log(
@@ -312,6 +495,16 @@ async function view_database() {
             `SHOW TABLES FROM ${process.env.DB_NAME || "testdb"};`,
         ),
     );
+=======
+	console.log(await pool.query('SELECT NOW() as currentTime;'))
+	console.log(await pool.query('SHOW DATABASES;'))
+	console.log(
+		await pool.query(
+			`SHOW TABLES FROM ${process.env.DB_NAME || 'testdb'};`
+		)
+	)
+	// console.log(await pool.query('DESCRIBE ${process.env.DB_NAME || 'testdb'}.battle_turns;'))
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 try {

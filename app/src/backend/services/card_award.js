@@ -54,18 +54,26 @@ export async function canAwardCard(conn, user_id, event_id) {
 }
 
 /**
- * The card this event awards right now — the first pool entry that
- * still has copies available (global_copy_limit not yet reached, or
- * NULL meaning unlimited).
+ * Selects a card from the event's pool based on the player's elapsed time.
+ * Faster answers land in higher-rarity brackets:
+ *   elapsed_fraction = 0        → rarest card in pool (LEGENDARY if present)
+ *   elapsed_fraction ≈ 1        → commonest card in pool
  *
- * Selection is deterministic (lowest pool_id) rather than weighted
- * random: the once-only story only cares that *a* card is issued at
- * most once per player+event, and a deterministic pick keeps the
- * award path trivially testable. Weighted draws are a separate concern.
+ * Algorithm:
+ *   1. Fetch all pool entries with copies remaining (or unlimited),
+ *      joined to cards.
+ *   2. Sort rarest-first (LEGENDARY > EPIC > RARE > UNCOMMON > COMMON),
+ *      tie-break by pool_id for determinism.
+ *   3. Divide [0, 1) into N equal brackets; the player's bracket picks
+ *      the card at index floor(clamped_fraction × N), clamped to N-1.
  *
- * Returns the joined card row (with pool_id for the copies counter),
- * or null if the event has no awardable card configured.
+ * If the pool is empty (or every entry is exhausted), returns null.
+ *
+ * @param {import('mysql2/promise').Connection} conn  MUST be a transaction-bound connection
+ * @param {number} event_id
+ * @param {number} elapsed_fraction  0..1; values outside this range are clamped
  */
+<<<<<<< HEAD
 export async function getEventCard(conn, event_id) {
     const [rows] = await conn.query(
         `SELECT c.card_id, c.name, c.image_url, c.rarity, c.category,
@@ -80,6 +88,30 @@ export async function getEventCard(conn, event_id) {
         [event_id],
     );
     return rows[0] || null;
+=======
+export async function getEventCardForSpeed(
+	conn,
+	event_id,
+	elapsed_fraction = 0.5
+) {
+	const [rows] = await conn.query(
+		`SELECT c.card_id, c.name, c.image_url, c.rarity, c.category,
+		        ecp.pool_id, ecp.global_copy_limit, ecp.copies_awarded
+		   FROM event_card_pool ecp
+		   JOIN cards c ON ecp.card_id = c.card_id
+		  WHERE ecp.event_id = ?
+		    AND (ecp.global_copy_limit IS NULL
+		         OR ecp.copies_awarded < ecp.global_copy_limit)
+		  ORDER BY FIELD(c.rarity,'COMMON','UNCOMMON','RARE','EPIC','LEGENDARY') DESC,
+		           ecp.pool_id ASC`,
+		[event_id]
+	)
+	if (!rows.length) return null
+
+	const clamped = Math.min(1, Math.max(0, Number(elapsed_fraction) || 0))
+	const idx = Math.min(rows.length - 1, Math.floor(clamped * rows.length))
+	return rows[idx]
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 /**
@@ -93,6 +125,12 @@ export async function getEventCard(conn, event_id) {
  * inside the same transaction. That ordering (check → award → log
  * attempt) is what makes a winning retry-after-win see the prior win.
  *
+ * @param {object} opts
+ * @param {number} opts.user_id
+ * @param {number} opts.event_id
+ * @param {number} [opts.elapsed_fraction]  0..1 — fraction of the time
+ *   limit the player used; faster = lower = rarer card. Defaults to
+ *   0.5 (mid-pool) when omitted, preserving the pre-speed behaviour.
  * @returns {{
  *   awarded: boolean,
  *   card: {card_id:number,name:string,image_url:string,rarity:string,category:string}|null,
@@ -100,6 +138,7 @@ export async function getEventCard(conn, event_id) {
  *   reason: 'AWARDED'|'ALREADY_EARNED'|'NO_CARD_CONFIGURED'|'RACE_LOST'
  * }}
  */
+<<<<<<< HEAD
 export async function awardCardIfEligible(conn, { user_id, event_id }) {
     // 1. Eligibility — has the player ever won this event before?
     const eligible = await canAwardCard(conn, user_id, event_id);
@@ -122,6 +161,38 @@ export async function awardCardIfEligible(conn, { user_id, event_id }) {
             reason: "NO_CARD_CONFIGURED",
         };
     }
+=======
+export async function awardCardIfEligible(
+	conn,
+	{ user_id, event_id, elapsed_fraction = 0.5 }
+) {
+	// 1. Eligibility — has the player ever won this event before?
+	const eligible = await canAwardCard(conn, user_id, event_id)
+	if (!eligible) {
+		return {
+			awarded: false,
+			card: null,
+			card_id: null,
+			reason: 'ALREADY_EARNED',
+		}
+	}
+
+	// 2. Which card does this event award at the player's speed bracket
+	//    (and do any still have copies)?
+	const card = await getEventCardForSpeed(
+		conn,
+		event_id,
+		elapsed_fraction
+	)
+	if (!card) {
+		return {
+			awarded: false,
+			card: null,
+			card_id: null,
+			reason: 'NO_CARD_CONFIGURED',
+		}
+	}
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
     // 3. Insert the award-ledger row. UNIQUE(user_id, event_id) is the
     //    hard backstop: if two concurrent requests both passed

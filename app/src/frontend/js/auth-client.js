@@ -42,6 +42,7 @@ export async function usernameSignUp(name, username, pin) {
 }
 
 export async function googleSignIn() {
+<<<<<<< HEAD
     const callbackURL = window.location.pathname + window.location.search;
     const params = new URLSearchParams({
         provider: "google",
@@ -64,6 +65,57 @@ export async function baSignOut() {
     } catch (err) {
         console.warn("Better Auth signout failed:", err);
     }
+=======
+	const callbackURL = window.location.pathname + window.location.search
+
+	try {
+		const res = await fetch(`${AUTH_API}/sign-in/social`, {
+			method: 'POST',
+			credentials: 'include',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				provider: 'google',
+				callbackURL,
+				errorCallbackURL: callbackURL,
+				newUserCallbackURL: callbackURL,
+			}),
+		})
+
+		const data = await res.json()
+
+		if (!res.ok) {
+			throw new Error(
+				data.message ||
+					data.error ||
+					'Google sign-in failed'
+			)
+		}
+
+		if (!data.url) {
+			throw new Error(
+				'Google authorization URL was not returned'
+			)
+		}
+
+		window.location.href = data.url
+	} catch (error) {
+		console.error('Google sign-in failed:', error)
+		alert(`Google sign-in failed: ${error.message}`)
+	}
+}
+
+export async function baSignOut() {
+	try {
+		await fetch(`${AUTH_API}/sign-out`, {
+			method: 'POST',
+			credentials: 'include',
+		})
+	} catch (err) {
+		console.warn('Better Auth signout failed:', err)
+	}
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 /** Clear the express-session cookie too. */

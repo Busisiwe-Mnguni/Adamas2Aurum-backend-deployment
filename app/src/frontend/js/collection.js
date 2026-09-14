@@ -1,5 +1,16 @@
+<<<<<<< HEAD
 import { API_BASE } from "./constants.js";
 import { updateAuthNav } from "./auth-helpers.js";
+=======
+import { API_BASE } from './constants.js'
+import { updateAuthNav, logout } from './auth-helpers.js'
+import { startChromeDayNightCycle } from './campus-style.js'
+
+// No live map on this page — drive the shared `body.night` chrome theme
+// from the same day/night check as the map. The admin console never does
+// this, so it stays light.
+startChromeDayNightCycle()
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 const AUTH_API = `${API_BASE}/api/auth`;
 const CARDS_API = `${API_BASE}/api/cards`;
@@ -18,6 +29,7 @@ const filterRarity = document.getElementById("filter-rarity");
 
 //  Auth
 
+<<<<<<< HEAD
 btnLogout.addEventListener("click", async () => {
     await fetch(`${AUTH_API}/logout`, {
         method: "POST",
@@ -33,15 +45,56 @@ async function checkAccess() {
         });
         if (!res.ok) throw new Error("Not authenticated");
         const user = await res.json();
+=======
+btnLogout?.addEventListener('click', logout)
+
+async function checkAccess() {
+	let res
+	try {
+		res = await fetch(`${AUTH_API}/me`, {
+			credentials: 'include',
+		})
+	} catch {
+		// Backend unreachable — not the same as logged out. Stay on the
+		// page and say so instead of dumping the player onto the map.
+		elContent.classList.remove('hidden')
+		elLoading.classList.add('hidden')
+		elError.textContent =
+			'Could not reach the server — check your connection, then refresh.'
+		elError.classList.remove('hidden')
+		return
+	}
+	if (res.status === 401) {
+		// Single login entry point: send unauthenticated users to the landing page.
+		window.location.href = '../index.html'
+		return
+	}
+	if (!res.ok) {
+		elContent.classList.remove('hidden')
+		elLoading.classList.add('hidden')
+		elError.textContent = `Could not verify your session (server responded with ${res.status}).`
+		elError.classList.remove('hidden')
+		return
+	}
+	try {
+		const user = await res.json()
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
         updateAuthNav(user);
         elContent.classList.remove("hidden");
 
+<<<<<<< HEAD
         loadCollection();
     } catch {
         // Single login entry point: send unauthenticated users to the landing page.
         window.location.href = "../index.html";
     }
+=======
+		loadCollection()
+	} catch {
+		window.location.href = '../index.html'
+	}
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 }
 
 //  Load collection
@@ -113,6 +166,7 @@ function renderCards(cards) {
 }
 
 const RARITY_COLOURS = {
+<<<<<<< HEAD
     COMMON: "var(--text-muted)",
     RARE: "#60a5fa",
     LEGENDARY: "#f59e0b",
@@ -123,6 +177,22 @@ const RARITY_LABELS = {
     RARE: "Rare ✦",
     LEGENDARY: "Legendary ✦✦",
 };
+=======
+	COMMON: 'var(--text-muted)',
+	UNCOMMON: '#22c55e',
+	RARE: '#60a5fa',
+	EPIC: '#a855f7',
+	LEGENDARY: '#f59e0b',
+}
+
+const RARITY_LABELS = {
+	COMMON: 'Common',
+	UNCOMMON: 'Uncommon ✦',
+	RARE: 'Rare ✦✦',
+	EPIC: 'Epic ✦✦✦',
+	LEGENDARY: 'Legendary ✦✦✦✦',
+}
+>>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
 const CATEGORY_ROLES = {
     CHARACTER: "Attacker",

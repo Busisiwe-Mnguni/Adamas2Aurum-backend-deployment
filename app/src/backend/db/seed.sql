@@ -92,14 +92,22 @@ INSERT INTO event_card_pool (pool_id, event_id, card_id, weight, global_copy_lim
 INSERT INTO user_cards (user_card_id, user_id, card_id, quantity) VALUES
 (1, 2, 2, 2),
 (2, 1, 1, 3),
-(6, 1, 3, 1),
-(9, 1, 8, 1),
-(8, 1, 12, 1),
-(4, 1, 13, 1),
-(5, 1, 15, 1),
-(7, 1, 18, 1),
-(10, 1, 19, 1),
-(3, 1, 22, 1);
+(3, 2, 22, 1),
+(6, 2, 3, 1),
+(9, 2, 8, 1),
+(8, 2, 12, 1),
+(4, 2, 13, 1),
+(5, 2, 15, 1),
+(7, 2, 18, 1),
+(10, 2, 19, 1),
+(11, 1, 22, 1),
+(12, 1, 3, 1),
+(13, 1, 8, 1),
+(14, 1, 12, 1),
+(15, 1, 13, 1),
+(16, 1, 15, 1),
+(17, 1, 18, 1),
+(18, 1, 19, 1);
 
 -- 9. EVENT CARD AWARDS
 INSERT INTO event_card_awards (award_id, user_id, event_id, card_id) VALUES
@@ -178,12 +186,14 @@ VALUES ('local:admin@wits.ac.za', 'admin@wits.ac.za', 'Test Admin');
 
 SET @admin_user_id = (SELECT user_id FROM users WHERE email = 'admin@wits.ac.za');
 SET @test_user_id = (SELECT user_id FROM users WHERE email = 'alice@example.com');
+SET @test2_user_id = (SELECT user_id FROM users WHERE email = 'bob@example.com');
 
 REPLACE INTO user_credentials (user_id, pin_hash)
 VALUES (@admin_user_id, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4');
-
 REPLACE INTO user_credentials (user_id, pin_hash)
 VALUES (@test_user_id, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4');
+REPLACE INTO user_credentials (user_id, pin_hash)
+VALUES (@test2_user_id, '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4');
 
 INSERT IGNORE INTO admin_roles (user_id, role, granted_by)
 VALUES (@admin_user_id, 'SUPER_ADMIN', @admin_user_id);

@@ -1,0 +1,55 @@
+{
+	"dependencies": {
+		"serve": "^14.2.6"
+	},
+	"description": "A location-based campus trivia and card-battle game.",
+	"devDependencies": {
+		"jest": "^29.7.0",
+		"jest-environment-jsdom": "^29.7.0",
+		"prettier": "^3.9.6",
+		"vite": "^8.2.2"
+	},
+	"jest": {
+		"projects": [
+			{
+				"displayName": "frontend",
+				"rootDir": "app/src/frontend",
+				"testEnvironment": "jsdom",
+				"testMatch": [
+					"<rootDir>/**/*.test.js"
+				]
+			},
+			{
+				"displayName": "backend",
+				"rootDir": "app/src/backend",
+				"testEnvironment": "node",
+				"testMatch": [
+					"<rootDir>/**/*.test.js"
+				]
+			}
+		]
+	},
+	"name": "Adamas2Aurum",
+	"private": true,
+	"scripts": {
+		"install-deps": "npm install && npm install --prefix app/src/backend",
+		"db:down": "npm run db:down --prefix app/src/backend",
+		"db:up": "npm run db:up --prefix app/src/backend",
+		"db:seed": "npm run db:seed --prefix app/src/backend",
+		"db:reset": "npm run db:reset --prefix app/src/backend",
+		"dev:backend": "npm run dev --prefix app/src/backend",
+		"dev:frontend": "serve app/src/frontend -l 8055",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"start:backend": "npm run start --prefix app/src/backend",
+		"start:frontend": "serve app/src/frontend -l 8055",
+		"test": "node --experimental-vm-modules node_modules/.bin/jest",
+		"test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+		"test:backend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects backend",
+		"test:frontend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects frontend",
+		"test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
+		"dev": "vite"
+	},
+	"type": "module",
+	"version": "1.0.0"
+}

@@ -95,6 +95,89 @@
     display: flex;
 }
 
+/* Opponent selection view */
+
+.opponent-grid {
+	list-style: none;
+	margin: 1.5rem 0 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 1rem;
+}
+
+.opponent-card {
+	position: relative;
+	border: 1px solid var(--battle-border);
+	border-radius: var(--battle-radius);
+	background: var(--battle-surface);
+	box-shadow: var(--battle-shadow);
+	padding: 1.25rem 1rem;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	transition:
+		transform 0.12s ease,
+		border-color 0.12s ease,
+		box-shadow 0.12s ease;
+}
+
+.opponent-card:hover {
+	transform: translateY(-2px);
+	border-color: var(--battle-accent);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.opponent-avatar {
+	width: 72px;
+	height: 72px;
+	border-radius: 50%;
+	object-fit: cover;
+	background: #f2f2f2;
+	border: 2px solid var(--battle-border);
+	margin-bottom: 0.75rem;
+}
+
+.opponent-name {
+	font-size: 1rem;
+	font-weight: 700;
+	margin: 0 0 0.35rem 0;
+	line-height: 1.2;
+	color: inherit;
+}
+
+.opponent-points-badge {
+	display: inline-block;
+	font-size: 0.75rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	padding: 0.2rem 0.65rem;
+	border-radius: 999px;
+	background: linear-gradient(
+		180deg,
+		#eff6ff 0%,
+		var(--battle-surface) 100%
+	);
+	color: var(--battle-accent);
+	border: 1px solid var(--battle-border);
+	margin-bottom: 1rem;
+}
+
+.opponent-card .btn {
+	width: 100%;
+	margin-top: auto;
+	font-size: 0.85rem;
+	padding: 0.5rem 0.75rem;
+}
+
+/* Reduced Motion Override for Opponent Cards */
+@media (prefers-reduced-motion: reduce) {
+	.opponent-card {
+		transition: none;
+	}
+}
+
 /* Deck slot preview strip */
 .deck-slots {
     list-style: none;
@@ -608,4 +691,68 @@ body.awaiting-team-target #player-cards .battle-card.selected {
     .btn-attribute {
         transition: none;
     }
+}
+
+/* ============================================================
+   Night chrome (same instant swap as the map). Dark navy
+   surfaces via the battle vars; rarity tints go dark so cards
+   don't glow light against the night page.
+   ============================================================ */
+body.night {
+	--battle-accent: #2f9df0;
+	--battle-surface: #0e1c2b;
+	--battle-border: #1e3a52;
+	--battle-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+body.night .border-line {
+	background: #1e3a52;
+}
+body.night .card-tile img,
+body.night .battle-card-img {
+	background: #16283a;
+}
+body.night .battle-card[data-rarity='COMMON'] {
+	background: #13202e;
+	border-color: #33475f;
+}
+body.night .battle-card[data-rarity='UNCOMMON'] {
+	background: linear-gradient(
+		180deg,
+		#0d2b1f 0%,
+		var(--battle-surface) 100%
+	);
+}
+body.night .battle-card[data-rarity='RARE'] {
+	background: linear-gradient(
+		180deg,
+		#0e2540 0%,
+		var(--battle-surface) 100%
+	);
+}
+body.night .battle-card[data-rarity='EPIC'] {
+	background: linear-gradient(
+		180deg,
+		#241338 0%,
+		var(--battle-surface) 100%
+	);
+}
+body.night .battle-card[data-rarity='LEGENDARY'] {
+	background: linear-gradient(
+		180deg,
+		#3a2a0a 0%,
+		var(--battle-surface) 100%
+	);
+}
+body.night .battle-card-health-bar {
+	background: #1e3a52;
+}
+body.night .battle-card-category-tag {
+	background: #16283a;
+	color: #b7c7d7;
+}
+body.night .battle-log li.player-log {
+	color: #7cc4ff;
+}
+body.night .battle-log li.opponent-log {
+	color: #f07c7c;
 }
