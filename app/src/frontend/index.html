@@ -245,6 +245,120 @@
 			.auth-panel.active {
 				display: block;
 			}
+			/* ---- Player profile modal ---- */
+			.profile-overlay {
+				display: none;
+				position: fixed;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.45);
+				z-index: 2000;
+			}
+			.profile-overlay.open {
+				display: block;
+			}
+
+			.profile-modal {
+				display: none;
+				position: fixed;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				width: 440px;
+				max-width: 92vw;
+				max-height: 82vh;
+				overflow-y: auto;
+				background: #1e293b;
+				color: #f8fafc;
+				padding: 2rem 1.5rem;
+				border-radius: 10px;
+				z-index: 2001;
+				box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+			}
+			.profile-modal.open {
+				display: block;
+			}
+			.profile-modal .close-btn {
+				position: absolute;
+				top: 0.75rem;
+				right: 1rem;
+				background: none;
+				border: none;
+				color: #94a3b8;
+				font-size: 1.4rem;
+				cursor: pointer;
+			}
+			.profile-modal .close-btn:hover {
+				color: #f8fafc;
+			}
+			.profile-modal h2 {
+				font-size: 1.25rem;
+				margin-bottom: 1.25rem;
+			}
+
+			.profile-section {
+				margin-bottom: 1.25rem;
+				padding-bottom: 1.25rem;
+				border-bottom: 1px solid #334155;
+			}
+			.profile-section:last-child {
+				border-bottom: none;
+				padding-bottom: 0;
+				margin-bottom: 0;
+			}
+			.profile-section h3 {
+				font-size: 0.72rem;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+				color: #94a3b8;
+				font-weight: 600;
+				margin-bottom: 0.5rem;
+			}
+
+			.profile-big-number {
+				font-size: 1.8rem;
+				font-weight: 700;
+				color: #f8fafc;
+				line-height: 1.1;
+			}
+
+			.profile-hint {
+				font-size: 0.8rem;
+				color: #94a3b8;
+				margin-top: 0.35rem;
+				line-height: 1.4;
+			}
+
+			.profile-achievements {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			.profile-achievements li {
+				padding: 0.6rem 0.75rem;
+				border-radius: 6px;
+				margin-bottom: 0.4rem;
+				background: #0f172a;
+				border: 1px solid #334155;
+			}
+			.profile-achievements li.locked {
+				opacity: 0.55;
+			}
+			.profile-achievements li.unlocked {
+				border-color: #3b82f6;
+				background: rgba(59, 130, 246, 0.08);
+			}
+			.profile-achievements li .ach-name {
+				font-weight: 600;
+				display: block;
+				color: #f8fafc;
+				font-size: 0.875rem;
+			}
+			.profile-achievements li .ach-desc {
+				font-size: 0.75rem;
+				color: #94a3b8;
+				display: block;
+				margin-top: 0.15rem;
+			}
 		</style>
 	</head>
 	<body>
@@ -295,6 +409,13 @@
 						id="user-badge"
 						class="admin-badge hidden"
 					></span>
+					<button
+						id="btn-profile"
+						class="btn btn-sm btn-header hidden"
+						onclick="openProfileModal()"
+					>
+						Profile
+					</button>
 					<button
 						id="btn-logout"
 						class="btn btn-sm btn-header hidden"
@@ -478,7 +599,37 @@
 
 			<div id="auth-drawer-status" class="auth-status"></div>
 		</div>
+			<!-- Player profile modal — points, streak, achievements -->
+		<div id="profile-overlay" class="profile-overlay" onclick="closeProfileModal()"></div>
+		<div
+			id="profile-modal"
+			class="profile-modal"
+			role="dialog"
+			aria-labelledby="profile-name"
+		>
+			<button class="close-btn" onclick="closeProfileModal()">&times;</button>
+			<h2 id="profile-name">Profile</h2>
 
+			<div id="profile-loading" class="profile-hint">Loading your profile…</div>
+
+			<div id="profile-content" style="display: none;">
+				<div class="profile-section">
+					<h3>Points</h3>
+					<p id="profile-points" class="profile-big-number">0</p>
+				</div>
+
+				<div class="profile-section">
+					<h3>Daily Streak</h3>
+					<p id="profile-streak-current" class="profile-big-number">0</p>
+					<p id="profile-streak-detail" class="profile-hint"></p>
+				</div>
+
+				<div class="profile-section">
+					<h3>Achievements</h3>
+					<ul id="profile-achievements" class="profile-achievements"></ul>
+				</div>
+			</div>
+		</div>
 		<script type="module" src="/js/main.js"></script>
 	</body>
 </html>

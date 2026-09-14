@@ -713,7 +713,8 @@ async function checkAuthSession() {
 		currentUser = null
 		updateAuthNav(null)
 	}
-
+	// Profile is only meaningful when a user is signed in — hide the
+	// trigger entirely for guests rather than showing an empty modal.
 	const btnLogout = document.getElementById('btn-logout')
 	if (btnLogout) {
 		btnLogout.addEventListener('click', handleLogout)
@@ -838,6 +839,105 @@ window.handleDrawerGoogleAuth = async function () {
 	if (error) {
 		showDrawerStatus('Google auth failed: ' + error.message, true)
 	}
+}
+// ---------------------------------------------------------------------------
+// PLAYER PROFILE  (points, achievements, daily streak)
+//
+// Fetched lazily — nothing is loaded until the player actually clicks the
+// Profile button. The button itself is only revealed once checkAuthSession()
+// has confirmed there is a session.
+// ---------------------------------------------------------------------------
+
+async function fetchUserProfile() {
+	const res = await fetch(`${API_BASE}/api/profile`, {
+		method: 'GET',
+		credentials: 'include',
+	})
+	if (!res.ok) {
+		throw new Error(`Profile fetch failed (${res.status})`)
+	}
+	return res.json()
+}
+
+window.openProfileModal = async function () {
+	const overlay = document.getElementById('profile-overlay')
+	const modal = document.getElementById('profile-modal')
+	const loading = document.getElementById('profile-loading')
+	const content = document.getElementById('profile-content')
+
+	overlay?.classList.add('open')
+	modal?.classList.add('open')
+
+	if (loading) {
+		loading.style.display = 'block'
+		loading.textContent = 'Loading your profile…'
+	}
+	if (content) content.style.display = 'none'
+
+	try {
+		const profile = await fetchUserProfile()
+		renderProfile(profile)
+	} catch (err) {
+		if (loading) {
+			loading.textContent =
+				'Could not load your profile. Try again in a moment.'
+		}
+	}
+}
+
+window.closeProfileModal = function () {
+	document.getElementById('profile-overlay')?.classList.remove('open')
+	document.getElementById('profile-modal')?.classList.remove('open')
+}
+
+function renderProfile(profile) {
+	const loading = document.getElementById('profile-loading')
+	const content = document.getElementById('profile-content')
+	const nameEl = document.getElementById('profile-name')
+
+	if (nameEl) nameEl.textContent = profile.user.name || 'Profile'
+
+	const pointsEl = document.getElementById('profile-points')
+	if (pointsEl) pointsEl.textContent = String(profile.points ?? 0)
+
+	const streakEl = document.getElementById('profile-streak-current')
+	if (streakEl) {
+		const n = profile.streak.current
+		streakEl.textContent = n === 1 ? '1 day' : `${n} days`
+	}
+
+	const detailEl = document.getElementById('profile-streak-detail')
+	if (detailEl) {
+		const parts = []
+		if (profile.streak.longest > 0) {
+			parts.push(`Longest streak: ${profile.streak.longest} days`)
+		}
+		if (profile.streak.activeToday) {
+			parts.push('Active today')
+		} else if (profile.streak.current > 0) {
+			parts.push('Answer a challenge today to keep it going')
+		} else {
+			parts.push('Answer a challenge today to start a new streak')
+		}
+		detailEl.textContent = parts.join(' · ')
+	}
+
+	const achList = document.getElementById('profile-achievements')
+	if (achList) {
+		achList.innerHTML = profile.achievements
+			.map(
+				(a) => `
+			<li class="${a.unlocked ? 'unlocked' : 'locked'}">
+				<span class="ach-name">${a.name}</span>
+				<span class="ach-desc">${a.description}</span>
+			</li>
+		`
+			)
+			.join('')
+	}
+
+	if (loading) loading.style.display = 'none'
+	if (content) content.style.display = 'block'
 }
 
 function setupAuthDrawerHandlers() {

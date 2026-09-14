@@ -30,6 +30,7 @@ import auth_routes from './routes/auth.js'
 import trivia_routes from './routes/trivia.js'
 import question_routes from './routes/questions.js'
 import sync_routes from './routes/sync.js'
+import profile_routes from './routes/profile.js'
 
 import pool from './utils/db.js'
 import { auth } from './src/auth.js'
@@ -212,6 +213,7 @@ app.use('/api/cards', card_routes)
 app.use('/api/battles', battle_routes)
 app.use('/api/trivia', trivia_routes)
 app.use('/api/sync', sync_routes)
+app.use('/api/profile', profile_routes)
 
 // Question authoring. Mounted at /api so the single router
 // can serve both /api/events/:eventId/questions and /api/questions/:id.
