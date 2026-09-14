@@ -34,29 +34,6 @@ export async function load_battle_state(battle_id) {
         cards: { player1: [], player2: [] },
     };
 
-<<<<<<< HEAD
-    for (const row of rows) {
-        const card = {
-            deck_id: row.deck_id,
-            slot_position: row.slot_position,
-            card_id: row.card_id,
-            name: row.name,
-            image_url: row.image_url,
-            category: row.category,
-            rarity: row.rarity,
-            health: row.stat_legacy,
-            ability_cooldown: 0,
-            stat_attack: row.stat_attack,
-            stat_location: row.stat_location,
-            stat_influence: row.stat_influence,
-            stat_legacy: row.stat_legacy,
-            stat_era: row.stat_era,
-            effects: [],
-        };
-        if (row.user_id === battle.player1_id) state.cards.player1.push(card);
-        else state.cards.player2.push(card);
-    }
-=======
 	for (const row of rows) {
 		const card = {
 			deck_id: row.deck_id,
@@ -84,7 +61,6 @@ export async function load_battle_state(battle_id) {
 		state.cards.player2.length != BATTLE_DECK_NO_CARDS
 	)
 		return null
->>>>>>> 40834396dfe6d44ff54762633a63c8d5a362bb10
 
     battle_states.set(battle_id, state);
     return state;
