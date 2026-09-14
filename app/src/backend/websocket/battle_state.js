@@ -1,6 +1,9 @@
+import pool from '../utils/db.js'
+import { BATTLE_DECK_NO_CARDS } from './battle_socket.js'
+
 const battle_states = new Map()
 
-export async function load_battle_state(pool, battle_id) {
+export async function load_battle_state(battle_id) {
 	if (battle_states.has(battle_id)) {
 		return battle_states.get(battle_id)
 	}
@@ -53,6 +56,11 @@ export async function load_battle_state(pool, battle_id) {
 			state.cards.player1.push(card)
 		else state.cards.player2.push(card)
 	}
+	if (
+		state.cards.player1.length != BATTLE_DECK_NO_CARDS ||
+		state.cards.player2.length != BATTLE_DECK_NO_CARDS
+	)
+		return null
 
 	battle_states.set(battle_id, state)
 	return state

@@ -2,7 +2,6 @@ import express from 'express'
 import pool from '../utils/db.js'
 import { distance_meters } from '../utils/geo.js'
 import { canAwardCard, awardCardIfEligible } from '../services/card_award.js'
-import { analyzeMovement } from '../services/movementTrust.js'
 
 const router = express.Router()
 
@@ -70,7 +69,8 @@ async function getEventLocation(eventId) {
 router.get('/event/:eventId', requireAuth, async (req, res) => {
 	try {
 		const { eventId } = req.params
-		const { lat, lng } = req.query
+		const { lat, lng, accuracy, qr_verified, location_check_id } =
+			req.query
 
 		if (LOCATION_VERIFICATION_ENABLED) {
 			const event = await getEventLocation(eventId)
@@ -80,30 +80,61 @@ router.get('/event/:eventId', requireAuth, async (req, res) => {
 					.json({ error: 'Event not found.' })
 			}
 
-			if (lat === undefined || lng === undefined) {
-				// The frontend should always send these — this only fires if
-				// geolocation failed client-side and the caller didn't handle
-				// that, or if the endpoint is hit directly (e.g. via curl).
-				return res.status(400).json({
-					error: 'Location is required to attempt this challenge.',
+			// Path A: QR fallback already verified — frontend passes the
+			// location_check_id from POST /api/events/:id/verify-qr
+			if (qr_verified === 'true' && location_check_id) {
+				const [checkRows] = await pool.query(
+					`SELECT check_id FROM location_check_log
+           WHERE check_id = ? AND event_id = ? AND status = 'FALLBACK_QR'`,
+					[location_check_id, eventId]
+				)
+				if (!checkRows.length) {
+					return res.status(403).json({
+						error: 'Invalid QR verification — please scan again.',
+					})
+				}
+				// Falls through to question fetch below
+			}
+			// Path B: GPS accuracy too poor → tell frontend to trigger QR fallback
+			else if (
+				accuracy !== undefined &&
+				parseFloat(accuracy) > 50
+			) {
+				return res.status(200).json({
+					fallback_required: true,
+					reason: `GPS accuracy (${Math.round(parseFloat(accuracy))}m) exceeds threshold. Please scan the QR code at this location.`,
+					threshold_m: 50,
+					reported_accuracy_m: Math.round(
+						parseFloat(accuracy)
+					),
 				})
 			}
+			// Path C: Normal GPS verification
+			else {
+				if (lat === undefined || lng === undefined) {
+					return res.status(400).json({
+						error: 'Location is required to attempt this challenge.',
+					})
+				}
 
-			const distance = distance_meters(
-				parseFloat(lat),
-				parseFloat(lng),
-				parseFloat(event.latitude),
-				parseFloat(event.longitude)
-			)
+				const dist = distance_meters(
+					parseFloat(lat),
+					parseFloat(lng),
+					parseFloat(event.latitude),
+					parseFloat(event.longitude)
+				)
 
-			if (distance > event.radius_meters) {
-				return res.status(403).json({
-					error: 'You are too far from this location to attempt the challenge.',
-					distance_meters: Math.round(distance),
-					radius_meters: event.radius_meters,
-				})
+				if (dist > event.radius_meters) {
+					return res.status(403).json({
+						error: 'You are too far from this location to attempt the challenge.',
+						distance_meters:
+							Math.round(dist),
+						radius_meters:
+							event.radius_meters,
+					})
+				}
 			}
-		}
+		} // end LOCATION_VERIFICATION_ENABLED
 
 		// ORDER BY RAND() LIMIT 1 = pick one random question for this event,
 		// so the same location doesn't always ask the same question.
@@ -158,6 +189,16 @@ router.get('/event/:eventId', requireAuth, async (req, res) => {
 			earned_card = cardRows[0] || null
 		}
 
+		// Stash when this question was served, so the submit route can
+		// compute server-side elapsed time — otherwise a tampered client
+		// could claim a near-zero answer_time_ms to always land the
+		// rarest speed-bracket card.
+		req.session.trivia_issue = {
+			question_id: question.question_id,
+			event_id: Number(eventId),
+			issued_at: Date.now(),
+		}
+
 		res.json({
 			question_id: question.question_id,
 			body: question.body, // the actual question text
@@ -208,39 +249,106 @@ router.post('/submit', requireAuth, async (req, res) => {
 		answer_time_ms,
 		claimed_lat,
 		claimed_lng,
+		timed_out: clientTimedOut,
 	} = req.body
 	const user_id = req.session.user.user_id // comes from the session cookie, not the request body — a player can't spoof this to submit as someone else
+	const timedOut = !!clientTimedOut
 
-	if (!question_id || !selected_option_id) {
-		return res.status(400).json({
-			error: 'question_id and selected_option_id are required',
-		})
+	if (!question_id) {
+		return res
+			.status(400)
+			.json({ error: 'question_id is required' })
+	}
+	// Timeout submissions carry no selection — the countdown hit zero before
+	// the player picked anything. Everything else needs an option_id to grade.
+	if (!timedOut && !selected_option_id) {
+		return res
+			.status(400)
+			.json({ error: 'selected_option_id is required' })
 	}
 
 	try {
-		// STEP 1: Look up whether the option the player picked is flagged
-		// correct in the DB. The WHERE clause checks BOTH option_id AND
-		// question_id together — this stops someone from submitting an
-		// option_id that belongs to a totally different question (which
-		// could otherwise be used to game the grading).
-		const [options] = await pool.query(
-			`SELECT is_correct FROM trivia_options WHERE option_id = ? AND question_id = ?`,
-			[selected_option_id, question_id]
+		// STEP 1: Fetch the question's time_limit_s up front — needed for
+		// authoritative elapsed, timeout detection, points decay, and the
+		// speed-bracket card award regardless of whether the player answered
+		// or timed out.
+		const [questionRows] = await pool.query(
+			`SELECT time_limit_s FROM trivia_questions WHERE question_id = ?`,
+			[question_id]
 		)
-
-		if (!options.length) {
-			// The option_id/question_id pairing didn't match any row — either
-			// a bad request or someone tampering with the payload.
+		if (!questionRows.length) {
 			return res
 				.status(404)
-				.json({ error: 'Invalid option selected' })
+				.json({ error: 'Unknown question_id' })
+		}
+		const time_limit_s = questionRows[0].time_limit_s || 30
+		const time_limit_ms = time_limit_s * 1000
+
+		// STEP 2: Authoritative elapsed time.
+		//   Server-side = Date.now() - issued_at from the session (set when
+		//   the question was served). Falls back to client-reported
+		//   answer_time_ms if the session record is missing (e.g. server
+		//   restart, legacy client, or a different browser tab overwrote it).
+		//   The server clock can't be spoofed client-side, so a cheater can't
+		//   fake a 1ms answer to always claim the rarest speed-bracket card.
+		let elapsed_ms = 0
+		const issued = req.session.trivia_issue
+		if (
+			issued &&
+			issued.question_id === question_id &&
+			issued.event_id === Number(event_id) &&
+			issued.issued_at
+		) {
+			elapsed_ms = Math.max(0, Date.now() - issued.issued_at)
+		} else if (Number.isFinite(Number(answer_time_ms))) {
+			elapsed_ms = Math.max(0, Number(answer_time_ms))
+		}
+		// Clear the stashed issue so a replay against a different question
+		// can't accidentally reuse a stale timestamp.
+		delete req.session.trivia_issue
+
+		// 1 s grace for the timeout verdict — covers network/serialization
+		// latency between the player's click and this request arriving, so
+		// someone who answered at 29.99 s isn't punished by a 30.3 s receipt.
+		const serverTimedOut = elapsed_ms > time_limit_ms + 1000
+		const timedOutFinal = timedOut || serverTimedOut
+		// Cap elapsed at the limit for scoring purposes; a player who sat past
+		// the limit gets the same floor points/bracket as one who answered at
+		// exactly the limit.
+		const elapsed_capped = Math.min(elapsed_ms, time_limit_ms)
+		const elapsed_fraction =
+			time_limit_ms > 0
+				? Math.min(
+						1,
+						Math.max(
+							0,
+							elapsed_capped /
+								time_limit_ms
+						)
+					)
+				: 0
+
+		// STEP 3: Look up whether the option the player picked is flagged
+		// correct in the DB. Skipped for timeouts — those are always wrong
+		// and there's no selection to grade. The WHERE clause checks BOTH
+		// option_id AND question_id together, so submitting an option_id
+		// from a different question still 404s instead of grading.
+		let isCorrect = false
+		if (!timedOutFinal) {
+			const [options] = await pool.query(
+				`SELECT is_correct FROM trivia_options WHERE option_id = ? AND question_id = ?`,
+				[selected_option_id, question_id]
+			)
+			if (!options.length) {
+				return res.status(404).json({
+					error: 'Invalid option selected',
+				})
+			}
+			// MySQL returns TINYINT as 0/1; Boolean(...) converts to true/false.
+			isCorrect = Boolean(options[0].is_correct)
 		}
 
-		// is_correct comes back from MySQL as 0/1 (TINYINT); Boolean(...)
-		// converts that to a clean true/false for use in JS logic below.
-		const isCorrect = Boolean(options[0].is_correct)
-
-		// STEP 2: Separately, find whichever option for this question IS the
+		// STEP 4: Separately, find whichever option for this question IS the
 		// correct one — regardless of what the player picked. This is what
 		// lets us always show the correct answer afterward (user story 7),
 		// not just when the player got it wrong.
@@ -250,19 +358,30 @@ router.post('/submit', requireAuth, async (req, res) => {
 		)
 		const correctOption = correctOptionRows[0] || null // null-safe in case a question was seeded without a correct option marked
 
-		// STEP 3: Look up the event (for point_reward AND now for location
+		// STEP 5: Look up the event (for point_reward AND now for location
 		// verification too — reusing the same shared helper as the GET route
 		// above, so both endpoints agree on what "close enough" means).
 		const event = await getEventLocation(event_id)
 
-		// STEP 4: Actually verify location, if enabled. distance stays null
+		// STEP 6: Actually verify location, if enabled. distance stays null
 		// and status stays 'VERIFIED' when verification is turned off (dev/
 		// testing mode) — matching the previous stub behaviour exactly, so
 		// nothing breaks for teammates who haven't set the env flag.
 		let distance = null
 		let locationStatus = 'VERIFIED'
 
-		if (LOCATION_VERIFICATION_ENABLED) {
+		if (
+			req.body.qr_verified === true &&
+			req.body.location_check_id
+		) {
+			const [checkRows] = await pool.query(
+				`SELECT check_id FROM location_check_log WHERE check_id = ? AND event_id = ? AND status = 'FALLBACK_QR'`,
+				[req.body.location_check_id, event_id]
+			)
+			locationStatus = checkRows.length
+				? 'FALLBACK_QR'
+				: 'FAILED'
+		} else if (LOCATION_VERIFICATION_ENABLED) {
 			if (!event) {
 				return res
 					.status(404)
@@ -289,29 +408,33 @@ router.post('/submit', requireAuth, async (req, res) => {
 					: 'REJECTED'
 		}
 
-		// STEP 5: Check movement trust against the player's last location
-		// check BEFORE deciding points — a spoofed jump shouldn't earn points
-		// even if it lands inside the event radius.
-		const movement = await analyzeMovement(
-			user_id,
-			parseFloat(claimed_lat) || 0,
-			parseFloat(claimed_lng) || 0
-		)
-		const finalStatus =
-			locationStatus === 'VERIFIED' && movement.isSuspicious
-				? 'SPOOFED'
-				: locationStatus
-		const locationVerified = finalStatus === 'VERIFIED'
+		const locationVerified =
+			locationStatus === 'VERIFIED' ||
+			locationStatus === 'FALLBACK_QR'
 
-		// Points require a correct answer AND a verified (non-spoofed)
-		// location — someone who answers correctly from outside the radius,
-		// or via an impossible teleport between attempts, still shouldn't be
-		// rewarded.
+		// STEP 7: Time-decayed points.
+		//   A near-instant correct answer earns the full point_reward; using
+		//   the whole time limit earns half. Linear decay with a 50 % floor
+		//   (and a hard 1-point floor for edge cases like reward=1, where
+		//   Math.round(0.5) would otherwise give 0).
+		//     points = max(1, round(reward × (1 - elapsed_fraction / 2)))
+		//   Timeouts and incorrect answers always earn 0 regardless of speed
+		//   or location — points require all three: correct, on time, verified.
+		const baseReward = event?.point_reward || 10
 		const pointsAwarded =
-			isCorrect && locationVerified
-				? event?.point_reward || 10
+			isCorrect && locationVerified && !timedOutFinal
+				? Math.max(
+						1,
+						Math.round(
+							baseReward *
+								(1 -
+									elapsed_fraction /
+										2)
+						)
+					)
 				: 0
-		// STEP 6: ATOMIC AWARD + LOG + POINTS (user story 8).
+
+		// STEP 8: ATOMIC AWARD + LOG + POINTS (user story 8).
 		//
 		// The eligibility check, the award-ledger insert (event_card_awards,
 		// whose UNIQUE(user_id, event_id) is the hard backstop against a
@@ -329,12 +452,11 @@ router.post('/submit', requireAuth, async (req, res) => {
 		try {
 			await conn.beginTransaction()
 
-			// 6a. Log the location check with REAL values (including the
-			// previously-unused prev_check_id / travel_speed_ms columns), and
-			// finalStatus computed above in STEP 5.
+			// 8a. Log the location check with REAL values (replaces the old
+			// hardcoded 0, 0, 0, 'VERIFIED').
 			const [locCheck] = await conn.query(
-				`INSERT INTO location_check_log (user_id, event_id, claimed_lat, claimed_lng, distance_meters, status, prev_check_id, travel_speed_ms)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO location_check_log (user_id, event_id, claimed_lat, claimed_lng, distance_meters, status)
+         VALUES (?, ?, ?, ?, ?, ?)`,
 				[
 					user_id,
 					event_id,
@@ -343,22 +465,23 @@ router.post('/submit', requireAuth, async (req, res) => {
 					distance !== null
 						? Math.round(distance)
 						: 0,
-					finalStatus,
-					movement.prevCheckId,
-					movement.travelSpeedMps,
+					locationStatus,
 				]
 			)
 
-			// 6b. Award the card — once-only. Only a correct, location-verified
-			// answer is even eligible; a wrong or out-of-range attempt is still
-			// logged in 6c but never triggers issuance. awardCardIfEligible does
-			// the canAwardCard check itself, so a retry after a prior win returns
-			// ALREADY_EARNED and touches nothing.
+			// 8b. Award the card — once-only, at the player's speed bracket.
+			// Only a correct, on-time, location-verified answer is eligible;
+			// wrong, timed-out, or out-of-range attempts never trigger
+			// issuance. awardCardIfEligible does the canAwardCard check
+			// itself, so a retry after a prior win returns ALREADY_EARNED
+			// and touches nothing. elapsed_fraction selects the rarity tier
+			// (rarest bracket for the fastest answer).
 			award =
-				isCorrect && finalStatus === 'VERIFIED'
+				isCorrect && locationVerified && !timedOutFinal
 					? await awardCardIfEligible(conn, {
 							user_id,
 							event_id,
+							elapsed_fraction,
 						})
 					: {
 							awarded: false,
@@ -367,7 +490,7 @@ router.post('/submit', requireAuth, async (req, res) => {
 							reason: 'NOT_A_WIN',
 						}
 
-			// 6c. Record the attempt itself, carrying the awarded card_id (or
+			// 8c. Record the attempt itself, carrying the awarded card_id (or
 			// NULL). This row is what canAwardCard later queries to answer
 			// "has this player ever won this event?" — so it MUST be inserted
 			// after, not before, the award check (see the ordering note above).
@@ -381,13 +504,13 @@ router.post('/submit', requireAuth, async (req, res) => {
 					question_id,
 					locCheck.insertId,
 					isCorrect,
-					answer_time_ms || 0,
+					elapsed_capped,
 					award.card_id,
 					pointsAwarded,
 				]
 			)
 
-			// 6d. Only touch the points ledger when points were actually
+			// 8d. Only touch the points ledger when points were actually
 			// awarded — avoids a redundant 0-point UPDATE. Note: points are
 			// awarded on every correct+verified answer, including retries for
 			// practice; only the CARD is once-only (the story's scope).
@@ -410,15 +533,17 @@ router.post('/submit', requireAuth, async (req, res) => {
 			conn.release()
 		}
 
-		// STEP 7: Build the message, now accounting for the card outcome
-		// (awarded / already-earned / correct-only / wrong / too-far) so a
-		// retry-after-win reads as intended behaviour, not a silent bug.
+		// STEP 9: Build the message, now accounting for the card outcome
+		// (awarded / already-earned / correct-only / wrong / too-far /
+		// timeout) so each state reads as intended behaviour, not a bug.
 		let message
-		if (!locationVerified) {
+		if (timedOutFinal) {
+			message = `Time's up! The correct answer was ${correctOption?.body ?? 'hidden'}.`
+		} else if (!locationVerified) {
 			message =
 				'You were too far from this location for that attempt to count.'
 		} else if (isCorrect && award.awarded) {
-			message = `Correct! You earned ${pointsAwarded} points and a new card: ${award.card.name}!`
+			message = `Correct! You earned ${pointsAwarded} points and a new card: ${award.card.name} (${award.card.rarity})!`
 		} else if (isCorrect && award.reason === 'ALREADY_EARNED') {
 			message = `Correct! You earned ${pointsAwarded} points. You've already earned this card — no new card this time.`
 		} else if (isCorrect) {
@@ -430,15 +555,19 @@ router.post('/submit', requireAuth, async (req, res) => {
 		res.json({
 			success: true,
 			is_correct: isCorrect,
+			timed_out: timedOutFinal,
 			location_verified: locationVerified,
 			distance_meters:
 				distance !== null ? Math.round(distance) : null,
 			points_awarded: pointsAwarded,
+			answer_time_ms: elapsed_ms,
+			time_limit_s,
+			elapsed_fraction,
 			card_awarded: award.awarded, // user story 8 — was a new card issued this attempt?
 			awarded_card: award.card, // { card_id, name, image_url, rarity, category } | null
 			already_earned_card: award.reason === 'ALREADY_EARNED', // true on a winning retry-after-win
-			correct_option_id: correctOption?.option_id ?? null, // optional chaining + nullish coalescing: safely handles the case where correctOption is null
-			correct_option_text: correctOption?.body ?? null, // this is the string the frontend displays as "Correct answer: ___"
+			correct_option_id: correctOption?.option_id ?? null,
+			correct_option_text: correctOption?.body ?? null,
 			message,
 		})
 	} catch (err) {

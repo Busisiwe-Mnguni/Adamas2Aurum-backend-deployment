@@ -6,10 +6,11 @@
 			name="viewport"
 			content="width=device-width, initial-scale=1.0"
 		/>
-		<title>A2A — My Collection</title>
+		<title>Leaderboard — Adamas2Aurum</title>
+
 		<link rel="stylesheet" href="../css/style.css" />
 		<link rel="stylesheet" href="../css/account-menu.css" />
-		<link rel="stylesheet" href="../css/collection.css" />
+		<link rel="stylesheet" href="../css/leaderboard.css" />
 	</head>
 	<body>
 		<header class="site-header">
@@ -22,9 +23,10 @@
 						Adamas to Aurum
 					</span>
 				</a>
+
 				<nav class="header-nav" id="header-nav">
 					<a
-						href="events.html"
+						href="./events.html"
 						class="nav-link hidden"
 						id="nav-events"
 					>
@@ -51,8 +53,8 @@
 						Events
 					</a>
 					<a
-						href="collection.html"
-						class="nav-link nav-link-active hidden"
+						href="./collection.html"
+						class="nav-link hidden"
 						id="nav-collection"
 					>
 						<span class="nav-ico">
@@ -79,7 +81,7 @@
 						Collection
 					</a>
 					<a
-						href="battle.html"
+						href="./battle.html"
 						class="nav-link hidden"
 						id="nav-battle"
 					>
@@ -140,8 +142,8 @@
 						Battle
 					</a>
 					<a
-						href="leaderboard.html"
-						class="nav-link hidden"
+						href="./leaderboard.html"
+						class="nav-link nav-link-active hidden"
 						id="nav-leaderboard"
 					>
 						<span class="nav-ico">
@@ -177,21 +179,22 @@
 						Leaderboard
 					</a>
 					<a
-						href="console.html"
+						href="./console.html"
 						class="nav-link nav-link-admin hidden"
 						id="nav-console"
 					>
 						Console
 					</a>
 				</nav>
+
 				<div class="header-right">
 					<span
-						class="admin-badge hidden"
 						id="user-badge"
+						class="admin-badge hidden"
 					></span>
 					<button
-						class="btn btn-sm btn-header hidden"
 						id="btn-logout"
+						class="btn btn-sm btn-header hidden"
 					>
 						Logout
 					</button>
@@ -209,92 +212,134 @@
 		<main class="main">
 			<div id="toast" class="toast" aria-live="polite"></div>
 
-			<!-- Collection — shown once the auth check passes -->
-			<div id="collection-content" class="hidden">
-				<div class="page-header">
-					<div>
-						<h1 class="page-title">
-							My Collection
-						</h1>
-						<p
-							class="page-subtitle"
-							id="collection-subtitle"
-						>
-							Loading…
-						</p>
+			<div class="page-header">
+				<h1 class="page-title">Leaderboard</h1>
+				<p class="page-subtitle">
+					Every player ranked by points earned
+					from campus challenges.
+				</p>
+			</div>
+
+			<!-- Anonymous visitors see this soft prompt; the list
+			     below remains fully visible to them. -->
+			<div id="anon-banner" class="lb-anon-banner hidden">
+				<span>
+					You're browsing as a guest. Sign in to
+					see your own rank.
+				</span>
+				<a
+					href="../index.html"
+					class="btn btn-sm btn-primary"
+				>
+					Sign In
+				</a>
+			</div>
+
+			<!-- Signed-in visitor's own rank card. -->
+			<section
+				id="my-rank-card"
+				class="lb-my-rank hidden"
+				aria-live="polite"
+			>
+				<div class="lb-my-rank-header">
+					<div class="lb-my-rank-title">
+						Your Rank
 					</div>
-					<!-- Filter controls -->
 					<div
-						class="collection-filters"
-						id="collection-filters"
-						style="display: none"
-					>
-						<select
-							id="filter-category"
-							class="filter-select"
-						>
-							<option value="">
-								All categories
-							</option>
-							<option
-								value="CHARACTER"
-							>
-								Character
-							</option>
-							<option
-								value="LOCATION"
-							>
-								Location
-							</option>
-							<option
-								value="INFLUENCE"
-							>
-								Influence
-							</option>
-							<option
-								value="HISTORICAL"
-							>
-								Historical
-							</option>
-						</select>
-						<select
-							id="filter-rarity"
-							class="filter-select"
-						>
-							<option value="">
-								All rarities
-							</option>
-							<option value="COMMON">
-								Common
-							</option>
-							<option value="RARE">
-								Rare
-							</option>
-							<option
-								value="LEGENDARY"
-							>
-								Legendary
-							</option>
-						</select>
+						id="my-rank-position"
+						class="lb-my-rank-position"
+					></div>
+				</div>
+				<div class="lb-my-rank-body">
+					<div class="lb-my-rank-points">
+						<span
+							id="my-rank-points"
+							class="lb-points-value"
+						></span>
+						<span class="lb-points-label">
+							points
+						</span>
 					</div>
+					<div
+						id="my-rank-meta"
+						class="lb-my-rank-meta"
+					></div>
 				</div>
+			</section>
 
-				<div id="loading" class="state-msg">
-					Loading your cards…
-				</div>
-				<div id="empty" class="state-msg hidden">
-					No cards yet — head out to campus events
-					to earn your first one.
-				</div>
+			<!-- Top-N table -->
+			<section class="lb-table-wrap">
 				<div
-					id="error"
-					class="state-msg error hidden"
-				></div>
+					id="lb-state"
+					class="state-msg"
+					aria-live="polite"
+				>
+					Loading leaderboard…
+				</div>
 
-				<ul id="card-list" class="collection-grid"></ul>
+				<table
+					id="lb-table"
+					class="lb-table hidden"
+					aria-label="Global leaderboard"
+				>
+					<thead>
+						<tr>
+							<th
+								scope="col"
+								class="lb-col-rank"
+							>
+								#
+							</th>
+							<th scope="col">
+								Player
+							</th>
+							<th
+								scope="col"
+								class="lb-col-num"
+							>
+								Points
+							</th>
+							<th
+								scope="col"
+								class="lb-col-num lb-col-hide-sm"
+							>
+								W
+							</th>
+							<th
+								scope="col"
+								class="lb-col-num lb-col-hide-sm"
+							>
+								L
+							</th>
+						</tr>
+					</thead>
+					<tbody id="lb-tbody"></tbody>
+				</table>
+			</section>
+
+			<!-- Pagination -->
+			<div id="lb-pagination" class="lb-pagination hidden">
+				<button
+					id="lb-prev"
+					class="btn btn-ghost"
+					type="button"
+				>
+					← Prev
+				</button>
+				<span
+					id="lb-page-label"
+					class="lb-page-label"
+				></span>
+				<button
+					id="lb-next"
+					class="btn btn-ghost"
+					type="button"
+				>
+					Next →
+				</button>
 			</div>
 		</main>
 
-		<script type="module" src="../js/collection.js"></script>
+		<script type="module" src="../js/leaderboard.js"></script>
 	</body>
 </html>

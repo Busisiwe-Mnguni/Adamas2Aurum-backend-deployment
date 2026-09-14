@@ -5,6 +5,25 @@ import { error, success } from '../utils/response.js'
 
 const router = express.Router()
 
+/**
+ * Normalize an incoming datetime to a UTC 'YYYY-MM-DD HH:MM:SS' string
+ * for DATETIME storage. The console sends UTC ISO strings; naive
+ * 'YYYY-MM-DDTHH:MM' wall times (old clients, manual API use) are read
+ * as server-local. Returns null for empty/invalid input.
+ * DATETIME columns carry no zone, so everything must be UTC — the
+ * public window filter compares against UTC_TIMESTAMP().
+ */
+function toUtcDatetime(value) {
+	if (value == null || value === '') return null
+	const d = new Date(value)
+	if (isNaN(d)) return null
+	const p = (n) => String(n).padStart(2, '0')
+	return (
+		`${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}` +
+		` ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`
+	)
+}
+
 router.use((req, res, next) => {
 	console.log(
 		`[Events Router Log] ${new Date().toISOString()} - ${req.method} ${req.originalUrl}`
@@ -88,12 +107,14 @@ router.get('/', async (req, res) => {
 			return res.json(results)
 		}
 
-		// Public: only events that are active AND inside their time window
+		// Public: only events that are active AND inside their time window.
+		// Windows are stored as UTC, so compare against UTC_TIMESTAMP()
+		// (NOW() follows the DB host clock, which may not be UTC).
 		const [results] = await pool.query(
 			`SELECT * FROM events 
 			 WHERE is_active = TRUE 
-			   AND (starts_at IS NULL OR starts_at <= NOW()) 
-			   AND (ends_at IS NULL OR ends_at >= NOW())`
+			   AND (starts_at IS NULL OR starts_at <= UTC_TIMESTAMP()) 
+			   AND (ends_at IS NULL OR ends_at >= UTC_TIMESTAMP())`
 		)
 		res.json(results)
 	} catch (err) {
@@ -132,6 +153,7 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
 		repeat_interval,
 		attempt_cooldown_s,
 		max_attempts_per_window,
+		is_active,
 	} = req.body
 
 	if (!title || latitude == null || longitude == null || !radius_meters) {
@@ -148,7 +170,7 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
       starts_at, ends_at,
       repeat_interval, attempt_cooldown_s, max_attempts_per_window,
       is_active, author_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
 
 	const values = [
@@ -159,11 +181,12 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
 		radius_meters,
 		point_threshold ?? 0,
 		point_reward ?? 10,
-		starts_at ?? null,
-		ends_at ?? null,
+		toUtcDatetime(starts_at),
+		toUtcDatetime(ends_at),
 		repeat_interval ?? null,
 		attempt_cooldown_s ?? 86400,
 		max_attempts_per_window ?? 1,
+		is_active ?? true,
 		req.user.user_id,
 	]
 
@@ -222,8 +245,8 @@ router.put('/:id', requireAuth, requireEventAuthor, async (req, res) => {
 		radius_meters,
 		point_threshold ?? 0,
 		point_reward ?? 10,
-		starts_at ?? null,
-		ends_at ?? null,
+		toUtcDatetime(starts_at),
+		toUtcDatetime(ends_at),
 		repeat_interval ?? null,
 		attempt_cooldown_s ?? 86400,
 		max_attempts_per_window ?? 1,

@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS battles (
     player1_id    INT      NOT NULL,
     player2_id    INT,
     winner_id     INT,
-    status        ENUM('PENDING','ACTIVE','COMPLETED','ABANDONED') NOT NULL DEFAULT 'PENDING',
+    status        ENUM('PENDING','ACTIVE','COMPLETED','FORFEITED','ABANDONED') NOT NULL DEFAULT 'PENDING',
     started_at    DATETIME,
     ended_at      DATETIME,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -402,6 +402,57 @@ CREATE TABLE IF NOT EXISTS questions (
 
     CONSTRAINT fk_us6_question_event FOREIGN KEY (event_id)
         REFERENCES events (event_id) ON DELETE CASCADE
+);
+
+-- ============================================================
+--  QR FALLBACK TOKENS  (low-accuracy GPS fallback)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS event_qr_tokens (
+    token_id    INT          AUTO_INCREMENT PRIMARY KEY,
+    event_id    INT          NOT NULL,
+    token       VARCHAR(64)  NOT NULL UNIQUE,
+    expires_at  DATETIME     NOT NULL,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_qrt_event FOREIGN KEY (event_id) REFERENCES events (event_id) ON DELETE CASCADE
+);
+
+-- Add FALLBACK_QR to location_check_log status ENUM
+ALTER TABLE location_check_log
+    MODIFY COLUMN status ENUM('PENDING','VERIFIED','FAILED','SPOOFED','FALLBACK_QR') NOT NULL DEFAULT 'PENDING';
+
+-- ============================================================
+--  OFFLINE TRIVIA QUEUE LOG  (Sprint 2 — deferred verification)
+--
+--  Stores queued trivia attempt submissions sent from client-side
+--  storage when the device reconnects. Serves as the audit ledger
+--  for the /api/trivia/offline-attempts endpoint, which evaluates
+--  each queued attempt against its captured client_timestamp
+--  rather than the current server time.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS offline_trivia_queue (
+    queue_id            INT           AUTO_INCREMENT PRIMARY KEY,
+    user_id             INT           NOT NULL,
+    event_id            INT           NOT NULL,
+    question_id         INT           NOT NULL,
+    selected_option_id  INT           NOT NULL,
+    claimed_lat         DECIMAL(10,8) NOT NULL,
+    claimed_lng         DECIMAL(11,8) NOT NULL,
+    client_timestamp    DATETIME      NOT NULL,
+    status              ENUM(
+                          'ACCEPTED',
+                          'REJECTED_WINDOW_EXPIRED',
+                          'REJECTED_GEOFENCE',
+                          'REJECTED_WRONG_ANSWER',
+                          'REJECTED_INVALID_OPTION',
+                          'REJECTED_EVENT_NOT_FOUND',
+                          'ERROR'
+                        ) NOT NULL DEFAULT 'ACCEPTED',
+    processed_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_otq_user     FOREIGN KEY (user_id)     REFERENCES users             (user_id),
+    CONSTRAINT fk_otq_event    FOREIGN KEY (event_id)    REFERENCES events            (event_id),
+    CONSTRAINT fk_otq_question FOREIGN KEY (question_id) REFERENCES trivia_questions  (question_id)
 );
 
 SET FOREIGN_KEY_CHECKS = 1;
