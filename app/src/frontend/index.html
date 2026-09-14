@@ -45,6 +45,20 @@
 				width: 100%;
 				height: calc(100vh - 60px);
 			}
+			
+			.offline-banner {
+				display: none;
+				background: #78350f;
+				color: #fef3c7;
+				font-size: 0.85rem;
+				padding: 0.5rem 1rem;
+				text-align: center;
+				border-bottom: 1px solid #92400e;
+				font-weight: 500;
+			}
+			.offline-banner.visible {
+				display: block;
+			}
 
 			/* ---- Auth side drawer ---- */
 			.auth-overlay {
@@ -298,6 +312,8 @@
 			</div>
 		</header>
 
+		<!-- Offline sync banner — shown when attempts are queued or the device is offline -->
+		<div id="offline-banner" class="offline-banner" role="status" aria-live="polite"></div>
 		<div id="map"></div>
 
 		<!-- Auth side drawer overlay -->

@@ -115,6 +115,129 @@ const playerIcon = L.divIcon({
  * to a small hardcoded list, so the map still shows *something* instead of
  * a blank screen during development.
  */
+
+// ---------------------------------------------------------------------------
+// OFFLINE ATTEMPT QUEUE
+//
+// When a player answers a challenge but has no signal, we don't want to lose
+// the attempt — a dead zone on campus shouldn't stop them from playing. So
+// instead of failing, the attempt (answer + timestamp + location fix + ids)
+// is written to localStorage. It sits there until syncOfflineAttempts()
+// replays it against /api/trivia/submit, which runs automatically whenever
+// the browser fires 'online', and once on page load. The queue survives
+// page reloads and app restarts.
+// ---------------------------------------------------------------------------
+
+const OFFLINE_QUEUE_KEY = 'adamas.offlineAttempts.v1'
+
+function getOfflineQueue() {
+	try {
+		const raw = localStorage.getItem(OFFLINE_QUEUE_KEY)
+		if (!raw) return []
+		const parsed = JSON.parse(raw)
+		return Array.isArray(parsed) ? parsed : []
+	} catch (err) {
+		console.warn('Could not read offline queue:', err)
+		return []
+	}
+}
+
+function saveOfflineQueue(queue) {
+	try {
+		localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue))
+	} catch (err) {
+		console.warn('Could not write offline queue:', err)
+	}
+}
+
+function queueOfflineAttempt(attempt) {
+	const queue = getOfflineQueue()
+	queue.push(attempt)
+	saveOfflineQueue(queue)
+	updateOfflineBanner()
+}
+
+/**
+ * Paints the small status bar under the header. Called after every queue
+ * mutation and on network state change, so the player always sees an
+ * honest picture of what is / isn't synced.
+ */
+function updateOfflineBanner() {
+	const banner = document.getElementById('offline-banner')
+	if (!banner) return
+
+	const pending = getOfflineQueue().length
+	const online = navigator.onLine
+
+	if (!pending && online) {
+		banner.classList.remove('visible')
+		banner.textContent = ''
+		return
+	}
+
+	const s = pending === 1 ? '' : 's'
+	if (!online && pending) {
+		banner.textContent = `Offline — ${pending} attempt${s} saved, will sync when you're back online.`
+	} else if (!online) {
+		banner.textContent = ` You're offline — your next attempt will be saved on this device.`
+	} else {
+		banner.textContent = ` ${pending} saved attempt${s} waiting to sync…`
+	}
+	banner.classList.add('visible')
+}
+
+/**
+ * Replays every queued attempt against the server. Called on page load and
+ * on the window 'online' event.
+ *
+ * Drop rules:
+ *   - 2xx, 4xx → server saw it (even a rejection like 403 out-of-range
+ *     counts as "processed"), so remove from queue.
+ *   - 401      → session gone; keep queued, a future login can retry.
+ *   - 5xx or network error → keep queued, we'll try again later.
+ */
+async function syncOfflineAttempts() {
+	if (!navigator.onLine) {
+		updateOfflineBanner()
+		return
+	}
+
+	const queue = getOfflineQueue()
+	if (!queue.length) {
+		updateOfflineBanner()
+		return
+	}
+
+	const remaining = []
+	for (const attempt of queue) {
+		try {
+			const res = await fetch(`${API_BASE}/api/trivia/submit`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				body: JSON.stringify({
+					event_id: attempt.event_id,
+					question_id: attempt.question_id,
+					selected_option_id: attempt.selected_option_id,
+					answer_time_ms: attempt.answer_time_ms,
+					claimed_lat: attempt.claimed_lat,
+					claimed_lng: attempt.claimed_lng,
+					client_timestamp: attempt.timestamp,
+				}),
+			})
+
+			if (res.status === 401 || res.status >= 500) {
+				remaining.push(attempt)
+			}
+		} catch (err) {
+			// Still no network — stop and keep this one.
+			remaining.push(attempt)
+		}
+	}
+
+	saveOfflineQueue(remaining)
+	updateOfflineBanner()
+}
 async function fetchCampusEvents() {
 	try {
 		const res = await fetch(`${API_BASE}/api/events`, {
@@ -498,11 +621,23 @@ window.submitTriviaAnswer = async function (eventId, questionId, optionId) {
       `
 		}
 	} catch (err) {
-		// Network failure, backend down, etc. — distinct from the res.ok
-		// check above, which handles the backend responding but with an
-		// error status.
+		// Network failure, backend down, etc. — this is exactly the "dead
+		// zone on campus" case. Queue the attempt on the device instead of
+		// losing it, and be honest with the player about its state.
+		queueOfflineAttempt({
+			event_id: eventId,
+			question_id: questionId,
+			selected_option_id: optionId,
+			answer_time_ms: 1500,
+			claimed_lat: lat,
+			claimed_lng: lng,
+			timestamp: new Date().toISOString(),
+		})
 		if (resultContainer) {
-			resultContainer.innerHTML = `<p style="color: #c0392b;">Failed to submit answer. Ensure you are signed in.</p>`
+			resultContainer.innerHTML = `
+        <p style="color: #b8860b; font-weight: bold;"> Saved on this device — we'll sync when you're back online.</p>
+        <p style="color: #666; font-size: 0.8rem; margin-top: 4px;">Your answer and location fix are queued; nothing is lost.</p>
+      `
 		}
 	}
 }
@@ -788,4 +923,15 @@ function setupAuthDrawerHandlers() {
 document.addEventListener('DOMContentLoaded', () => {
 	setupAuthDrawerHandlers()
 	initializeApp()
+	// Offline queue: paint the banner immediately (so a queued attempt from
+	// a previous session is visible on load), try to flush anything left
+	// over, and react to network changes without any user action.
+	updateOfflineBanner()
+	syncOfflineAttempts()
+	window.addEventListener('online', () => {
+		syncOfflineAttempts()
+	})
+	window.addEventListener('offline', () => {
+		updateOfflineBanner()
+	})
 })
