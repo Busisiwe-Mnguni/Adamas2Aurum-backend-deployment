@@ -39,10 +39,32 @@ const LOCATION_VERIFICATION_ENABLED =
  */
 async function getEventLocation(eventId) {
 	const [rows] = await pool.query(
-		`SELECT latitude, longitude, radius_meters, point_reward FROM events WHERE event_id = ?`,
+		`SELECT latitude, longitude, radius_meters, point_reward, curation_status, is_active, starts_at, ends_at FROM events WHERE event_id = ?`,
 		[eventId]
 	)
 	return rows[0] || null
+}
+
+function isEventPlayable(ev) {
+	if (!ev) return { ok: false, reason: 'Event not found.' }
+	// If curation column missing (pre-migration) or undefined in test mocks, treat as published
+	if (ev.curation_status && ev.curation_status !== 'PUBLISHED')
+		return {
+			ok: false,
+			reason: `This event is ${ev.curation_status.toLowerCase().replace('_', ' ')} and not yet published.`,
+		}
+	if (
+		ev.is_active === false ||
+		ev.is_active === 0 ||
+		ev.is_active === '0'
+	)
+		return { ok: false, reason: 'This event is inactive.' }
+	const now = new Date()
+	if (ev.starts_at && new Date(ev.starts_at) > now)
+		return { ok: false, reason: 'This event has not started yet.' }
+	if (ev.ends_at && new Date(ev.ends_at) < now)
+		return { ok: false, reason: 'This event has ended.' }
+	return { ok: true }
 }
 
 /**
@@ -72,13 +94,19 @@ router.get('/event/:eventId', requireAuth, async (req, res) => {
 		const { lat, lng, accuracy, qr_verified, location_check_id } =
 			req.query
 
+		const curationEvent = await getEventLocation(eventId)
+		if (!curationEvent)
+			return res
+				.status(404)
+				.json({ error: 'Event not found.' })
+		const playableCheck = isEventPlayable(curationEvent)
+		if (!playableCheck.ok)
+			return res
+				.status(403)
+				.json({ error: playableCheck.reason })
+
 		if (LOCATION_VERIFICATION_ENABLED) {
-			const event = await getEventLocation(eventId)
-			if (!event) {
-				return res
-					.status(404)
-					.json({ error: 'Event not found.' })
-			}
+			const event = curationEvent
 
 			// Path A: QR fallback already verified — frontend passes the
 			// location_check_id from POST /api/events/:id/verify-qr
@@ -362,6 +390,10 @@ router.post('/submit', requireAuth, async (req, res) => {
 		// verification too — reusing the same shared helper as the GET route
 		// above, so both endpoints agree on what "close enough" means).
 		const event = await getEventLocation(event_id)
+		const playable = isEventPlayable(event)
+		if (!playable.ok) {
+			return res.status(403).json({ error: playable.reason })
+		}
 
 		// STEP 6: Actually verify location, if enabled. distance stays null
 		// and status stays 'VERIFIED' when verification is turned off (dev/

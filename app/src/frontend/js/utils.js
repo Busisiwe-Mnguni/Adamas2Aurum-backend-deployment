@@ -66,6 +66,17 @@ export function toUtcIso(localValue) {
 export function buildCardBody(ev) {
 	const activeClass = ev.is_active ? 'active' : 'inactive'
 	const activeLabel = ev.is_active ? 'Active' : 'Inactive'
+	const curation =
+		ev.curation_status || (ev.is_active ? 'PUBLISHED' : 'DRAFT')
+	const curationClass =
+		curation === 'PUBLISHED'
+			? 'active'
+			: curation === 'DRAFT'
+				? ''
+				: curation === 'IN_REVIEW'
+					? 'gold'
+					: 'inactive'
+	const curationLabel = curation.replace('_', ' ')
 	const startLabel = ev.starts_at
 		? `From ${formatDT(ev.starts_at)}`
 		: 'Always on'
@@ -76,17 +87,33 @@ export function buildCardBody(ev) {
 		ev.point_threshold > 0
 			? `<span class="meta-pill">🔒 ${ev.point_threshold} pts to unlock</span>`
 			: ''
-
+	const campaignPill = ev.campaign_id
+		? `<span class="meta-pill gold">🗓 Campaign #${ev.campaign_id}</span>`
+		: ''
 	return `
     <div class="event-card-title">${esc(ev.title)}</div>
     <div class="event-card-desc">${esc(ev.description || 'No description.')}</div>
     <div class="event-meta">
+      <span class="meta-pill ${curationClass}">${esc(curationLabel)}</span>
       <span class="meta-pill ${activeClass}">${activeLabel}</span>
       <span class="meta-pill">📍 ${ev.radius_meters}m</span>
       <span class="meta-pill gold">⚡ ${ev.point_reward} pts</span>
       <span class="meta-pill">${startLabel}</span>
       ${endPill}
       ${lockPill}
+      ${campaignPill}
     </div>
   `
+}
+
+export function curationBadge(status) {
+	const s = status || 'DRAFT'
+	const map = {
+		PUBLISHED: 'active',
+		IN_REVIEW: 'gold',
+		DRAFT: '',
+		RETIRED: 'inactive',
+		ARCHIVED: 'inactive',
+	}
+	return `<span class="meta-pill ${map[s] || ''}">${esc(s.replace('_', ' '))}</span>`
 }

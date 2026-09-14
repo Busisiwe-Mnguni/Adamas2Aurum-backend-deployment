@@ -61,6 +61,8 @@ const modalConfirm = document.getElementById('modal-confirm')
 const tabButtons = document.querySelectorAll('.tab-btn')
 const tabEvents = document.getElementById('tab-events')
 const tabCards = document.getElementById('tab-cards')
+const tabCampaigns = document.getElementById('tab-campaigns')
+const tabInsights = document.getElementById('tab-insights')
 
 // Sub-tabs (event edit view)
 const editLayout = document.getElementById('event-edit-layout')
@@ -101,7 +103,18 @@ let pendingCardDeleteId = null
 let pendingPoolDeleteId = null
 let allCards = []
 let allEvents = []
-let eventFilters = new Set(['active', 'scheduled', 'inactive', 'expired'])
+let allCampaigns = []
+let eventFilters = new Set([
+	'draft',
+	'in_review',
+	'published',
+	'active',
+	'scheduled',
+	'retired',
+	'archived',
+	'inactive',
+	'expired',
+])
 let cardFilters = new Set(['LEGENDARY', 'EPIC', 'RARE', 'UNCOMMON', 'COMMON'])
 
 // ── HELPERS ──
@@ -117,6 +130,8 @@ function hideAllConsoleUI() {
 	)
 	tabEvents.classList.add('hidden')
 	tabCards.classList.add('hidden')
+	tabCampaigns?.classList.add('hidden')
+	tabInsights?.classList.add('hidden')
 
 	if (editLayout) editLayout.classList.add('hidden')
 
@@ -202,33 +217,72 @@ tabButtons.forEach((btn) => {
 	btn.addEventListener('click', () => {
 		tabButtons.forEach((b) => b.classList.remove('tab-active'))
 		btn.classList.add('tab-active')
-
-		if (btn.dataset.tab === 'cards') {
-			tabEvents.classList.add('hidden')
+		tabEvents.classList.add('hidden')
+		tabCards.classList.add('hidden')
+		tabCampaigns?.classList.add('hidden')
+		tabInsights?.classList.add('hidden')
+		const tab = btn.dataset.tab
+		if (tab === 'cards') {
 			tabCards.classList.remove('hidden')
+			if (!elConsole.classList.contains('hidden')) loadCards()
+		} else if (tab === 'campaigns') {
+			tabCampaigns.classList.remove('hidden')
+			if (!elConsole.classList.contains('hidden'))
+				loadCampaigns()
+		} else if (tab === 'insights') {
+			tabInsights.classList.remove('hidden')
 			if (!elConsole.classList.contains('hidden')) {
-				loadCards()
+				loadInsightsOverview()
+				loadHardQuestions()
+				loadStaleEvents()
 			}
 		} else {
-			tabCards.classList.add('hidden')
 			tabEvents.classList.remove('hidden')
-			if (!elConsole.classList.contains('hidden')) {
+			if (!elConsole.classList.contains('hidden'))
 				loadEvents()
-			}
 		}
 	})
 })
 
 // ── EVENTS CRUD ──
-const EVENT_SECTION_ORDER = ['active', 'scheduled', 'inactive', 'expired']
+const EVENT_SECTION_ORDER = [
+	'draft',
+	'in_review',
+	'published',
+	'active',
+	'scheduled',
+	'retired',
+	'archived',
+	'inactive',
+	'expired',
+]
 const EVENT_SECTION_LABELS = {
+	draft: 'Draft',
+	in_review: 'In Review',
+	published: 'Published',
 	active: 'Active',
 	scheduled: 'Scheduled',
+	retired: 'Retired',
+	archived: 'Archived',
 	inactive: 'Inactive',
 	expired: 'Expired',
 }
 
 function classifyEvent(ev) {
+	// Curation status takes precedence if present (new workflow)
+	if (ev.curation_status) {
+		const s = String(ev.curation_status).toLowerCase()
+		if (
+			[
+				'draft',
+				'in_review',
+				'published',
+				'retired',
+				'archived',
+			].includes(s)
+		)
+			return s
+	}
 	const now = new Date()
 	if (!ev.is_active) return 'inactive'
 	if (ev.starts_at && new Date(ev.starts_at) > now) return 'scheduled'
@@ -302,9 +356,12 @@ function renderEvents() {
 		}
 	})
 
-	const groups = { active: [], scheduled: [], inactive: [], expired: [] }
+	const groups = {}
+	EVENT_SECTION_ORDER.forEach((k) => (groups[k] = []))
 	sorted.forEach((ev) => {
-		groups[classifyEvent(ev)].push(ev)
+		const key = classifyEvent(ev)
+		if (!groups[key]) groups[key] = []
+		groups[key].push(ev)
 	})
 
 	let visibleCount = 0
@@ -349,15 +406,23 @@ function buildEventCard(ev) {
 	const li = document.createElement('li')
 	li.className = 'event-card'
 	li.dataset.id = ev.event_id
+	const status = ev.curation_status || 'DRAFT'
+	let workflowBtn = ''
+	if (status === 'DRAFT')
+		workflowBtn = `<button class="btn btn-ghost btn-sm" data-action="transition" data-to="IN_REVIEW">Submit for review</button>`
+	else if (status === 'IN_REVIEW')
+		workflowBtn = `<button class="btn btn-primary btn-sm" data-action="transition" data-to="PUBLISHED">Publish</button> <button class="btn btn-ghost btn-sm" data-action="transition" data-to="DRAFT">Back to draft</button>`
+	else if (status === 'PUBLISHED')
+		workflowBtn = `<button class="btn btn-ghost btn-sm" data-action="transition" data-to="RETIRED" style="color:var(--danger)">Retire</button>`
+	else if (status === 'RETIRED')
+		workflowBtn = `<button class="btn btn-ghost btn-sm" data-action="transition" data-to="ARCHIVED">Archive</button> <button class="btn btn-primary btn-sm" data-action="transition" data-to="PUBLISHED">Republish</button>`
 
 	li.innerHTML = `
         <div class="event-card-body">${buildCardBody(ev)}</div>
         <div class="event-card-actions">
+            ${workflowBtn}
             <button class="btn btn-ghost btn-sm" data-action="edit">Edit</button>
-            <button class="btn btn-sm" data-action="delete"
-                style="color:var(--danger);border-color:#5a2a2a;background:var(--danger-dim);">
-                Delete
-            </button>
+            <button class="btn btn-sm" data-action="delete" style="color:var(--danger);border-color:#5a2a2a;background:var(--danger-dim);">Delete</button>
         </div>
     `
 
@@ -368,12 +433,50 @@ function buildEventCard(ev) {
 		'click',
 		() => openEventModal(ev.title, ev.event_id)
 	)
+	li.querySelectorAll('[data-action="transition"]').forEach((b) => {
+		b.addEventListener('click', async () => {
+			const to = b.dataset.to
+			b.disabled = true
+			try {
+				const res = await fetch(
+					`${EVENTS_API}/${ev.event_id}/transition`,
+					{
+						method: 'POST',
+						credentials: 'include',
+						headers: {
+							'Content-Type':
+								'application/json',
+						},
+						body: JSON.stringify({ to }),
+					}
+				)
+				const data = await res.json()
+				if (!res.ok)
+					throw new Error(
+						data.error ||
+							'Transition failed'
+					)
+				showToast(
+					data.message || `Moved to ${to}`,
+					'success'
+				)
+				loadEvents()
+			} catch (err) {
+				showToast(err.message, 'error')
+				b.disabled = false
+			}
+		})
+	})
 
 	return li
 }
 
 btnNew.addEventListener('click', () => {
 	resetEventForm()
+	f('f-curation').value = 'DRAFT'
+	f('f-campaign').value = ''
+	renderCurationActions('DRAFT')
+	populateCampaignSelect()
 	formHeading.textContent = 'New Event'
 	btnSubmit.textContent = 'Save Event'
 	btnSubmit.disabled = false
@@ -384,6 +487,31 @@ btnNew.addEventListener('click', () => {
 	showEventForm()
 })
 
+async function populateCampaignSelect(selected = null) {
+	const sel = f('f-campaign')
+	if (!sel) return
+	try {
+		const res = await fetch(`${API_BASE}/api/campaigns?all=true`, {
+			credentials: 'include',
+		})
+		if (!res.ok) return
+		const data = await res.json()
+		allCampaigns = data
+		sel.innerHTML = '<option value="">— none —</option>'
+		data.forEach((c) => {
+			const o = document.createElement('option')
+			o.value = c.campaign_id
+			o.textContent = `${c.name} (${c.status}${c.term ? ' · ' + c.term : ''}${c.is_open_day ? ' · open day' : ''})`
+			sel.appendChild(o)
+		})
+		if (selected) sel.value = selected
+	} catch {}
+}
+f('f-curation')?.addEventListener('change', (e) =>
+	renderCurationActions(e.target.value)
+)
+populateCampaignSelect()
+
 btnCancel.addEventListener('click', () => {
 	resetEventForm()
 	editLayout.classList.add('hidden')
@@ -391,7 +519,7 @@ btnCancel.addEventListener('click', () => {
 	loadEvents()
 })
 
-function openEventEditForm(ev) {
+async function openEventEditForm(ev) {
 	resetEventForm()
 	formHeading.textContent = 'Edit Event'
 	btnSubmit.textContent = 'Save Changes'
@@ -411,12 +539,69 @@ function openEventEditForm(ev) {
 	f('f-active').checked = !!ev.is_active
 	f('f-starts').value = toDatetimeLocal(ev.starts_at)
 	f('f-ends').value = toDatetimeLocal(ev.ends_at)
+	await populateCampaignSelect(ev.campaign_id ?? null)
+	f('f-curation').value = ev.curation_status ?? 'DRAFT'
+	renderCurationActions(ev.curation_status ?? 'DRAFT')
 
 	showEventForm()
 	editLayout.classList.remove('hidden')
 	document.getElementById('event-sub-tabs').style.display = ''
 	resetSubTabs('details')
 	setSubTabsEnabled(true)
+}
+
+function renderCurationActions(status) {
+	const el = document.getElementById('curation-actions')
+	if (!el) return
+	el.innerHTML = ''
+	const s = status || 'DRAFT'
+	const mk = (label, to, cls = 'btn-ghost') => {
+		const b = document.createElement('button')
+		b.type = 'button'
+		b.className = `btn ${cls} btn-sm`
+		b.textContent = label
+		b.addEventListener('click', async () => {
+			const id = editIdInput.value
+			if (!id) return showToast('Save event first', 'error')
+			b.disabled = true
+			try {
+				const res = await fetch(
+					`${EVENTS_API}/${id}/transition`,
+					{
+						method: 'POST',
+						credentials: 'include',
+						headers: {
+							'Content-Type':
+								'application/json',
+						},
+						body: JSON.stringify({ to }),
+					}
+				)
+				const data = await res.json()
+				if (!res.ok)
+					throw new Error(data.error || 'Failed')
+				showToast(data.message, 'success')
+				f('f-curation').value = to
+				renderCurationActions(to)
+				loadEvents()
+			} catch (e) {
+				showToast(e.message, 'error')
+				b.disabled = false
+			}
+		})
+		el.appendChild(b)
+	}
+	if (s === 'DRAFT') mk('Submit for review → In Review', 'IN_REVIEW')
+	else if (s === 'IN_REVIEW') {
+		mk('Publish ✓', 'PUBLISHED', 'btn-primary')
+		mk('Back to Draft', 'DRAFT')
+	} else if (s === 'PUBLISHED') {
+		mk('Retire', 'RETIRED')
+		mk('Send back to Review', 'IN_REVIEW')
+	} else if (s === 'RETIRED') {
+		mk('Republish', 'PUBLISHED', 'btn-primary')
+		mk('Archive', 'ARCHIVED')
+	}
 }
 
 function resetSubTabs(active) {
@@ -458,6 +643,10 @@ eventForm.addEventListener('submit', async (e) => {
 		return
 	}
 
+	const curation_status = f('f-curation')?.value || 'DRAFT'
+	const campaign_id = f('f-campaign')?.value
+		? parseInt(f('f-campaign').value, 10)
+		: null
 	const payload = {
 		title: title,
 		description: f('f-description').value.trim() || null,
@@ -476,6 +665,8 @@ eventForm.addEventListener('submit', async (e) => {
 		starts_at: toUtcIso(f('f-starts').value),
 		ends_at: toUtcIso(f('f-ends').value),
 		is_active: f('f-active').checked,
+		curation_status,
+		campaign_id,
 	}
 
 	btnSubmit.disabled = true
@@ -1456,10 +1647,41 @@ function wireFilterChips(container, filterSet, allKeys, renderFn) {
 	})
 }
 
+// inject missing curation filter chips dynamically
+;(function ensureCurationChips() {
+	if (!eventFilterChips) return
+	const needed = [
+		['draft', 'Draft'],
+		['in_review', 'In Review'],
+		['published', 'Published'],
+		['retired', 'Retired'],
+		['archived', 'Archived'],
+	]
+	needed.forEach(([key, label]) => {
+		if (!eventFilterChips.querySelector(`[data-filter="${key}"]`)) {
+			const b = document.createElement('button')
+			b.type = 'button'
+			b.className = 'meta-pill filter-chip active'
+			b.dataset.filter = key
+			b.textContent = label
+			eventFilterChips.appendChild(b)
+		}
+	})
+})()
 wireFilterChips(
 	eventFilterChips,
 	eventFilters,
-	['active', 'scheduled', 'inactive', 'expired'],
+	[
+		'draft',
+		'in_review',
+		'published',
+		'active',
+		'scheduled',
+		'retired',
+		'archived',
+		'inactive',
+		'expired',
+	],
 	renderEvents
 )
 wireFilterChips(
@@ -1721,3 +1943,441 @@ poolModalConfirm.addEventListener('click', async () => {
 		showToast(err.message, 'error')
 	}
 })
+
+// ============================================================
+// Campaigns CRUD
+// ============================================================
+const CAMPAIGNS_API = `${API_BASE}/api/campaigns`
+const elCampList = document.getElementById('campaign-list')
+const elCampCount = document.getElementById('campaign-count')
+const elCampLoading = document.getElementById('campaign-loading')
+const elCampEmpty = document.getElementById('campaign-empty')
+const elCampError = document.getElementById('campaign-list-error')
+const campViewList = document.getElementById('campaign-view-list')
+const campViewForm = document.getElementById('campaign-view-form')
+const campForm = document.getElementById('campaign-form')
+const campHeading = document.getElementById('campaign-form-heading')
+const campEditId = document.getElementById('campaign-edit-id')
+const btnCampNew = document.getElementById('btn-campaign-new')
+const btnCampCancel = document.getElementById('btn-campaign-cancel')
+const btnCampSubmit = document.getElementById('btn-campaign-submit')
+
+function showCampList() {
+	campViewList?.classList.remove('hidden')
+	campViewForm?.classList.add('hidden')
+}
+function showCampForm() {
+	campViewList?.classList.add('hidden')
+	campViewForm?.classList.remove('hidden')
+}
+function resetCampForm() {
+	campForm?.reset()
+	if (campEditId) campEditId.value = ''
+	if (btnCampSubmit) {
+		btnCampSubmit.disabled = false
+		btnCampSubmit.textContent = 'Save Campaign'
+	}
+	document.getElementById('campaign-event-checkboxes').innerHTML = ''
+}
+
+async function loadCampaigns() {
+	if (!elCampList) return
+	elCampLoading?.classList.remove('hidden')
+	elCampEmpty?.classList.add('hidden')
+	elCampError?.classList.add('hidden')
+	elCampList.innerHTML = ''
+	elCampCount.textContent = 'Loading…'
+	try {
+		const res = await fetch(`${CAMPAIGNS_API}?all=true`, {
+			credentials: 'include',
+		})
+		if (!res.ok) throw new Error(`Server ${res.status}`)
+		const data = await res.json()
+		allCampaigns = data
+		populateCampaignSelect()
+		elCampLoading?.classList.add('hidden')
+		if (!data.length) {
+			elCampEmpty?.classList.remove('hidden')
+			elCampCount.textContent = '0 campaigns'
+			return
+		}
+		elCampCount.textContent = `${data.length} campaign${data.length !== 1 ? 's' : ''}`
+		data.forEach((c) =>
+			elCampList.appendChild(buildCampaignCard(c))
+		)
+	} catch (err) {
+		elCampLoading?.classList.add('hidden')
+		if (elCampError) {
+			elCampError.textContent = `Could not load — ${err.message}`
+			elCampError.classList.remove('hidden')
+		}
+	}
+}
+function buildCampaignCard(c) {
+	const li = document.createElement('li')
+	li.className = 'event-card'
+	li.dataset.id = c.campaign_id
+	const statusMap = {
+		DRAFT: '',
+		SCHEDULED: 'gold',
+		ACTIVE: 'active',
+		ARCHIVED: 'inactive',
+	}
+	const termPill = c.term
+		? `<span class="meta-pill">${esc(c.term)}</span>`
+		: ''
+	const openPill = c.is_open_day
+		? `<span class="meta-pill gold">open day${c.open_day_label ? ': ' + esc(c.open_day_label) : ''}</span>`
+		: ''
+	const win = c.starts_at ? `From ${formatDT(c.starts_at)}` : 'No window'
+	const end = c.ends_at
+		? `<span class="meta-pill">${formatDT(c.ends_at)}</span>`
+		: ''
+	li.innerHTML = `<div class="event-card-body"><div class="event-card-title">${esc(c.name)}</div><div class="event-card-desc">${esc(c.description || 'No description.')}</div><div class="event-meta"><span class="meta-pill ${statusMap[c.status] || ''}">${esc(c.status)}</span>${termPill}${openPill}<span class="meta-pill">${win}</span>${end}</div></div><div class="event-card-actions"><button class="btn btn-ghost btn-sm" data-action="edit">Edit</button><button class="btn btn-sm" data-action="delete" style="color:var(--danger);border-color:#5a2a2a;background:var(--danger-dim);">Delete</button></div>`
+	li.querySelector('[data-action="edit"]').addEventListener('click', () =>
+		openCampaignEdit(c)
+	)
+	li.querySelector('[data-action="delete"]').addEventListener(
+		'click',
+		async () => {
+			if (
+				!confirm(
+					`Delete campaign "${c.name}"? Events will be unlinked.`
+				)
+			)
+				return
+			const res = await fetch(
+				`${CAMPAIGNS_API}/${c.campaign_id}`,
+				{ method: 'DELETE', credentials: 'include' }
+			)
+			if (!res.ok) {
+				const d = await res.json()
+				return showToast(
+					d.error || 'Delete failed',
+					'error'
+				)
+			}
+			showToast('Campaign deleted', 'success')
+			loadCampaigns()
+		}
+	)
+	return li
+}
+async function openCampaignEdit(c) {
+	resetCampForm()
+	campHeading.textContent = 'Edit Campaign'
+	btnCampSubmit.textContent = 'Save Changes'
+	showCampForm()
+	campEditId.value = c.campaign_id
+	document.getElementById('camp-name').value = c.name || ''
+	document.getElementById('camp-desc').value = c.description || ''
+	document.getElementById('camp-term').value = c.term || ''
+	document.getElementById('camp-status').value = c.status || 'DRAFT'
+	document.getElementById('camp-starts').value = toDatetimeLocal(
+		c.starts_at
+	)
+	document.getElementById('camp-ends').value = toDatetimeLocal(c.ends_at)
+	document.getElementById('camp-open-day').checked = !!c.is_open_day
+	document.getElementById('camp-open-label').value =
+		c.open_day_label || ''
+	// load events for checkboxes
+	try {
+		const [evRes, linkRes] = await Promise.all([
+			fetch(`${EVENTS_API}?all=true`, {
+				credentials: 'include',
+			}),
+			fetch(`${CAMPAIGNS_API}/${c.campaign_id}`, {
+				credentials: 'include',
+			}),
+		])
+		const evs = evRes.ok ? await evRes.json() : []
+		const detail = linkRes.ok
+			? await linkRes.json()
+			: { events: [] }
+		const linked = new Set(
+			(detail.events || []).map((e) => e.event_id)
+		)
+		const box = document.getElementById('campaign-event-checkboxes')
+		box.innerHTML = ''
+		if (!evs.length) box.textContent = 'No events exist yet.'
+		else
+			evs.forEach((ev) => {
+				const id = `camp-ev-${ev.event_id}`
+				const row = document.createElement('label')
+				row.style.display = 'flex'
+				row.style.gap = '0.5rem'
+				row.style.alignItems = 'center'
+				row.style.fontSize = '0.85rem'
+				row.innerHTML = `<input type="checkbox" value="${ev.event_id}" ${linked.has(ev.event_id) ? 'checked' : ''} /> <span>${esc(ev.title)} <small style="color:var(--text-muted)">(${ev.curation_status || 'DRAFT'})</small></span>`
+				box.appendChild(row)
+			})
+	} catch {}
+}
+btnCampNew?.addEventListener('click', async () => {
+	resetCampForm()
+	campHeading.textContent = 'New Campaign'
+	btnCampSubmit.textContent = 'Save Campaign'
+	showCampForm()
+	try {
+		const res = await fetch(`${EVENTS_API}?all=true`, {
+			credentials: 'include',
+		})
+		const evs = res.ok ? await res.json() : []
+		const box = document.getElementById('campaign-event-checkboxes')
+		box.innerHTML = ''
+		if (!evs.length) box.textContent = 'No events to link.'
+		else
+			evs.forEach((ev) => {
+				const row = document.createElement('label')
+				row.style.display = 'flex'
+				row.style.gap = '0.5rem'
+				row.style.alignItems = 'center'
+				row.style.fontSize = '0.85rem'
+				row.innerHTML = `<input type="checkbox" value="${ev.event_id}" /> <span>${esc(ev.title)}</span>`
+				box.appendChild(row)
+			})
+	} catch {}
+})
+btnCampCancel?.addEventListener('click', () => {
+	resetCampForm()
+	showCampList()
+	loadCampaigns()
+})
+campForm?.addEventListener('submit', async (e) => {
+	e.preventDefault()
+	const id = campEditId.value
+	const name = document.getElementById('camp-name').value.trim()
+	if (!name) return showToast('Name required', 'error')
+	const payload = {
+		name,
+		description:
+			document.getElementById('camp-desc').value.trim() ||
+			null,
+		term: document.getElementById('camp-term').value.trim() || null,
+		status: document.getElementById('camp-status').value,
+		starts_at: toUtcIso(
+			document.getElementById('camp-starts').value
+		),
+		ends_at: toUtcIso(document.getElementById('camp-ends').value),
+		is_open_day: document.getElementById('camp-open-day').checked,
+		open_day_label:
+			document
+				.getElementById('camp-open-label')
+				.value.trim() || null,
+	}
+	btnCampSubmit.disabled = true
+	btnCampSubmit.textContent = 'Saving…'
+	try {
+		const url = id ? `${CAMPAIGNS_API}/${id}` : CAMPAIGNS_API
+		const method = id ? 'PUT' : 'POST'
+		const res = await fetch(url, {
+			method,
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload),
+		})
+		const data = await res.json()
+		if (!res.ok) throw new Error(data.error || 'Save failed')
+		const campaignId = id || data.campaign_id
+		// sync linked events
+		const checked = [
+			...document.querySelectorAll(
+				'#campaign-event-checkboxes input:checked'
+			),
+		].map((i) => parseInt(i.value, 10))
+		// fetch previous links to diff
+		const detailRes = await fetch(
+			`${CAMPAIGNS_API}/${campaignId}`,
+			{ credentials: 'include' }
+		)
+		const detail = detailRes.ok
+			? await detailRes.json()
+			: { events: [] }
+		const prev = new Set(
+			(detail.events || []).map((e) => e.event_id)
+		)
+		const now = new Set(checked)
+		// unlink removed
+		for (const pid of prev) {
+			if (!now.has(pid))
+				await fetch(
+					`${CAMPAIGNS_API}/${campaignId}/events/${pid}`,
+					{
+						method: 'DELETE',
+						credentials: 'include',
+					}
+				)
+		}
+		// link new
+		const toAdd = checked.filter((cid) => !prev.has(cid))
+		if (toAdd.length)
+			await fetch(`${CAMPAIGNS_API}/${campaignId}/events`, {
+				method: 'POST',
+				credentials: 'include',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ event_ids: toAdd }),
+			})
+		showToast(
+			id ? 'Campaign updated' : 'Campaign created',
+			'success'
+		)
+		resetCampForm()
+		showCampList()
+		loadCampaigns()
+		populateCampaignSelect()
+	} catch (err) {
+		showToast(err.message, 'error')
+		btnCampSubmit.disabled = false
+		btnCampSubmit.textContent = id
+			? 'Save Changes'
+			: 'Save Campaign'
+	}
+})
+
+// ============================================================
+// Insights: hard questions + stale events
+// ============================================================
+const elHardList = document.getElementById('hard-list'),
+	elHardLoading = document.getElementById('hard-loading'),
+	elHardEmpty = document.getElementById('hard-empty')
+const elStaleList = document.getElementById('stale-list'),
+	elStaleLoading = document.getElementById('stale-loading'),
+	elStaleEmpty = document.getElementById('stale-empty')
+const elOverview = document.getElementById('insights-overview')
+
+async function loadInsightsOverview() {
+	if (!elOverview) return
+	try {
+		const res = await fetch(`${API_BASE}/api/analytics/overview`, {
+			credentials: 'include',
+		})
+		if (!res.ok) throw new Error('failed')
+		const data = await res.json()
+		elOverview.innerHTML = `
+			<div style="flex:1;min-width:140px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:0.85rem;"><div style="font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Hard questions</div><div style="font-size:1.6rem;font-weight:800;color:var(--danger)">${data.hard_questions ?? 0}</div></div>
+			<div style="flex:1;min-width:140px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:0.85rem;"><div style="font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Stale events</div><div style="font-size:1.6rem;font-weight:800;color:var(--accent)">${data.stale_events ?? 0}</div></div>
+			<div style="flex:2;min-width:220px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:0.85rem;"><div style="font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted)">Events by curation</div><div style="font-size:0.82rem;margin-top:0.25rem;">${(data.statusCounts || []).map((r) => `${esc(r.status)}: ${r.count}`).join(' · ') || '—'}</div></div>`
+	} catch {
+		elOverview.textContent = 'Could not load overview.'
+	}
+}
+async function loadHardQuestions() {
+	if (!elHardList) return
+	elHardLoading?.classList.remove('hidden')
+	elHardEmpty?.classList.add('hidden')
+	elHardList.innerHTML = ''
+	try {
+		const res = await fetch(
+			`${API_BASE}/api/analytics/questions/hard?threshold=0.6&min_attempts=5&limit=20`,
+			{ credentials: 'include' }
+		)
+		if (!res.ok) throw new Error(`Server ${res.status}`)
+		const data = await res.json()
+		elHardLoading?.classList.add('hidden')
+		if (!data.length) {
+			elHardEmpty?.classList.remove('hidden')
+			return
+		}
+		data.forEach((q) => {
+			const li = document.createElement('li')
+			li.className = 'q-item'
+			const pct = Math.round(q.failure_rate * 100)
+			li.innerHTML = `<div><div class="q-item-text">${esc(q.text)}</div><div class="q-item-meta">${esc(q.event_title)} · ${esc(q.type.replace('_', ' ').toLowerCase())} · ${q.attempts} attempts · <span style="color:var(--danger);font-weight:700">${pct}% wrong</span> (${q.wrong} wrong / ${q.correct} correct)</div><div style="margin-top:0.35rem;display:flex;gap:0.35rem;flex-wrap:wrap;">${(q.options || []).map((o) => `<span class="meta-pill" style="${o.is_correct ? 'border-color:var(--success);color:var(--success)' : ''}">${esc(o.body)}${o.is_correct ? ' ✓' : ''}</span>`).join('')}</div></div><div class="q-item-actions"><button class="btn btn-ghost btn-sm" data-action="repair">Repair</button></div>`
+			li.querySelector(
+				'[data-action="repair"]'
+			).addEventListener('click', () => {
+				// jump to events tab and open the event's question panel
+				const ev = allEvents.find(
+					(e) => e.event_id === q.event_id
+				)
+				if (ev) {
+					document.querySelector(
+						'[data-tab="events"]'
+					)?.click()
+					setTimeout(
+						() => openEventEditForm(ev),
+						150
+					)
+					setTimeout(() => {
+						resetSubTabs('questions') // also focus question
+						const qEl =
+							document.querySelector(
+								`[data-id="${q.id}"]`
+							)
+						qEl?.scrollIntoView({
+							behavior: 'smooth',
+							block: 'center',
+						})
+					}, 400)
+				} else {
+					showToast(
+						'Event not loaded — refresh events first',
+						'error'
+					)
+				}
+			})
+			elHardList.appendChild(li)
+		})
+	} catch (err) {
+		elHardLoading?.classList.add('hidden')
+		showToast(err.message, 'error')
+	}
+}
+async function loadStaleEvents() {
+	if (!elStaleList) return
+	elStaleLoading?.classList.remove('hidden')
+	elStaleEmpty?.classList.add('hidden')
+	elStaleList.innerHTML = ''
+	try {
+		const res = await fetch(
+			`${API_BASE}/api/analytics/events/stale?days=30`,
+			{ credentials: 'include' }
+		)
+		if (!res.ok) throw new Error(`Server ${res.status}`)
+		const data = await res.json()
+		elStaleLoading?.classList.add('hidden')
+		if (!data.length) {
+			elStaleEmpty?.classList.remove('hidden')
+			return
+		}
+		data.forEach((ev) => {
+			const li = document.createElement('li')
+			li.className = 'event-card'
+			li.innerHTML = `<div class="event-card-body"><div class="event-card-title">${esc(ev.title)}</div><div class="event-card-desc">${ev.ends_at ? `Ended ${formatDT(ev.ends_at)} · ${ev.days_since_end} days ago` : `Created ${formatDT(ev.created_at)} · ${ev.days_since_end} days ago`} · <span class="meta-pill ${ev.curation_status === 'PUBLISHED' ? 'active' : ''}">${esc(ev.curation_status)}</span></div></div><div class="event-card-actions"><button class="btn btn-ghost btn-sm" data-action="retire">Retire</button><button class="btn btn-ghost btn-sm" data-action="edit">Edit</button></div>`
+			li.querySelector(
+				'[data-action="retire"]'
+			).addEventListener('click', async () => {
+				const r = await fetch(
+					`${EVENTS_API}/${ev.event_id}/retire`,
+					{
+						method: 'POST',
+						credentials: 'include',
+					}
+				)
+				const d = await r.json()
+				if (!r.ok) return showToast(d.error, 'error')
+				showToast('Event retired', 'success')
+				loadStaleEvents()
+				loadEvents()
+			})
+			li.querySelector(
+				'[data-action="edit"]'
+			).addEventListener('click', () => {
+				const full =
+					allEvents.find(
+						(e) =>
+							e.event_id ===
+							ev.event_id
+					) || ev
+				document.querySelector(
+					'[data-tab="events"]'
+				)?.click()
+				setTimeout(() => openEventEditForm(full), 150)
+			})
+			elStaleList.appendChild(li)
+		})
+	} catch (err) {
+		elStaleLoading?.classList.add('hidden')
+		showToast(err.message, 'error')
+	}
+}
