@@ -6,6 +6,8 @@ import url from 'url'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
 
+const caCertPath = process.env.DB_CA_CERT_PATH || path.join(__dirname, '..', 'certs', 'ca.pem');
+
 const pool = mysql.createPool({
 	host: process.env.DB_HOST || 'localhost',
 	port: Number(process.env.DB_PORT) || 8024,
@@ -15,14 +17,7 @@ const pool = mysql.createPool({
 	ssl:
 		process.env.DB_SSL === 'true'
 			? {
-					ca: fs.readFileSync(
-						path.join(
-							__dirname,
-							'..',
-							'certs',
-							'ca.pem'
-						)
-					),
+					ca: fs.readFileSync(caCertPath),
 					rejectUnauthorized: true,
 				}
 			: false,
