@@ -455,4 +455,23 @@ CREATE TABLE IF NOT EXISTS offline_trivia_queue (
     CONSTRAINT fk_otq_question FOREIGN KEY (question_id) REFERENCES trivia_questions  (question_id)
 );
 
+-- ============================================================
+--  19. CAMPAIGNS  (curation : scheduled around term / open day)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS campaigns (
+    campaign_id   INT          AUTO_INCREMENT PRIMARY KEY,
+    name          VARCHAR(255) NOT NULL,
+    description   TEXT,
+    term          VARCHAR(100),
+    is_open_day   BOOLEAN      NOT NULL DEFAULT FALSE,
+    open_day_label VARCHAR(255),
+    starts_at     DATETIME,
+    ends_at       DATETIME,
+    status        ENUM('DRAFT','SCHEDULED','ACTIVE','ARCHIVED') NOT NULL DEFAULT 'DRAFT',
+    created_by    INT,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_campaign_author FOREIGN KEY (created_by) REFERENCES users (user_id)
+);
+
 SET FOREIGN_KEY_CHECKS = 1;

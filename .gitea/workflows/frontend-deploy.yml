@@ -7,7 +7,8 @@ on:
 
 jobs:
         frontend-deploy:
-                runs-on: ubuntu-latest # Ensure your Gitea runner supports Docker or ubuntu-latest tags
+                runs-on: ubuntu-latest
+                if: ${{ vars.ENABLE_FRONTEND_DEPLOY == 'true' }}
                 steps:
                         - name: Checkout repository
                           uses: actions/checkout@v4
@@ -17,8 +18,20 @@ jobs:
                         - name: Setup Node.js
                           uses: actions/setup-node@v4
                           with:
-                                  node-version: 20
-                                  cache: 'npm' # Speeds up subsequent runs if package-lock.json exists
+                                  node-version: '20'
+                                  cache: 'npm'
+
+                        - name: Point frontend at the production backend
+                          run: bash ./switch-env.sh render app/src/frontend
+                          env:
+                                  BACKEND_RENDER_URL: ${{ secrets.BACKEND_RENDER_URL }}
+
+                        - name: Verify no localhost references remain
+                          run: |
+                                  if grep -rl "localhost:3000" app/src/frontend --include="*.js"; then
+                                    echo "::error::Found leftover localhost references after the URL swap - aborting deploy."
+                                    exit 1
+                                  fi
 
                         - name: Deploy to Cloudflare Pages
                           run: npx wrangler deploy --assets=./app/src/frontend --name website --no-bundle --compatibility-date "$(date -u +%Y-%m-%d)"

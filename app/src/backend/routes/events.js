@@ -3,6 +3,42 @@ import express from 'express'
 import pool from '../utils/db.js'
 import { error, success } from '../utils/response.js'
 
+const VALID_CURATION = [
+	'DRAFT',
+	'IN_REVIEW',
+	'PUBLISHED',
+	'RETIRED',
+	'ARCHIVED',
+]
+const TRANSITIONS = {
+	DRAFT: ['IN_REVIEW', 'ARCHIVED'],
+	IN_REVIEW: ['PUBLISHED', 'DRAFT', 'ARCHIVED'],
+	PUBLISHED: ['RETIRED', 'ARCHIVED', 'IN_REVIEW'],
+	RETIRED: ['ARCHIVED', 'PUBLISHED'],
+	ARCHIVED: ['DRAFT'],
+}
+
+async function hasCurationColumn() {
+	try {
+		const [rows] = await pool.query(
+			`SHOW COLUMNS FROM events LIKE 'curation_status'`
+		)
+		return rows.length > 0
+	} catch {
+		return false
+	}
+}
+async function hasCampaignColumn() {
+	try {
+		const [rows] = await pool.query(
+			`SHOW COLUMNS FROM events LIKE 'campaign_id'`
+		)
+		return rows.length > 0
+	} catch {
+		return false
+	}
+}
+
 const router = express.Router()
 
 /**
@@ -107,9 +143,19 @@ router.get('/', async (req, res) => {
 			return res.json(results)
 		}
 
-		// Public: only events that are active AND inside their time window.
-		// Windows are stored as UTC, so compare against UTC_TIMESTAMP()
-		// (NOW() follows the DB host clock, which may not be UTC).
+		// Public: only PUBLISHED + active AND inside time window.
+		// If curation column not yet migrated, gracefully fallback to old check.
+		const curationExists = await hasCurationColumn()
+		if (curationExists) {
+			const [results] = await pool.query(
+				`SELECT * FROM events 
+				 WHERE is_active = TRUE 
+				   AND curation_status = 'PUBLISHED'
+				   AND (starts_at IS NULL OR starts_at <= UTC_TIMESTAMP()) 
+				   AND (ends_at IS NULL OR ends_at >= UTC_TIMESTAMP())`
+			)
+			return res.json(results)
+		}
 		const [results] = await pool.query(
 			`SELECT * FROM events 
 			 WHERE is_active = TRUE 
@@ -154,6 +200,8 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
 		attempt_cooldown_s,
 		max_attempts_per_window,
 		is_active,
+		curation_status,
+		campaign_id,
 	} = req.body
 
 	if (!title || latitude == null || longitude == null || !radius_meters) {
@@ -161,8 +209,75 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
 			error: 'title, latitude, longitude and radius_meters are required',
 		})
 	}
+	if (curation_status && !VALID_CURATION.includes(curation_status)) {
+		return res.status(400).json({
+			error: `curation_status must be one of ${VALID_CURATION.join(', ')}`,
+		})
+	}
 
-	const sql = `
+	const curationExists = await hasCurationColumn()
+	const campaignExists = await hasCampaignColumn()
+
+	let sql, values
+	if (curationExists && campaignExists) {
+		sql = `
+    INSERT INTO events (
+      title, description,
+      latitude, longitude, radius_meters,
+      point_threshold, point_reward,
+      starts_at, ends_at,
+      repeat_interval, attempt_cooldown_s, max_attempts_per_window,
+      is_active, author_id, curation_status, campaign_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `
+		values = [
+			title,
+			description ?? null,
+			latitude,
+			longitude,
+			radius_meters,
+			point_threshold ?? 0,
+			point_reward ?? 10,
+			toUtcDatetime(starts_at),
+			toUtcDatetime(ends_at),
+			repeat_interval ?? null,
+			attempt_cooldown_s ?? 86400,
+			max_attempts_per_window ?? 1,
+			is_active ?? true,
+			req.user.user_id,
+			curation_status ?? 'DRAFT',
+			campaign_id ?? null,
+		]
+	} else if (curationExists) {
+		sql = `
+    INSERT INTO events (
+      title, description,
+      latitude, longitude, radius_meters,
+      point_threshold, point_reward,
+      starts_at, ends_at,
+      repeat_interval, attempt_cooldown_s, max_attempts_per_window,
+      is_active, author_id, curation_status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `
+		values = [
+			title,
+			description ?? null,
+			latitude,
+			longitude,
+			radius_meters,
+			point_threshold ?? 0,
+			point_reward ?? 10,
+			toUtcDatetime(starts_at),
+			toUtcDatetime(ends_at),
+			repeat_interval ?? null,
+			attempt_cooldown_s ?? 86400,
+			max_attempts_per_window ?? 1,
+			is_active ?? true,
+			req.user.user_id,
+			curation_status ?? 'DRAFT',
+		]
+	} else {
+		sql = `
     INSERT INTO events (
       title, description,
       latitude, longitude, radius_meters,
@@ -172,23 +287,23 @@ router.post('/', requireAuth, requireEventAuthor, async (req, res) => {
       is_active, author_id
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
-
-	const values = [
-		title,
-		description ?? null,
-		latitude,
-		longitude,
-		radius_meters,
-		point_threshold ?? 0,
-		point_reward ?? 10,
-		toUtcDatetime(starts_at),
-		toUtcDatetime(ends_at),
-		repeat_interval ?? null,
-		attempt_cooldown_s ?? 86400,
-		max_attempts_per_window ?? 1,
-		is_active ?? true,
-		req.user.user_id,
-	]
+		values = [
+			title,
+			description ?? null,
+			latitude,
+			longitude,
+			radius_meters,
+			point_threshold ?? 0,
+			point_reward ?? 10,
+			toUtcDatetime(starts_at),
+			toUtcDatetime(ends_at),
+			repeat_interval ?? null,
+			attempt_cooldown_s ?? 86400,
+			max_attempts_per_window ?? 1,
+			is_active ?? true,
+			req.user.user_id,
+		]
+	}
 
 	try {
 		const [result] = await pool.query(sql, values)
@@ -216,51 +331,111 @@ router.put('/:id', requireAuth, requireEventAuthor, async (req, res) => {
 		attempt_cooldown_s,
 		max_attempts_per_window,
 		is_active,
+		curation_status,
+		campaign_id,
 	} = req.body
 
-	const sql = `
-    UPDATE events
-    SET
-      title                   = ?,
-      description             = ?,
-      latitude                = ?,
-      longitude               = ?,
-      radius_meters           = ?,
-      point_threshold         = ?,
-      point_reward            = ?,
-      starts_at               = ?,
-      ends_at                 = ?,
-      repeat_interval         = ?,
-      attempt_cooldown_s      = ?,
-      max_attempts_per_window = ?,
-      is_active               = ?
-    WHERE event_id = ?
-  `
-
-	const values = [
-		title,
-		description ?? null,
-		latitude,
-		longitude,
-		radius_meters,
-		point_threshold ?? 0,
-		point_reward ?? 10,
-		toUtcDatetime(starts_at),
-		toUtcDatetime(ends_at),
-		repeat_interval ?? null,
-		attempt_cooldown_s ?? 86400,
-		max_attempts_per_window ?? 1,
-		is_active ?? true,
-		req.params.id,
-	]
+	if (curation_status && !VALID_CURATION.includes(curation_status)) {
+		return res.status(400).json({
+			error: `curation_status must be one of ${VALID_CURATION.join(', ')}`,
+		})
+	}
 
 	try {
+		// If curation_status is being changed, validate transition
+		if (curation_status) {
+			const curationExists = await hasCurationColumn()
+			if (curationExists) {
+				const [cur] = await pool.query(
+					`SELECT curation_status FROM events WHERE event_id = ?`,
+					[req.params.id]
+				)
+				if (cur.length) {
+					const from = cur[0].curation_status
+					if (
+						from !== curation_status &&
+						!(
+							TRANSITIONS[from] || []
+						).includes(curation_status)
+					) {
+						return res.status(400).json({
+							error: `Invalid transition ${from} → ${curation_status}. Allowed: ${(TRANSITIONS[from] || []).join(', ') || 'none'}`,
+						})
+					}
+				}
+			}
+		}
+
+		const curationExists = await hasCurationColumn()
+		const campaignExists = await hasCampaignColumn()
+
+		let sql, values
+		if (curationExists && campaignExists) {
+			sql = `
+    UPDATE events SET title=?, description=?, latitude=?, longitude=?, radius_meters=?, point_threshold=?, point_reward=?, starts_at=?, ends_at=?, repeat_interval=?, attempt_cooldown_s=?, max_attempts_per_window=?, is_active=?, curation_status=?, campaign_id=? WHERE event_id = ?
+  `
+			values = [
+				title,
+				description ?? null,
+				latitude,
+				longitude,
+				radius_meters,
+				point_threshold ?? 0,
+				point_reward ?? 10,
+				toUtcDatetime(starts_at),
+				toUtcDatetime(ends_at),
+				repeat_interval ?? null,
+				attempt_cooldown_s ?? 86400,
+				max_attempts_per_window ?? 1,
+				is_active ?? true,
+				curation_status ?? 'DRAFT',
+				campaign_id ?? null,
+				req.params.id,
+			]
+		} else if (curationExists) {
+			sql = `UPDATE events SET title=?, description=?, latitude=?, longitude=?, radius_meters=?, point_threshold=?, point_reward=?, starts_at=?, ends_at=?, repeat_interval=?, attempt_cooldown_s=?, max_attempts_per_window=?, is_active=?, curation_status=? WHERE event_id = ?`
+			values = [
+				title,
+				description ?? null,
+				latitude,
+				longitude,
+				radius_meters,
+				point_threshold ?? 0,
+				point_reward ?? 10,
+				toUtcDatetime(starts_at),
+				toUtcDatetime(ends_at),
+				repeat_interval ?? null,
+				attempt_cooldown_s ?? 86400,
+				max_attempts_per_window ?? 1,
+				is_active ?? true,
+				curation_status ?? 'DRAFT',
+				req.params.id,
+			]
+		} else {
+			sql = `UPDATE events SET title=?, description=?, latitude=?, longitude=?, radius_meters=?, point_threshold=?, point_reward=?, starts_at=?, ends_at=?, repeat_interval=?, attempt_cooldown_s=?, max_attempts_per_window=?, is_active=? WHERE event_id = ?`
+			values = [
+				title,
+				description ?? null,
+				latitude,
+				longitude,
+				radius_meters,
+				point_threshold ?? 0,
+				point_reward ?? 10,
+				toUtcDatetime(starts_at),
+				toUtcDatetime(ends_at),
+				repeat_interval ?? null,
+				attempt_cooldown_s ?? 86400,
+				max_attempts_per_window ?? 1,
+				is_active ?? true,
+				req.params.id,
+			]
+		}
+
 		const [result] = await pool.query(sql, values)
-		if (!result.affectedRows) {
+		if (!result.affectedRows)
 			return res
 				.status(404)
 				.json({ error: 'Event not found' })
-		}
 		res.json({ message: 'Event updated' })
 	} catch (err) {
 		res.status(500).json({ error: err.message })
@@ -283,5 +458,91 @@ router.delete('/:id', requireAuth, requireEventAuthor, async (req, res) => {
 		res.status(500).json({ error: err.message })
 	}
 })
+
+// ── Curation workflow: transition status ──
+router.post(
+	'/:id/transition',
+	requireAuth,
+	requireEventAuthor,
+	async (req, res) => {
+		const { to } = req.body
+		if (!to || !VALID_CURATION.includes(to))
+			return res.status(400).json({
+				error: `to must be one of ${VALID_CURATION.join(', ')}`,
+			})
+		try {
+			const curationExists = await hasCurationColumn()
+			if (!curationExists)
+				return res.status(400).json({
+					error: 'Curation not yet enabled — run migration',
+				})
+			const [rows] = await pool.query(
+				`SELECT curation_status FROM events WHERE event_id = ?`,
+				[req.params.id]
+			)
+			if (!rows.length)
+				return res
+					.status(404)
+					.json({ error: 'Event not found' })
+			const from = rows[0].curation_status
+			if (from === to)
+				return res.json({ message: `Already ${to}` })
+			if (!(TRANSITIONS[from] || []).includes(to)) {
+				return res.status(400).json({
+					error: `Invalid transition ${from} → ${to}. Allowed: ${(TRANSITIONS[from] || []).join(', ') || 'none'}`,
+				})
+			}
+			// PUBLISHED requires at least one question
+			if (to === 'PUBLISHED') {
+				const [qs] = await pool.query(
+					`SELECT COUNT(*) AS c FROM trivia_questions WHERE event_id = ?`,
+					[req.params.id]
+				)
+				if (qs[0].c === 0)
+					return res.status(400).json({
+						error: 'Cannot publish without at least one question. Add questions first.',
+					})
+			}
+			await pool.query(
+				`UPDATE events SET curation_status = ? WHERE event_id = ?`,
+				[to, req.params.id]
+			)
+			res.json({ message: `Transitioned ${from} → ${to}` })
+		} catch (err) {
+			res.status(500).json({ error: err.message })
+		}
+	}
+)
+
+// Retire endpoint (alias to transition to RETIRED)
+router.post(
+	'/:id/retire',
+	requireAuth,
+	requireEventAuthor,
+	async (req, res) => {
+		try {
+			const curationExists = await hasCurationColumn()
+			if (!curationExists)
+				return res.status(400).json({
+					error: 'Curation not yet enabled',
+				})
+			const [rows] = await pool.query(
+				`SELECT curation_status FROM events WHERE event_id = ?`,
+				[req.params.id]
+			)
+			if (!rows.length)
+				return res
+					.status(404)
+					.json({ error: 'Event not found' })
+			await pool.query(
+				`UPDATE events SET curation_status = 'RETIRED', is_active = FALSE WHERE event_id = ?`,
+				[req.params.id]
+			)
+			res.json({ message: 'Event retired' })
+		} catch (err) {
+			res.status(500).json({ error: err.message })
+		}
+	}
+)
 
 export default router

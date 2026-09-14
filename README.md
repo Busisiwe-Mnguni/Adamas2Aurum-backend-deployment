@@ -1,5 +1,11 @@
 # Adamas2Aurum
 
+![Tests](badges/badge-tests.svg)
+![Statements](badges/badge-statements.svg)
+![Branches](badges/badge-branches.svg)
+![Functions](badges/badge-functions.svg)
+![Lines](badges/badge-lines.svg)
+
 A location-based campus trivia and card-battle game.
 
 ---

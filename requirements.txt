@@ -1,0 +1,8 @@
+# Python dependencies for Adamas2Aurum
+# Install with: pip install -r requirements.txt
+
+# Database utilities (if using Python scripts for DB management)
+mysql-connector-python>=8.2.0
+
+# Environment variable management
+python-dotenv>=1.0.0

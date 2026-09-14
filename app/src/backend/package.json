@@ -10,7 +10,8 @@
 		"ws": "^8.21.3"
 	},
 	"devDependencies": {
-		"esbuild": "^0.28.2"
+		"esbuild": "^0.28.2",
+		"jest-coverage-badges": "^1.1.2"
 	},
 	"main": "server.js",
 	"name": "a2a-backend",
