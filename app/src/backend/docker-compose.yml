@@ -1,29 +1,29 @@
 services:
-        mysql:
-                image: mysql:8.4
-                container_name: a2a-mysql
-                restart: unless-stopped
-                environment:
-                        MYSQL_ROOT_PASSWORD: test
-                        MYSQL_DATABASE: testdb
-                ports:
-                        - '8024:3306'
-                volumes:
-                        - mysql_data:/var/lib/mysql
-                healthcheck:
-                        test:
-                                [
-                                        'CMD',
-                                        'mysqladmin',
-                                        'ping',
-                                        '-h',
-                                        'localhost',
-                                        '-uroot',
-                                        '-ptest',
-                                ]
-                        interval: 5s
-                        timeout: 5s
-                        retries: 10
+    mysql:
+        image: mysql:8.4
+        container_name: a2a-mysql
+        restart: unless-stopped
+        environment:
+            MYSQL_ROOT_PASSWORD: test
+            MYSQL_DATABASE: testdb
+        ports:
+            - "8024:3306"
+        volumes:
+            - mysql_data:/var/lib/mysql
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "mysqladmin",
+                    "ping",
+                    "-h",
+                    "localhost",
+                    "-uroot",
+                    "-ptest",
+                ]
+            interval: 5s
+            timeout: 5s
+            retries: 10
 
 volumes:
-        mysql_data:
+    mysql_data:
