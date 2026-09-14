@@ -141,7 +141,8 @@ async function computeAchievements(userId) {
 		{
 			key: 'explorer_5',
 			name: 'Explorer',
-			description: 'Attempt challenges at 5 different events.',
+			description:
+				'Attempt challenges at 5 different events.',
 			unlocked: eventRow.n >= 5,
 		},
 		{
@@ -174,7 +175,8 @@ router.get('/', requireAuth, async (req, res) => {
 			'SELECT user_id, name, email, points FROM users WHERE user_id = ?',
 			[userId]
 		)
-		if (!user) return res.status(404).json({ error: 'User not found' })
+		if (!user)
+			return res.status(404).json({ error: 'User not found' })
 
 		const [streak, achievements] = await Promise.all([
 			computeStreak(userId),

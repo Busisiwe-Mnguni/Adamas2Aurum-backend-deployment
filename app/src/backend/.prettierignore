@@ -1,0 +1,9 @@
+node_modules
+package-lock.json
+package.json
+docker-compose.yml
+*.min.js
+*.min.css
+dist
+build
+coverage
