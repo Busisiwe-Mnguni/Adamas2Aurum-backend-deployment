@@ -3,7 +3,7 @@ name: Format Check
 on:
     push:
     pull_request:
-        branches: ['main']
+        branches: ["main"]
 
 jobs:
     format-check:
@@ -16,6 +16,6 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
-                  node-version: '20'
+                  node-version: "20"
             - name: Check Formatting
               run: npx prettier --check .

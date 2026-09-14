@@ -77,7 +77,7 @@ Adamas2Aurum/
 - Python 3 - for `setup.py` and `db_connect.py`
 - Docker & Docker Compose - only needed for [local DB setup](#local-db-setup)
 - MySQL client (`mysql`) - only needed if you want to connect via `db_connect.py`
-     - Or alternatively MariaDB client (`mariadb`)
+    - Or alternatively MariaDB client (`mariadb`)
 
 ---
 

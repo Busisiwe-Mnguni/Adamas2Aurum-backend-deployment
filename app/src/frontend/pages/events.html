@@ -1,276 +1,264 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1.0"
-		/>
-		<title>A2A — Campus Events</title>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>A2A — Campus Events</title>
 
-		<link
-			rel="stylesheet"
-			href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-			integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-			crossorigin=""
-		/>
-		<link rel="stylesheet" href="../css/style.css" />
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+        />
+        <link rel="stylesheet" href="../css/style.css" />
 
-		<style>
-			html,
-			body {
-				height: 100%;
-				margin: 0;
-				overflow: hidden;
-			}
+        <style>
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+                overflow: hidden;
+            }
 
-			.map-wrap {
-				position: fixed;
-				top: 60px;
-				bottom: 0;
-				left: 0;
-				right: 0;
-			}
+            .map-wrap {
+                position: fixed;
+                top: 60px;
+                bottom: 0;
+                left: 0;
+                right: 0;
+            }
 
-			#map {
-				width: 100%;
-				height: 100%;
-			}
+            #map {
+                width: 100%;
+                height: 100%;
+            }
 
-			/* ── Sidebar ───────────────────────────────────── */
-			.map-sidebar {
-				position: absolute;
-				top: 1rem;
-				left: 1rem;
-				width: 280px;
-				max-height: calc(100% - 2rem);
-				overflow-y: auto;
-				z-index: 1000;
-				display: flex;
-				flex-direction: column;
-				gap: 0.5rem;
-			}
+            /* ── Sidebar ───────────────────────────────────── */
+            .map-sidebar {
+                position: absolute;
+                top: 1rem;
+                left: 1rem;
+                width: 280px;
+                max-height: calc(100% - 2rem);
+                overflow-y: auto;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
 
-			.sidebar-header {
-				background: var(--accent);
-				color: #fff;
-				border-radius: var(--radius);
-				padding: 0.65rem 0.9rem;
-				font-size: 0.78rem;
-				font-weight: 700;
-				letter-spacing: 0.08em;
-				text-transform: uppercase;
-			}
+            .sidebar-header {
+                background: var(--accent);
+                color: #fff;
+                border-radius: var(--radius);
+                padding: 0.65rem 0.9rem;
+                font-size: 0.78rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
 
-			.sidebar-event {
-				background: var(--surface);
-				border: 1px solid var(--border);
-				border-radius: var(--radius);
-				padding: 0.75rem 0.9rem;
-				cursor: pointer;
-				transition:
-					border-color var(--transition),
-					box-shadow var(--transition);
-			}
+            .sidebar-event {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 0.75rem 0.9rem;
+                cursor: pointer;
+                transition:
+                    border-color var(--transition),
+                    box-shadow var(--transition);
+            }
 
-			.sidebar-event:hover {
-				border-color: var(--accent);
-				box-shadow: 0 2px 8px var(--accent-glow);
-			}
+            .sidebar-event:hover {
+                border-color: var(--accent);
+                box-shadow: 0 2px 8px var(--accent-glow);
+            }
 
-			.sidebar-event.active {
-				border-color: var(--accent);
-				background: var(--accent-glow);
-			}
+            .sidebar-event.active {
+                border-color: var(--accent);
+                background: var(--accent-glow);
+            }
 
-			.sidebar-event-title {
-				font-size: 0.875rem;
-				font-weight: 600;
-				color: var(--text);
-				margin-bottom: 0.3rem;
-			}
+            .sidebar-event-title {
+                font-size: 0.875rem;
+                font-weight: 600;
+                color: var(--text);
+                margin-bottom: 0.3rem;
+            }
 
-			.sidebar-event-meta {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 0.3rem;
-			}
+            .sidebar-event-meta {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.3rem;
+            }
 
-			/* ── Popups ────────────────────────────────────── */
-			.leaflet-popup-content-wrapper {
-				border-radius: var(--radius) !important;
-				box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
-				border: 1px solid var(--border) !important;
-			}
+            /* ── Popups ────────────────────────────────────── */
+            .leaflet-popup-content-wrapper {
+                border-radius: var(--radius) !important;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+                border: 1px solid var(--border) !important;
+            }
 
-			.leaflet-popup-content {
-				margin: 14px 16px !important;
-				font-family: var(--font-body) !important;
-			}
+            .leaflet-popup-content {
+                margin: 14px 16px !important;
+                font-family: var(--font-body) !important;
+            }
 
-			.popup-title {
-				font-family: var(--font-display);
-				font-size: 0.95rem;
-				font-weight: 700;
-				color: var(--text);
-				margin-bottom: 0.35rem;
-			}
+            .popup-title {
+                font-family: var(--font-display);
+                font-size: 0.95rem;
+                font-weight: 700;
+                color: var(--text);
+                margin-bottom: 0.35rem;
+            }
 
-			.popup-desc {
-				font-size: 0.82rem;
-				color: var(--text-dim);
-				margin-bottom: 0.6rem;
-				line-height: 1.4;
-			}
+            .popup-desc {
+                font-size: 0.82rem;
+                color: var(--text-dim);
+                margin-bottom: 0.6rem;
+                line-height: 1.4;
+            }
 
-			.popup-meta {
-				display: flex;
-				flex-wrap: wrap;
-				gap: 0.3rem;
-				margin-bottom: 0.6rem;
-			}
+            .popup-meta {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.3rem;
+                margin-bottom: 0.6rem;
+            }
 
-			.popup-challenge-btn {
-				display: block;
-				width: 100%;
-				background: var(--accent);
-				color: #fff;
-				border: none;
-				border-radius: var(--radius);
-				padding: 0.5rem 0.75rem;
-				font-size: 0.82rem;
-				font-weight: 600;
-				cursor: pointer;
-				margin-top: 0.5rem;
-				font-family: var(--font-body);
-				transition: background var(--transition);
-			}
+            .popup-challenge-btn {
+                display: block;
+                width: 100%;
+                background: var(--accent);
+                color: #fff;
+                border: none;
+                border-radius: var(--radius);
+                padding: 0.5rem 0.75rem;
+                font-size: 0.82rem;
+                font-weight: 600;
+                cursor: pointer;
+                margin-top: 0.5rem;
+                font-family: var(--font-body);
+                transition: background var(--transition);
+            }
 
-			.popup-challenge-btn:hover {
-				background: var(--accent-light);
-			}
+            .popup-challenge-btn:hover {
+                background: var(--accent-light);
+            }
 
-			.popup-out-of-range {
-				font-size: 0.78rem;
-				color: var(--text-muted);
-				margin-top: 0.4rem;
-				text-align: center;
-			}
+            .popup-out-of-range {
+                font-size: 0.78rem;
+                color: var(--text-muted);
+                margin-top: 0.4rem;
+                text-align: center;
+            }
 
-			/* ── Loading overlay ───────────────────────────── */
-			.map-overlay {
-				position: absolute;
-				top: 50%;
-				left: 50%;
-				transform: translate(-50%, -50%);
-				background: var(--surface);
-				border: 1px solid var(--border);
-				border-radius: var(--radius);
-				padding: 0.85rem 1.5rem;
-				z-index: 2000;
-				font-size: 0.875rem;
-				color: var(--text-muted);
-				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-			}
+            /* ── Loading overlay ───────────────────────────── */
+            .map-overlay {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 0.85rem 1.5rem;
+                z-index: 2000;
+                font-size: 0.875rem;
+                color: var(--text-muted);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
 
-			/* ── Pulse animation for player dot ────────────── */
-			@keyframes pulse-ring {
-				0% {
-					transform: scale(0.8);
-					opacity: 0.7;
-				}
-				100% {
-					transform: scale(2.2);
-					opacity: 0;
-				}
-			}
-		</style>
-	</head>
-	<body>
-		<header class="site-header">
-			<div class="header-inner">
-				<a class="logo" href="../index.html">
-					<span class="logo-a">A</span>
-					<span class="logo-sep">→</span>
-					<span class="logo-a">A</span>
-					<span class="logo-sub">
-						Adamas to Aurum
-					</span>
-				</a>
+            /* ── Pulse animation for player dot ────────────── */
+            @keyframes pulse-ring {
+                0% {
+                    transform: scale(0.8);
+                    opacity: 0.7;
+                }
+                100% {
+                    transform: scale(2.2);
+                    opacity: 0;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header class="site-header">
+            <div class="header-inner">
+                <a class="logo" href="../index.html">
+                    <span class="logo-a">A</span>
+                    <span class="logo-sep">→</span>
+                    <span class="logo-a">A</span>
+                    <span class="logo-sub"> Adamas to Aurum </span>
+                </a>
 
-				<nav class="header-nav" id="header-nav">
-					<a
-						href="events.html"
-						class="nav-link nav-link-active hidden"
-						id="nav-events"
-					>
-						Events
-					</a>
-					<a
-						href="collection.html"
-						class="nav-link hidden"
-						id="nav-collection"
-					>
-						Collection
-					</a>
-					<a
-						href="battle.html"
-						class="nav-link hidden"
-						id="nav-battle"
-					>
-						Battle
-					</a>
-					<a
-						href="console.html"
-						class="nav-link nav-link-admin hidden"
-						id="nav-console"
-					>
-						Console
-					</a>
-				</nav>
+                <nav class="header-nav" id="header-nav">
+                    <a
+                        href="events.html"
+                        class="nav-link nav-link-active hidden"
+                        id="nav-events"
+                    >
+                        Events
+                    </a>
+                    <a
+                        href="collection.html"
+                        class="nav-link hidden"
+                        id="nav-collection"
+                    >
+                        Collection
+                    </a>
+                    <a
+                        href="battle.html"
+                        class="nav-link hidden"
+                        id="nav-battle"
+                    >
+                        Battle
+                    </a>
+                    <a
+                        href="console.html"
+                        class="nav-link nav-link-admin hidden"
+                        id="nav-console"
+                    >
+                        Console
+                    </a>
+                </nav>
 
-				<div class="header-right">
-					<span
-						id="user-badge"
-						class="admin-badge hidden"
-					></span>
-					<button
-						id="btn-logout"
-						class="btn btn-sm btn-header hidden"
-					>
-						Logout
-					</button>
-					<a
-						id="btn-signin"
-						href="../index.html"
-						class="btn btn-sm btn-header"
-					>
-						Sign In
-					</a>
-				</div>
-			</div>
-		</header>
+                <div class="header-right">
+                    <span id="user-badge" class="admin-badge hidden"></span>
+                    <button
+                        id="btn-logout"
+                        class="btn btn-sm btn-header hidden"
+                    >
+                        Logout
+                    </button>
+                    <a
+                        id="btn-signin"
+                        href="../index.html"
+                        class="btn btn-sm btn-header"
+                    >
+                        Sign In
+                    </a>
+                </div>
+            </div>
+        </header>
 
-		<div class="map-wrap">
-			<div id="map"></div>
+        <div class="map-wrap">
+            <div id="map"></div>
 
-			<div class="map-sidebar" id="map-sidebar">
-				<div class="sidebar-header">
-					📍 Campus Events
-				</div>
-			</div>
+            <div class="map-sidebar" id="map-sidebar">
+                <div class="sidebar-header">📍 Campus Events</div>
+            </div>
 
-			<div id="map-loading" class="map-overlay">
-				Loading events…
-			</div>
-			<div id="map-error" class="map-overlay hidden"></div>
-		</div>
+            <div id="map-loading" class="map-overlay">Loading events…</div>
+            <div id="map-error" class="map-overlay hidden"></div>
+        </div>
 
-		<script
-			src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-			integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-			crossorigin=""
-		></script>
-		<script type="module" src="../js/events.js"></script>
-	</body>
+        <script
+            src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""
+        ></script>
+        <script type="module" src="../js/events.js"></script>
+    </body>
 </html>
