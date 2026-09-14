@@ -5,6 +5,7 @@
 	"description": "A location-based campus trivia and card-battle game.",
 	"devDependencies": {
 		"jest": "^29.7.0",
+		"jest-coverage-badges": "^1.1.2",
 		"jest-environment-jsdom": "^29.7.0",
 		"prettier": "^3.9.6",
 		"vite": "^8.2.2"
@@ -17,6 +18,11 @@
 				"testEnvironment": "jsdom",
 				"testMatch": [
 					"<rootDir>/**/*.test.js"
+				],
+				"collectCoverageFrom": [
+					"**/*.js",
+					"!**/*.test.js",
+					"!**/node_modules/**"
 				]
 			},
 			{
@@ -25,9 +31,29 @@
 				"testEnvironment": "node",
 				"testMatch": [
 					"<rootDir>/**/*.test.js"
+				],
+				"collectCoverageFrom": [
+					"**/*.js",
+					"!**/*.test.js",
+					"!**/node_modules/**",
+					"!campus.geojson"
 				]
 			}
-		]
+		],
+		"coverageReporters": [
+			"json",
+			"lcov",
+			"json-summary",
+			"text"
+		],
+		"coverageThreshold": {
+			"global": {
+				"branches": 70,
+				"functions": 70,
+				"lines": 70,
+				"statements": 70
+			}
+		}
 	},
 	"name": "Adamas2Aurum",
 	"private": true,
@@ -45,6 +71,8 @@
 		"start:frontend": "serve app/src/frontend -l 8055",
 		"test": "node --experimental-vm-modules node_modules/.bin/jest",
 		"test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+		"test:ci": "node --experimental-vm-modules node_modules/.bin/jest --ci --coverage",
+		"badges": "jest-coverage-badges --input coverage/coverage-summary.json --output badges",
 		"test:backend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects backend",
 		"test:frontend": "node --experimental-vm-modules node_modules/.bin/jest --selectProjects frontend",
 		"test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",

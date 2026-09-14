@@ -31,6 +31,8 @@ import question_routes from './routes/questions.js'
 import pool_routes from './routes/event_pool.js'
 import leaderboard_routes from './routes/leaderboard.js'
 import sync_routes from './routes/sync.js'
+import campaign_routes from './routes/campaigns.js'
+import analytics_routes from './routes/analytics.js'
 
 import pool from './utils/db.js'
 import { auth } from './src/auth.js'
@@ -183,6 +185,9 @@ app.use('/api/leaderboard', leaderboard_routes)
 // Mounted under /api/trivia so all trivia-related endpoints share a namespace.
 app.use('/api/trivia', sync_routes)
 
+app.use('/api/campaigns', campaign_routes)
+app.use('/api/analytics', analytics_routes)
+
 app.get('/api/health', async (req, res) => {
 	try {
 		const [rows] = await pool.query('SHOW TABLES')
@@ -245,10 +250,56 @@ app.get('/pages/leaderboard.html', (_req, res) => {
 // ---------------------------------------------------------------------------
 // Database initialization (unchanged from dev)
 // ---------------------------------------------------------------------------
+async function ensure_curation_schema() {
+	// Campaigns table already in schema.sql with IF NOT EXISTS; these
+	// ALTERs are guarded so re-running never errors (1060 = duplicate column).
+	const alters = [
+		`ALTER TABLE events ADD COLUMN curation_status ENUM('DRAFT','IN_REVIEW','PUBLISHED','RETIRED','ARCHIVED') NOT NULL DEFAULT 'DRAFT'`,
+		`ALTER TABLE events ADD COLUMN campaign_id INT NULL`,
+		`ALTER TABLE events ADD COLUMN retired_at DATETIME NULL`,
+		`ALTER TABLE events ADD COLUMN published_at DATETIME NULL`,
+	]
+	for (const sql of alters) {
+		try {
+			await pool.query(sql)
+		} catch (err) {
+			if (
+				err.code !== 'ER_DUP_FIELDNAME' &&
+				err.errno !== 1060
+			)
+				console.warn(
+					'[curation migration]',
+					err.message
+				)
+		}
+	}
+	// FK for campaign_id (may already exist)
+	try {
+		await pool.query(
+			`ALTER TABLE events ADD CONSTRAINT fk_event_campaign FOREIGN KEY (campaign_id) REFERENCES campaigns(campaign_id) ON DELETE SET NULL`
+		)
+	} catch (err) {
+		if (
+			err.code !== 'ER_DUP_KEY' &&
+			err.errno !== 1022 &&
+			!String(err.message).includes('Duplicate')
+		) {
+			// ignore duplicate FK
+		}
+	}
+	// Backfill: existing active events become PUBLISHED so they stay visible
+	try {
+		await pool.query(
+			`UPDATE events SET curation_status = 'PUBLISHED' WHERE curation_status = 'DRAFT' AND is_active = TRUE`
+		)
+	} catch {}
+}
+
 async function initialize_database() {
 	// Creates tables if they don't exist yet — safe to run every startup,
 	// since schema.sql uses CREATE TABLE IF NOT EXISTS and doesn't touch data.
 	await execute_sql_script(pool, './db/schema.sql')
+	await ensure_curation_schema()
 }
 
 async function seed_database() {
