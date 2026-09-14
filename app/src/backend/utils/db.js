@@ -6,7 +6,9 @@ import url from 'url'
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url))
 
-const caCertPath = process.env.DB_CA_CERT_PATH || path.join(__dirname, '..', 'certs', 'ca.pem');
+const caCertPath =
+	process.env.DB_CA_CERT_PATH ||
+	path.join(__dirname, '..', 'certs', 'ca.pem')
 
 const pool = mysql.createPool({
 	host: process.env.DB_HOST || 'localhost',

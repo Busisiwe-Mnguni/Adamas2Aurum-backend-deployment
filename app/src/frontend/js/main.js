@@ -211,20 +211,32 @@ async function syncOfflineAttempts() {
 	const remaining = []
 	for (const attempt of queue) {
 		try {
-			const res = await fetch(`${API_BASE}/api/trivia/submit`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				credentials: 'include',
-				body: JSON.stringify({
-					event_id: attempt.event_id,
-					question_id: attempt.question_id,
-					selected_option_id: attempt.selected_option_id,
-					answer_time_ms: attempt.answer_time_ms,
-					claimed_lat: attempt.claimed_lat,
-					claimed_lng: attempt.claimed_lng,
-					client_timestamp: attempt.timestamp,
-				}),
-			})
+			const res = await fetch(
+				`${API_BASE}/api/trivia/submit`,
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type':
+							'application/json',
+					},
+					credentials: 'include',
+					body: JSON.stringify({
+						event_id: attempt.event_id,
+						question_id:
+							attempt.question_id,
+						selected_option_id:
+							attempt.selected_option_id,
+						answer_time_ms:
+							attempt.answer_time_ms,
+						claimed_lat:
+							attempt.claimed_lat,
+						claimed_lng:
+							attempt.claimed_lng,
+						client_timestamp:
+							attempt.timestamp,
+					}),
+				}
+			)
 
 			if (res.status === 401 || res.status >= 500) {
 				remaining.push(attempt)
@@ -910,14 +922,18 @@ function renderProfile(profile) {
 	if (detailEl) {
 		const parts = []
 		if (profile.streak.longest > 0) {
-			parts.push(`Longest streak: ${profile.streak.longest} days`)
+			parts.push(
+				`Longest streak: ${profile.streak.longest} days`
+			)
 		}
 		if (profile.streak.activeToday) {
 			parts.push('Active today')
 		} else if (profile.streak.current > 0) {
 			parts.push('Answer a challenge today to keep it going')
 		} else {
-			parts.push('Answer a challenge today to start a new streak')
+			parts.push(
+				'Answer a challenge today to start a new streak'
+			)
 		}
 		detailEl.textContent = parts.join(' · ')
 	}

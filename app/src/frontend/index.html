@@ -45,7 +45,7 @@
 				width: 100%;
 				height: calc(100vh - 60px);
 			}
-			
+
 			.offline-banner {
 				display: none;
 				background: #78350f;
@@ -434,7 +434,12 @@
 		</header>
 
 		<!-- Offline sync banner — shown when attempts are queued or the device is offline -->
-		<div id="offline-banner" class="offline-banner" role="status" aria-live="polite"></div>
+		<div
+			id="offline-banner"
+			class="offline-banner"
+			role="status"
+			aria-live="polite"
+		></div>
 		<div id="map"></div>
 
 		<!-- Auth side drawer overlay -->
@@ -599,34 +604,58 @@
 
 			<div id="auth-drawer-status" class="auth-status"></div>
 		</div>
-			<!-- Player profile modal — points, streak, achievements -->
-		<div id="profile-overlay" class="profile-overlay" onclick="closeProfileModal()"></div>
+		<!-- Player profile modal — points, streak, achievements -->
+		<div
+			id="profile-overlay"
+			class="profile-overlay"
+			onclick="closeProfileModal()"
+		></div>
 		<div
 			id="profile-modal"
 			class="profile-modal"
 			role="dialog"
 			aria-labelledby="profile-name"
 		>
-			<button class="close-btn" onclick="closeProfileModal()">&times;</button>
+			<button class="close-btn" onclick="closeProfileModal()">
+				&times;
+			</button>
 			<h2 id="profile-name">Profile</h2>
 
-			<div id="profile-loading" class="profile-hint">Loading your profile…</div>
+			<div id="profile-loading" class="profile-hint">
+				Loading your profile…
+			</div>
 
-			<div id="profile-content" style="display: none;">
+			<div id="profile-content" style="display: none">
 				<div class="profile-section">
 					<h3>Points</h3>
-					<p id="profile-points" class="profile-big-number">0</p>
+					<p
+						id="profile-points"
+						class="profile-big-number"
+					>
+						0
+					</p>
 				</div>
 
 				<div class="profile-section">
 					<h3>Daily Streak</h3>
-					<p id="profile-streak-current" class="profile-big-number">0</p>
-					<p id="profile-streak-detail" class="profile-hint"></p>
+					<p
+						id="profile-streak-current"
+						class="profile-big-number"
+					>
+						0
+					</p>
+					<p
+						id="profile-streak-detail"
+						class="profile-hint"
+					></p>
 				</div>
 
 				<div class="profile-section">
 					<h3>Achievements</h3>
-					<ul id="profile-achievements" class="profile-achievements"></ul>
+					<ul
+						id="profile-achievements"
+						class="profile-achievements"
+					></ul>
 				</div>
 			</div>
 		</div>
