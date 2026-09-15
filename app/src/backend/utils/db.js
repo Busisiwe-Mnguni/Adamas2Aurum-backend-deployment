@@ -12,14 +12,19 @@ const sslConfig = () => {
 	// Render — cert stored as base64 env var
 	if (process.env.CA_CERT_BASE64) {
 		return {
-			ca: Buffer.from(process.env.CA_CERT_BASE64, 'base64').toString('utf-8'),
+			ca: Buffer.from(
+				process.env.CA_CERT_BASE64,
+				'base64'
+			).toString('utf-8'),
 			rejectUnauthorized: true,
 		}
 	}
 
 	// local — cert read from file
 	return {
-		ca: fs.readFileSync(path.join(__dirname, '..', 'certs', 'ca.pem')),
+		ca: fs.readFileSync(
+			path.join(__dirname, '..', 'certs', 'ca.pem')
+		),
 		rejectUnauthorized: true,
 	}
 }
